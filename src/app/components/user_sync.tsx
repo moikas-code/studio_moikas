@@ -12,6 +12,14 @@ export default function User_sync() {
   const { user, isLoaded } = useUser();
   const supabase = useSupabaseClient();
 
+  // Placeholder: implement actual logic to determine if user is hobby
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  const is_hobby_user = (user: any): boolean => {
+    // TODO: Replace with real check, e.g.:
+    // return user.publicMetadata?.plan === 'hobby';
+    return false;
+  };
+
   useEffect(() => {
     if (!isLoaded || !user || !supabase) return;
 
@@ -36,6 +44,8 @@ export default function User_sync() {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
+        const plan = is_hobby_user(user) ? "hobby" : "free";
+        const tokens = plan === "hobby" ? 500 : 100;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -46,33 +56,58 @@ export default function User_sync() {
           return;
         }
         user_id = upserted_user.id;
-      }
-
-      // Check if subscription exists
-      const { data: subscription, error: sub_error } = await supabase
-        .from("subscriptions")
-        .select("id")
-        .eq("user_id", user_id)
-        .single();
-
-      if (sub_error && sub_error.code !== "PGRST116") {
-        // Ignore 'No rows found' error, handle others
-        console.error("Supabase subscription fetch error:", sub_error.message);
-        return;
-      }
-
-      // If subscription does not exist, create it
-      if (!subscription) {
+        // Insert subscription for new user
         const { error: insert_error } = await supabase
           .from("subscriptions")
           .insert({
             user_id,
-            plan: "free",
-            tokens: 100,
+            plan,
+            tokens,
             renewed_at: new Date().toISOString(),
           });
         if (insert_error) {
           console.error("Supabase subscription insert error:", insert_error.message);
+        }
+      } else {
+        // Check if subscription exists
+        const { data: subscription, error: sub_error } = await supabase
+          .from("subscriptions")
+          .select("id, plan")
+          .eq("user_id", user_id)
+          .single();
+
+        if (sub_error && sub_error.code !== "PGRST116") {
+          // Ignore 'No rows found' error, handle others
+          console.error("Supabase subscription fetch error:", sub_error.message);
+          return;
+        }
+
+        // If subscription does not exist, create it
+        if (!subscription) {
+          const plan = is_hobby_user(user) ? "hobby" : "free";
+          const tokens = plan === "hobby" ? 500 : 100;
+          const { error: insert_error } = await supabase
+            .from("subscriptions")
+            .insert({
+              user_id,
+              plan,
+              tokens,
+              renewed_at: new Date().toISOString(),
+            });
+          if (insert_error) {
+            console.error("Supabase subscription insert error:", insert_error.message);
+          }
+        } else if (subscription.plan !== (is_hobby_user(user) ? "hobby" : "free")) {
+          // If plan changed, update subscription
+          const plan = is_hobby_user(user) ? "hobby" : "free";
+          const tokens = plan === "hobby" ? 500 : 100;
+          const { error: update_error } = await supabase
+            .from("subscriptions")
+            .update({ plan, tokens })
+            .eq("user_id", user_id);
+          if (update_error) {
+            console.error("Supabase subscription update error:", update_error.message);
+          }
         }
       }
     };
