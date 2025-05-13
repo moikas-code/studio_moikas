@@ -1,29 +1,20 @@
-import Image from "next/image";
-import Link from "next/link";
-import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import Image_generator from "./components/image_generator";
+"use client";
+
+import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 
 export default function Home() {
+  const { user } = useUser();
+  const username = user?.username || user?.firstName || "Anon";
+
   return (
     <div>
-      <nav className="navbar bg-base-100 shadow-md px-4">
-        <div className="flex-1">
-          <span className="text-xl font-bold">Studio App</span>
-        </div>
-        <div className="flex-none gap-2">
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-          <SignedOut>
-            <Link href="/sign-in">
-              <button className="btn btn-primary">Sign In</button>
-            </Link>
-          </SignedOut>
-        </div>
-      </nav>
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <h1 className="text-3xl font-bold">Welcome to the Studio App</h1>
-        <Image_generator />
+      <div className="flex flex-col items-center justify-center min-h-full pt-10">
+        <SignedIn>
+          <h1 className="text-3xl font-bold">Welcome back, {username.charAt(0).toUpperCase() + username.slice(1)}</h1>
+        </SignedIn>
+        <SignedOut>
+          <h1 className="text-3xl font-bold">Welcome to Studio.Moikas</h1>
+        </SignedOut>
       </div>
     </div>
   );

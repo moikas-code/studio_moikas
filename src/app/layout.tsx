@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider, SignedIn } from "@clerk/nextjs";
+import Navbar from "./components/navbar";
+import Sidebar from "./components/sidebar";
 
-const geistSans = Geist({
+const geist_sans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const geist_mono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
@@ -26,10 +28,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geist_sans.variable} ${geist_mono.variable} antialiased`}
       >
         <ClerkProvider>
-          {children}
+          <Navbar />
+          <div className="flex min-h-screen">
+            <SignedIn>
+              <Sidebar />
+            </SignedIn>
+            <main className="flex-1">
+              {children}
+            </main>
+          </div>
         </ClerkProvider>
       </body>
     </html>
