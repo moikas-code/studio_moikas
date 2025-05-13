@@ -6,8 +6,8 @@ import { auth } from "@clerk/nextjs/server";
 // Helper to calculate required tokens for a given image size
 function calculate_required_tokens(width: number, height: number): number {
   const megapixels = (width * height) / 1_000_000;
-  // Round up to nearest 0.01 token for fairness
-  return Math.ceil(megapixels * 100) / 100;
+  // Round down to nearest whole token
+  return Math.floor(megapixels);
 }
 
 // Helper to get plan limits
