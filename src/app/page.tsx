@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import Image_generator from "./components/image_generator";
 
 export default function Home() {
   return (
@@ -22,6 +23,7 @@ export default function Home() {
       </nav>
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-3xl font-bold">Welcome to the Studio App</h1>
+        <Image_generator />
       </div>
     </div>
   );

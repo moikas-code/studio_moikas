@@ -1,6 +1,43 @@
-import { createClient } from '@supabase/supabase-js';
+"use client";
 
-const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabase_anon_key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { useSession } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
-export const supabase_client = createClient(supabase_url, supabase_anon_key); 
+// Server-side client (for API routes)
+export function createServerSupabaseClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
+
+// Client-side hook for authenticated Supabase client
+export function useSupabaseClient() {
+  const { session } = useSession();
+  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
+
+  useEffect(() => {
+    async function initializeClient() {
+      if (!session) return;
+      const token = await session.getToken({ template: "supabase" });
+      if (!token) {
+        console.error("No Supabase token found");
+        return;
+      }
+      const client = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_KEY!,
+        {
+          global: {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        }
+      );
+      setSupabase(client);
+    }
+    initializeClient();
+  }, [session]);
+  return supabase;
+}
