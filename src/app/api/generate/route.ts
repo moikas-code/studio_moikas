@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let { tokens, plan, renewed_at } = subscription;
+    let { tokens, renewed_at } = subscription;
+    const plan = subscription.plan;
     const plan_limit = get_plan_limit(plan);
 
     // Reset tokens if a new month has started
@@ -122,8 +123,12 @@ export async function POST(req: NextRequest) {
     const base64 = Buffer.from(image.uint8Array).toString("base64");
 
     return NextResponse.json({ image_base64: base64 });
-  } catch (error: any) {
-    console.error("Image generation error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Image generation error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    console.error("Unknown image generation error:", error);
+    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }

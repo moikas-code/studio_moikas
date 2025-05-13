@@ -1,13 +1,49 @@
-import { verifyWebhook, WebhookEvent } from "@clerk/nextjs/server";
+import { Webhook } from "svix";
+import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import type { UserJSON, WebhookEvent } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   try {
-    // Verify webhook signature
-    const evt = await verifyWebhook(req, {
-      signingSecret: process.env.CLERK_WEBHOOK_SIGNING_SECRET!,
-    });
+    const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+    if (!WEBHOOK_SECRET) {
+      throw new Error("Missing Clerk webhook signing secret");
+    }
+    // Get Svix headers
+    const header_payload = await headers();
+    const svix_id = header_payload.get("svix-id");
+    const svix_timestamp = header_payload.get("svix-timestamp");
+    const svix_signature = header_payload.get("svix-signature");
+    if (!svix_id || !svix_timestamp || !svix_signature) {
+      return new Response("Error: Missing svix headers", { status: 400 });
+    }
+    // Get the body
+    const payload = await req.json();
+    const body = JSON.stringify(payload);
+    // Verify webhook
+    const wh = new Webhook(WEBHOOK_SECRET);
+    let evt: WebhookEvent;
+    try {
+      evt = wh.verify(body, {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+      }) as WebhookEvent;
+    } catch (err) {
+      console.error("Error verifying webhook:", err);
+      return new Response("Error verifying webhook", { status: 400 });
+    }
+    const data = evt.data as UserJSON;
+    const { id: clerkUserId, email_addresses } = data;
+    const email = email_addresses?.[0]?.email_address;
+    if (!clerkUserId || !email) {
+      console.error("Missing clerkUserId or email:", data);
+      return NextResponse.json(
+        { error: "Invalid webhook data" },
+        { status: 400 }
+      );
+    }
 
     // Initialize Supabase client with service role key
     const supabase = createClient(
@@ -16,21 +52,10 @@ export async function POST(req: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { id: clerkUserId, email_addresses } = evt.data;
-    const email = email_addresses?.[0]?.email_address;
-
-    if (!clerkUserId || !email) {
-      console.error("Missing clerkUserId or email:", evt.data);
-      return NextResponse.json(
-        { error: "Invalid webhook data" },
-        { status: 400 }
-      );
-    }
-
     switch (evt.type) {
       case "user.created":
         // Upsert user in Supabase
-        const { data, error } = await supabase
+        const { data: userData, error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerkUserId, email }, { onConflict: "clerk_id" })
           .select()
@@ -45,7 +70,7 @@ export async function POST(req: Request) {
         const { error: subError } = await supabase
           .from("subscriptions")
           .insert({
-            user_id: data.id,
+            user_id: userData.id,
             plan: "free",
             tokens: 100,
             renewed_at: new Date().toISOString(),
@@ -110,8 +135,12 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: "Webhook processed" }, { status: 200 });
-  } catch (error: any) {
-    console.error("Webhook error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Webhook error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    console.error("Unknown webhook error:", error);
+    return NextResponse.json({ error: "Unknown error" }, { status: 400 });
   }
 }

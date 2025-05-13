@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -32,8 +33,12 @@ export default function Image_generator() {
         throw new Error(data.error || 'Failed to generate image');
       }
       set_image_base64(data.image_base64);
-    } catch (error: any) {
-      set_error_message(error.message || 'An error occurred');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        set_error_message(error.message || 'An error occurred');
+      } else {
+        set_error_message('An error occurred');
+      }
     } finally {
       set_is_loading(false);
     }
@@ -65,10 +70,14 @@ export default function Image_generator() {
       )}
       {image_base64 && (
         <div className="mt-6 flex flex-col items-center">
-          <img
+          <Image
             src={`data:image/png;base64,${image_base64}`}
             alt="Generated visual"
             className="rounded-lg border shadow-md max-w-full h-auto"
+            width={512}
+            height={512}
+            unoptimized
+            priority
           />
         </div>
       )}
