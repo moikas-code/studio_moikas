@@ -38,7 +38,10 @@ export async function POST(req: Request) {
     const data = evt.data as any;
     if (data.object !== "user") {
       console.log("Ignoring non-user event:", data.object);
-      return NextResponse.json({ message: "Ignored non-user event" }, { status: 200 });
+      return NextResponse.json(
+        { message: "Ignored non-user event" },
+        { status: 200 }
+      );
     }
     const { id: clerk_user_id, email_addresses } = data;
     const email = email_addresses?.[0]?.email_address;
@@ -52,7 +55,10 @@ export async function POST(req: Request) {
     }
 
     // Only require email for creation and update events
-    if ((evt.type === "user.created" || evt.type === "user.updated") && !email) {
+    if (
+      (evt.type === "user.created" || evt.type === "user.updated") &&
+      !email
+    ) {
       console.error("Missing email for event:", evt.type, data);
       return NextResponse.json(
         { error: "Invalid webhook data: missing email" },
@@ -69,10 +75,11 @@ export async function POST(req: Request) {
 
     switch (evt.type) {
       case "user.created":
+        const now = new Date().toISOString();
         // Upsert user in Supabase
         const { data: userData, error } = await supabase
           .from("users")
-          .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
+          .upsert({ clerk_id: clerk_user_id, email, created_at: now }, { onConflict: "clerk_id" })
           .select()
           .single();
 
@@ -82,13 +89,14 @@ export async function POST(req: Request) {
         }
 
         // Initialize subscription for new user
+
         const { error: subError } = await supabase
           .from("subscriptions")
           .insert({
             user_id: userData.id,
             plan: "free",
             tokens: 100,
-            renewed_at: new Date().toISOString(),
+            renewed_at: now,
           });
 
         if (subError) {

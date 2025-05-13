@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import React from "react";
+import React, { useContext } from "react";
+import { MpContext } from "../context/mp_context";
 
 /**
  * Navbar component for Studio App.
@@ -10,6 +11,7 @@ import React from "react";
  * Uses snake_case for all identifiers.
  */
 export default function Navbar() {
+  const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
     <nav className="navbar bg-base-100 shadow-md px-4">
       <div className="flex-1">
@@ -19,7 +21,16 @@ export default function Navbar() {
       </div>
       <div className="flex-none gap-2">
         <SignedIn>
-          <UserButton afterSignOutUrl="/" />
+          <div className="flex items-center gap-3">
+            {is_loading_tokens ? (
+              <span className="loading loading-spinner loading-xs" aria-label="Loading MP"></span>
+            ) : token_error ? (
+              <span className="text-error text-xs" title={token_error}>MP: --</span>
+            ) : (
+              <span className="font-mono text-xs md:text-sm" title="Your available megapixels">MP: {mp_tokens}</span>
+            )}
+            <UserButton afterSignOutUrl="/" />
+          </div>
         </SignedIn>
         <SignedOut>
           <Link href="/sign-in">

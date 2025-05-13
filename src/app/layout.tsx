@@ -5,6 +5,7 @@ import { ClerkProvider, SignedIn } from "@clerk/nextjs";
 import Navbar from "./components/navbar";
 import Sidebar from "./components/sidebar";
 import User_sync from "./components/user_sync";
+import { MpProvider } from "./context/mp_context";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -32,16 +33,18 @@ export default function RootLayout({
         className={`${geist_sans.variable} ${geist_mono.variable} antialiased`}
       >
         <ClerkProvider>
-          <Navbar />
-          <div className="flex min-h-screen">
-            <SignedIn>
-              <User_sync />
-              <Sidebar />
-            </SignedIn>
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+          <MpProvider>
+            <Navbar />
+            <div className="flex min-h-screen">
+              <SignedIn>
+                <User_sync />
+                <Sidebar />
+              </SignedIn>
+              <main className="flex-1">
+                {children}
+              </main>
+            </div>
+          </MpProvider>
         </ClerkProvider>
       </body>
     </html>

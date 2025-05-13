@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse request body
-    const { prompt, width = 1024, height = 1024 } = await req.json();
+    const { prompt, width = 1024, height = 1024, model_id } = await req.json();
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
@@ -79,8 +79,35 @@ export async function POST(req: NextRequest) {
     const plan = subscription.plan;
     const plan_limit = get_plan_limit(plan);
 
-    // Reset tokens if a new month has started
-    if (is_new_month(renewed_at)) {
+    // Restrict model access by plan
+    let selected_model_id = model_id;
+    if (plan === "free") {
+      if (!selected_model_id || selected_model_id !== "fal-ai/flux/schnell") {
+        selected_model_id = "fal-ai/flux/schnell";
+      }
+      if (model_id && model_id !== "fal-ai/flux/schnell") {
+        return NextResponse.json(
+          { error: "Free users can only use fal-ai/flux/schnell" },
+          { status: 403 }
+        );
+      }
+    } else if (plan === "hobby") {
+      if (!selected_model_id) {
+        selected_model_id = "fal-ai/flux/dev";
+      }
+      if (selected_model_id !== "fal-ai/flux/schnell" && selected_model_id !== "fal-ai/flux/dev") {
+        return NextResponse.json(
+          { error: "Hobby users can only use fal-ai/flux/schnell or fal-ai/flux/dev" },
+          { status: 403 }
+        );
+      }
+    } else {
+      // fallback: only allow schnell
+      selected_model_id = "fal-ai/flux/schnell";
+    }
+
+    // Reset tokens if a new month has started, but only for non-free plans
+    if (plan !== "free" && is_new_month(renewed_at)) {
       tokens = plan_limit;
       renewed_at = new Date().toISOString();
       const { error: reset_error } = await supabase
@@ -119,10 +146,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate the image
-    const image = await generate_flux_image(prompt, width, height);
+    const image = await generate_flux_image(prompt, width, height, selected_model_id);
     const base64 = Buffer.from(image.uint8Array).toString("base64");
 
-    return NextResponse.json({ image_base64: base64 });
+    return NextResponse.json({ image_base64: base64, mp_used: required_tokens });
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error("Image generation error:", error.message);
