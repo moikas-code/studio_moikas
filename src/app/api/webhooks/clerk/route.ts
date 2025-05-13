@@ -2,7 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import type { UserJSON, WebhookEvent } from "@clerk/nextjs/server";
+import type { WebhookEvent } from "@clerk/nextjs/server";
 
 export async function POST(req: Request) {
   try {
@@ -34,11 +34,16 @@ export async function POST(req: Request) {
       console.error("Error verifying webhook:", err);
       return new Response("Error verifying webhook", { status: 400 });
     }
-    const data = evt.data as UserJSON;
-    const { id: clerkUserId, email_addresses } = data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = evt.data as any;
+    if (data.object !== "user") {
+      console.log("Ignoring non-user event:", data.object);
+      return NextResponse.json({ message: "Ignored non-user event" }, { status: 200 });
+    }
+    const { id: clerk_user_id, email_addresses } = data;
     const email = email_addresses?.[0]?.email_address;
-    if (!clerkUserId || !email) {
-      console.error("Missing clerkUserId or email:", data);
+    if (!clerk_user_id || !email) {
+      console.error("Missing clerk_user_id or email:", data);
       return NextResponse.json(
         { error: "Invalid webhook data" },
         { status: 400 }
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
         // Upsert user in Supabase
         const { data: userData, error } = await supabase
           .from("users")
-          .upsert({ clerk_id: clerkUserId, email }, { onConflict: "clerk_id" })
+          .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
           .select()
           .single();
 
@@ -81,7 +86,7 @@ export async function POST(req: Request) {
           throw new Error(`Failed to create subscription: ${subError.message}`);
         }
 
-        console.log(`User created: ${clerkUserId}`);
+        console.log(`User created: ${clerk_user_id}`);
         break;
 
       case "user.updated":
@@ -89,14 +94,14 @@ export async function POST(req: Request) {
         const { error: updateError } = await supabase
           .from("users")
           .update({ email })
-          .eq("clerk_id", clerkUserId);
+          .eq("clerk_id", clerk_user_id);
 
         if (updateError) {
           console.error("Error updating user:", updateError.message);
           throw new Error(`Failed to update user: ${updateError.message}`);
         }
 
-        console.log(`User updated: ${clerkUserId}`);
+        console.log(`User updated: ${clerk_user_id}`);
         break;
 
       case "user.deleted":
@@ -104,7 +109,7 @@ export async function POST(req: Request) {
         const { data: user, error: fetchError } = await supabase
           .from("users")
           .select("id")
-          .eq("clerk_id", clerkUserId)
+          .eq("clerk_id", clerk_user_id)
           .single();
 
         if (fetchError || !user) {
@@ -120,14 +125,14 @@ export async function POST(req: Request) {
         const { error: deleteError } = await supabase
           .from("users")
           .delete()
-          .eq("clerk_id", clerkUserId);
+          .eq("clerk_id", clerk_user_id);
 
         if (deleteError) {
           console.error("Error deleting user:", deleteError.message);
           throw new Error(`Failed to delete user: ${deleteError.message}`);
         }
 
-        console.log(`User deleted: ${clerkUserId}`);
+        console.log(`User deleted: ${clerk_user_id}`);
         break;
 
       default:
