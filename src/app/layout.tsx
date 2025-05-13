@@ -6,6 +6,7 @@ import Navbar from "./components/navbar";
 import Sidebar from "./components/sidebar";
 import User_sync from "./components/user_sync";
 import { MpProvider } from "./context/mp_context";
+import { Analytics } from "@vercel/analytics/next";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -44,6 +45,7 @@ export default function RootLayout({
                 {children}
               </main>
             </div>
+            <Analytics />
           </MpProvider>
         </ClerkProvider>
       </body>
