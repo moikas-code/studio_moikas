@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider, SignedIn } from "@clerk/nextjs";
 import Navbar from "./components/navbar";
 import Sidebar from "./components/sidebar";
+import User_sync from "./components/user_sync";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
           <Navbar />
           <div className="flex min-h-screen">
             <SignedIn>
+              <User_sync />
               <Sidebar />
             </SignedIn>
             <main className="flex-1">

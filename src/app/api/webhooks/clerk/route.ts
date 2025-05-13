@@ -42,10 +42,20 @@ export async function POST(req: Request) {
     }
     const { id: clerk_user_id, email_addresses } = data;
     const email = email_addresses?.[0]?.email_address;
-    if (!clerk_user_id || !email) {
-      console.error("Missing clerk_user_id or email:", data);
+
+    if (!clerk_user_id) {
+      console.error("Missing clerk_user_id:", data);
       return NextResponse.json(
-        { error: "Invalid webhook data" },
+        { error: "Invalid webhook data: missing clerk_user_id" },
+        { status: 400 }
+      );
+    }
+
+    // Only require email for creation and update events
+    if ((evt.type === "user.created" || evt.type === "user.updated") && !email) {
+      console.error("Missing email for event:", evt.type, data);
+      return NextResponse.json(
+        { error: "Invalid webhook data: missing email" },
         { status: 400 }
       );
     }
