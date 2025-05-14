@@ -7,6 +7,9 @@ import Sidebar from "./components/sidebar";
 import User_sync from "./components/user_sync";
 import { MpProvider } from "./context/mp_context";
 import { Analytics } from "@vercel/analytics/next";
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { track } from '@vercel/analytics';
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -60,11 +63,59 @@ export const metadata: Metadata = {
   }
 };
 
+function useSessionTracking() {
+  const pathname = usePathname();
+  useEffect(() => {
+    // Set session start time if not already set
+    if (!localStorage.getItem('session_start')) {
+      localStorage.setItem('session_start', Date.now().toString());
+    }
+    // Initialize visited pages array
+    let visited = [];
+    try {
+      visited = JSON.parse(localStorage.getItem('visited_pages') || '[]');
+    } catch {
+      visited = [];
+    }
+    // Add current page if not already last
+    if (visited[visited.length - 1] !== pathname) {
+      visited.push(pathname);
+      localStorage.setItem('visited_pages', JSON.stringify(visited));
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const start = parseInt(localStorage.getItem('session_start') || '0', 10);
+      const duration = start ? Math.floor((Date.now() - start) / 1000) : 0;
+      let visited = [];
+      try {
+        visited = JSON.parse(localStorage.getItem('visited_pages') || '[]');
+      } catch {
+        visited = [];
+      }
+      track('Session Ended', {
+        duration_seconds: duration,
+        visited_pages: visited.join(','),
+        timestamp: new Date().toISOString(),
+      });
+      // Clean up for next session
+      localStorage.removeItem('session_start');
+      localStorage.removeItem('visited_pages');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useSessionTracking();
   return (
     <html lang="en">
       <body
