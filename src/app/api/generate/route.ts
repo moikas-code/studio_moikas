@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { generate_flux_image } from "@/lib/fal_client";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
+import { track } from '@vercel/analytics/server';
 
 // Helper to calculate required tokens for a given image size
 function calculate_required_tokens(width: number, height: number): number {
@@ -28,6 +29,8 @@ function is_new_month(last_reset: string | null): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  let selected_model_id: string = '';
+  let plan: string = '';
   try {
     // Authenticate user with Clerk
     const { userId } = await auth();
@@ -76,11 +79,11 @@ export async function POST(req: NextRequest) {
     }
 
     let { tokens, renewed_at } = subscription;
-    const plan = subscription.plan;
+    plan = subscription.plan;
     const plan_limit = get_plan_limit(plan);
 
     // Restrict model access by plan
-    let selected_model_id = model_id;
+    selected_model_id = model_id;
     if (plan === "free") {
       if (!selected_model_id || selected_model_id !== "fal-ai/flux/schnell") {
         selected_model_id = "fal-ai/flux/schnell";
@@ -149,13 +152,38 @@ export async function POST(req: NextRequest) {
     const image = await generate_flux_image(prompt, width, height, selected_model_id);
     const base64 = Buffer.from(image.uint8Array).toString("base64");
 
+    // On successful generation
+    await track('Image Generated', {
+      status: 'success',
+      model_id: selected_model_id ?? 'unknown',
+      plan: plan ?? 'unknown',
+      prompt_length: prompt.length,
+      timestamp: new Date().toISOString(),
+    });
+
     return NextResponse.json({ image_base64: base64, mp_used: required_tokens });
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error("Image generation error:", error.message);
+      await track('Image Generation Failed', {
+        status: 'error',
+        model_id: selected_model_id ?? 'unknown',
+        plan: plan ?? 'unknown',
+        prompt_length: prompt.length,
+        error_message: error.message.slice(0, 255),
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     console.error("Unknown image generation error:", error);
+    await track('Image Generation Failed', {
+      status: 'error',
+      model_id: selected_model_id ?? 'unknown',
+      plan: 'unknown',
+      prompt_length: prompt.length,
+      error_message: 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
     return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }

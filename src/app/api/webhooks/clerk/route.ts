@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { WebhookEvent } from "@clerk/nextjs/server";
+import { track } from '@vercel/analytics/server';
 
 export async function POST(req: Request) {
   try {
@@ -104,7 +105,11 @@ export async function POST(req: Request) {
           throw new Error(`Failed to create subscription: ${subError.message}`);
         }
 
-        console.log(`User created: ${clerk_user_id}`);
+        // console.log(`User created: ${clerk_user_id}`);
+        await track('User Created', {
+          event_type: 'user.created',
+          timestamp: new Date().toISOString(),
+        });
         break;
 
       case "user.updated":
@@ -120,6 +125,10 @@ export async function POST(req: Request) {
         }
 
         console.log(`User updated: ${clerk_user_id}`);
+        await track('User Updated', {
+          event_type: 'user.updated',
+          timestamp: new Date().toISOString(),
+        });
         break;
 
       case "user.deleted":
@@ -151,6 +160,10 @@ export async function POST(req: Request) {
         }
 
         console.log(`User deleted: ${clerk_user_id}`);
+        await track('User Deleted', {
+          event_type: 'user.deleted',
+          timestamp: new Date().toISOString(),
+        });
         break;
 
       default:

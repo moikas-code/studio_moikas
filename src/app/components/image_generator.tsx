@@ -3,6 +3,7 @@
 import React, { useState, useContext } from "react";
 import Image from "next/image";
 import { MpContext } from "../context/mp_context";
+import { track } from '@vercel/analytics';
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -31,6 +32,18 @@ export default function Image_generator() {
     set_error_message(null);
     set_image_base64(null);
     set_mp_used(null);
+
+    // Track the image generation event with as much relevant info as possible
+    track('Image Generation', {
+      event: 'click',
+      model_id,
+      plan,
+      prompt_length: prompt_text.length,
+      prompt_text: prompt_text.slice(0, 255), // limit to 255 chars for analytics
+      timestamp: new Date().toISOString(),
+      // user_id: add if available from context or props
+    });
+
     try {
       const response = await fetch('/api/generate', {
         method: 'POST',
