@@ -68,6 +68,11 @@ export const metadata: Metadata = {
     description: "A creative studio app with AI-powered image generation.",
     images: ["/icons/icon-512x512.png"],
   },
+  metadataBase: new URL(
+    process.env.NODE_ENV === "production"
+      ? "https://studiomoikas.com"
+      : "http://localhost:3000"
+  ),
 };
 
 export default function RootLayout({
