@@ -19,7 +19,7 @@ export default function Privacy_policy_page() {
       </ul>
       <h2 className="text-xl font-semibold mb-2">Contact</h2>
       <p>
-        For any privacy-related questions, please contact Warren Gates at <a href="mailto:your-email@example.com" className="underline">your-email@example.com</a>.
+        For any privacy-related questions, please contact Moikapy on X at <a href="https://x.com/moikapy_" className="underline">https://x.com/moikapy_</a>.
       </p>
     </div>
   );
