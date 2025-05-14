@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { track } from '@vercel/analytics';
+import Session_tracking from "./components/session_tracking";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -126,6 +127,7 @@ export default function RootLayout({
       >
         <ClerkProvider>
           <MpProvider>
+            <Session_tracking />
             <Navbar />
             <div className="flex min-h-screen">
               <SignedIn>
