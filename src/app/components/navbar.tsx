@@ -13,7 +13,7 @@ import { MpContext } from "../context/mp_context";
 export default function Navbar() {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
-    <nav className="navbar bg-base-100 shadow-md px-4">
+    <nav className="navbar bg-base-100 shadow-md px-4" role="navigation" aria-label="Main navigation">
       <div className="flex-1">
         <Link href="/" aria-label="Go to home page" className="text-xl font-bold hover:underline focus:underline outline-none">
           Studio.Moikas
@@ -23,18 +23,18 @@ export default function Navbar() {
         <SignedIn>
           <div className="flex items-center gap-3">
             {is_loading_tokens ? (
-              <span className="loading loading-spinner loading-xs" aria-label="Loading MP"></span>
+              <span className="loading loading-spinner loading-xs" aria-label="Loading MP" role="status"></span>
             ) : token_error ? (
-              <span className="text-error text-xs" title={token_error}>MP: --</span>
+              <span className="text-error text-xs" title={token_error} aria-live="polite">MP: --</span>
             ) : (
-              <span className="font-mono text-xs md:text-sm" title="Your available megapixels">MP: {mp_tokens}</span>
+              <span className="font-mono text-xs md:text-sm" title="Your available megapixels" aria-live="polite">MP: {mp_tokens}</span>
             )}
             <UserButton afterSignOutUrl="/" />
           </div>
         </SignedIn>
         <SignedOut>
           <Link href="/sign-in">
-            <button className="btn btn-primary">Sign In</button>
+            <button className="btn btn-primary" aria-label="Sign in to your account">Sign In</button>
           </Link>
         </SignedOut>
       </div>

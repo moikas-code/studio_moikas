@@ -57,7 +57,7 @@ export default function Image_generator() {
 
   return (
     <div className="w-full max-w-md mx-auto mt-8 p-6 bg-base-200 rounded-lg shadow-lg">
-      <form onSubmit={handle_generate_image} className="flex flex-col gap-4">
+      <form onSubmit={handle_generate_image} className="flex flex-col gap-4" aria-label="Image generation form">
         <label htmlFor="prompt_text" className="font-semibold">Enter your prompt:</label>
         <input
           id="prompt_text"
@@ -67,6 +67,8 @@ export default function Image_generator() {
           onChange={e => set_prompt_text(e.target.value)}
           placeholder="Describe your image..."
           required
+          aria-required="true"
+          aria-label="Prompt for image generation"
         />
         {plan === 'hobby' && (
           <div>
@@ -77,6 +79,7 @@ export default function Image_generator() {
               value={model_id}
               onChange={e => set_model_id(e.target.value)}
               disabled={is_loading}
+              aria-label="Select image generation model"
             >
               <option value="fal-ai/flux/dev">FLUX.1 [dev] (high quality)</option>
               <option value="fal-ai/flux/schnell">FLUX.1 [schnell] (fast, lower cost)</option>
@@ -90,6 +93,7 @@ export default function Image_generator() {
           type="submit"
           className="btn btn-primary"
           disabled={is_loading}
+          aria-busy={is_loading}
         >
           {is_loading ? 'Generating...' : 'Generate Image'}
         </button>
