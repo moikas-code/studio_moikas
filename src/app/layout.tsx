@@ -7,7 +7,7 @@ import Navbar from "./components/navbar";
 import Sidebar from "./components/sidebar";
 import User_sync from "./components/user_sync";
 import { MpProvider } from "./context/mp_context";
-import { Analytics } from "@vercel/analytics/next";
+import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
 import Cookie_consent_banner from "./components/cookie_consent_banner";
 import Analytics_opt_out_toggle from "./components/analytics_opt_out_toggle";
@@ -106,14 +106,7 @@ export default function RootLayout({
                 Privacy Policy
               </a>
             </footer>
-            <Analytics
-              beforeSend={(event) => {
-                if (typeof window !== "undefined" && localStorage.getItem("va-disable")) {
-                  return null;
-                }
-                return event;
-              }}
-            />
+            <Analytics_wrapper />
             <Cookie_consent_banner />
           </MpProvider>
         </ClerkProvider>
