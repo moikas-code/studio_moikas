@@ -97,6 +97,9 @@ function useSessionTracking() {
       track('Session Ended', {
         duration_seconds: duration,
         visited_pages: visited.join(','),
+        entry_page: visited[0] || '',
+        exit_page: visited[visited.length - 1] || '',
+        pages_visited_count: visited.length,
         timestamp: new Date().toISOString(),
       });
       // Clean up for next session
