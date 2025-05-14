@@ -1,3 +1,4 @@
+import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -8,6 +9,8 @@ import User_sync from "./components/user_sync";
 import { MpProvider } from "./context/mp_context";
 import { Analytics } from "@vercel/analytics/next";
 import Session_tracking from "./components/session_tracking";
+
+import Cookie_consent_banner from "./components/cookie_consent_banner";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -72,6 +75,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Add state for opt-out toggle
+  const [analytics_disabled, set_analytics_disabled] = React.useState(false);
+
+  React.useEffect(() => {
+    set_analytics_disabled(!!localStorage.getItem("va-disable"));
+  }, []);
+
+  const handle_toggle_analytics = () => {
+    if (analytics_disabled) {
+      localStorage.removeItem("va-disable");
+      set_analytics_disabled(false);
+    } else {
+      localStorage.setItem("va-disable", "1");
+      set_analytics_disabled(true);
+    }
+  };
+
   return (
     <html lang="en">
       <body
@@ -88,7 +108,33 @@ export default function RootLayout({
               </SignedIn>
               <main className="flex-1">{children}</main>
             </div>
-            <Analytics />
+            <footer className="w-full p-4 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={analytics_disabled}
+                  onChange={handle_toggle_analytics}
+                  style={{ marginRight: 8 }}
+                />
+                Opt out of analytics tracking
+              </label>
+              {" | "}
+              <a
+                href="/privacy-policy"
+                className="underline hover:text-primary"
+              >
+                Privacy Policy
+              </a>
+            </footer>
+            <Analytics
+              beforeSend={(event) => {
+                if (localStorage.getItem("va-disable")) {
+                  return null;
+                }
+                return event;
+              }}
+            />
+            <Cookie_consent_banner />
           </MpProvider>
         </ClerkProvider>
       </body>
