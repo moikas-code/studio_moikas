@@ -22,13 +22,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Rate limiting
-    const rate = await check_rate_limit(redis, userId);
+    // Determine user plan and queue type
+    const is_standard = plan === 'standard';
+    // Apply different rate limits
+    const rate = await check_rate_limit(redis, userId, is_standard ? 60 : 10, 60); // 60/min for standard, 10/min for free
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again soon." },
         { status: 429, headers: { 'X-RateLimit-Remaining': rate.remaining.toString(), 'X-RateLimit-Reset': rate.reset.toString() } }
       );
+    }
+    // Artificial delay for free users (slow queue)
+    if (!is_standard) {
+      await new Promise(res => setTimeout(res, 2000)); // 2s delay for free users
     }
 
     // Parse and validate request body
