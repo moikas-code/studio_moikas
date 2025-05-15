@@ -3,30 +3,14 @@ import { generate_flux_image } from "@/lib/fal_client";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
+import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
+import { calculate_required_tokens, get_plan_limit, is_new_month, check_rate_limit } from '@/lib/generate_helpers';
 
-// Helper to calculate required tokens for a given image size
-function calculate_required_tokens(width: number, height: number): number {
-  const megapixels = (width * height) / 1_000_000;
-  // Round down to nearest whole token
-  return Math.floor(megapixels);
-}
-
-// Helper to get plan limits
-function get_plan_limit(plan: string): number {
-  if (plan === "standard") return 625;
-  return 100; // default to free
-}
-
-// Helper to check if a new month has started
-function is_new_month(last_reset: string | null): boolean {
-  if (!last_reset) return true;
-  const last = new Date(last_reset);
-  const now = new Date();
-  return (
-    last.getUTCFullYear() !== now.getUTCFullYear() ||
-    last.getUTCMonth() !== now.getUTCMonth()
-  );
-}
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 export async function POST(req: NextRequest) {
   let selected_model_id: string = '';
@@ -38,8 +22,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse request body
-    const { prompt, width = 1024, height = 1024, model_id } = await req.json();
+    // Rate limiting
+    const rate = await check_rate_limit(redis, userId);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again soon." },
+        { status: 429, headers: { 'X-RateLimit-Remaining': rate.remaining.toString(), 'X-RateLimit-Reset': rate.reset.toString() } }
+      );
+    }
+
+    // Parse and validate request body
+    const body = await req.json();
+    const prompt = typeof body.prompt === 'string' ? body.prompt : '';
+    const width = typeof body.width === 'number' ? body.width : 1024;
+    const height = typeof body.height === 'number' ? body.height : 1024;
+    const model_id = typeof body.model_id === 'string' ? body.model_id : '';
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
@@ -48,6 +45,16 @@ export async function POST(req: NextRequest) {
     }
 
     const required_tokens = calculate_required_tokens(width, height);
+
+    // Caching: hash the request params
+    const safe_user_id = typeof userId === 'string' ? userId : '';
+    const safe_prompt = typeof prompt === 'string' ? prompt : '';
+    const safe_model_id = typeof model_id === 'string' ? model_id : '';
+    const cache_key = crypto.createHash('sha256').update(`${safe_user_id}:${safe_prompt}:${width}:${height}:${safe_model_id}`).digest('hex');
+    const cached = await redis.get(`imggen:${cache_key}`);
+    if (typeof cached === 'string') {
+      return NextResponse.json({ image_base64: cached, mp_used: required_tokens, cached: true });
+    }
 
     // Initialize Supabase client
     const supabase = await create_clerk_supabase_client_ssr();
@@ -160,6 +167,9 @@ export async function POST(req: NextRequest) {
       prompt_length: prompt.length,
       timestamp: new Date().toISOString(),
     });
+
+    // Cache the result
+    await redis.set(`imggen:${cache_key}`, base64);
 
     return NextResponse.json({ image_base64: base64, mp_used: required_tokens });
   } catch (error: unknown) {

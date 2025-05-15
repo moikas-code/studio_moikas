@@ -1,0 +1,59 @@
+/**
+ * Helper functions for image generation API (centralized).
+ * All identifiers use snake_case.
+ */
+import { Redis } from '@upstash/redis';
+
+/**
+ * Calculate required tokens (megapixels) for a given image size.
+ */
+export function calculate_required_tokens(width: number, height: number): number {
+  const megapixels = (width * height) / 1_000_000;
+  return Math.floor(megapixels);
+}
+
+/**
+ * Get the token limit for a given plan.
+ */
+export function get_plan_limit(plan: string): number {
+  if (plan === "standard") return 625;
+  return 100; // default to free
+}
+
+/**
+ * Check if a new month has started since last_reset (ISO string).
+ */
+export function is_new_month(last_reset: string | null): boolean {
+  if (!last_reset) return true;
+  const last = new Date(last_reset);
+  const now = new Date();
+  return (
+    last.getUTCFullYear() !== now.getUTCFullYear() ||
+    last.getUTCMonth() !== now.getUTCMonth()
+  );
+}
+
+/**
+ * Per-user sliding window rate-limiting using Redis sorted set.
+ * Returns { allowed, remaining, reset }.
+ */
+export async function check_rate_limit(redis: Redis, user_id: string, max_requests = 20, window_seconds = 60): Promise<{ allowed: boolean, remaining: number, reset: number }> {
+  const key = `ratelimit:${user_id}`;
+  const now = Math.floor(Date.now() / 1000);
+  const window_start = now - window_seconds;
+  await redis.zremrangebyscore(key, 0, window_start);
+  const count = await redis.zcard(key) as number;
+  if (count >= max_requests) {
+    const oldest = await redis.zrange(key, 0, 0, { withScores: true });
+    let reset: number;
+    if (oldest && oldest.length > 1 && typeof oldest[1] === 'string') {
+      reset = parseInt(oldest[1]) + window_seconds;
+    } else {
+      reset = now + window_seconds;
+    }
+    return { allowed: false, remaining: 0, reset };
+  }
+  await redis.zadd(key, { score: now, member: `${now}` });
+  await redis.expire(key, window_seconds);
+  return { allowed: true, remaining: Math.max(0, max_requests - count - 1), reset: now + window_seconds };
+} 
