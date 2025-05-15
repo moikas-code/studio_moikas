@@ -2,7 +2,7 @@ import { PricingTable } from '@clerk/nextjs';
 
 /**
  * Pricing page for Studio.Moikas
- * Explains free and hobby plans and upgrade instructions.
+ * Explains free and standard plans and upgrade instructions.
  */
 export default function Pricing_page() {
   return (

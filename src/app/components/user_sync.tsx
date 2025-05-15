@@ -12,11 +12,11 @@ export default function User_sync() {
   const { user, isLoaded } = useUser();
   const supabase = useSupabaseClient();
 
-  // Placeholder: implement actual logic to determine if user is hobby
+  // Placeholder: implement actual logic to determine if user is standard
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  const is_hobby_user = (user: any): boolean => {
+  const is_standard_user = (user: any): boolean => {
     // TODO: Replace with real check, e.g.:
-    // return user.publicMetadata?.plan === 'hobby';
+    // return user.publicMetadata?.plan === 'standard';
     return false;
   };
 
@@ -44,8 +44,8 @@ export default function User_sync() {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
-        const plan = is_hobby_user(user) ? "hobby" : "free";
-        const tokens = plan === "hobby" ? 500 : 100;
+        const plan = is_standard_user(user) ? "standard" : "free";
+        const tokens = plan === "standard" ? 625 : 100;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -84,8 +84,8 @@ export default function User_sync() {
 
         // If subscription does not exist, create it
         if (!subscription) {
-          const plan = is_hobby_user(user) ? "hobby" : "free";
-          const tokens = plan === "hobby" ? 500 : 100;
+          const plan = is_standard_user(user) ? "standard" : "free";
+          const tokens = plan === "standard" ? 625 : 100;
           const { error: insert_error } = await supabase
             .from("subscriptions")
             .insert({
@@ -97,10 +97,10 @@ export default function User_sync() {
           if (insert_error) {
             console.error("Supabase subscription insert error:", insert_error.message);
           }
-        } else if (subscription.plan !== (is_hobby_user(user) ? "hobby" : "free")) {
+        } else if (subscription.plan !== (is_standard_user(user) ? "standard" : "free")) {
           // If plan changed, update subscription
-          const plan = is_hobby_user(user) ? "hobby" : "free";
-          const tokens = plan === "hobby" ? 500 : 100;
+          const plan = is_standard_user(user) ? "standard" : "free";
+          const tokens = plan === "standard" ? 625 : 100;
           const { error: update_error } = await supabase
             .from("subscriptions")
             .update({ plan, tokens })

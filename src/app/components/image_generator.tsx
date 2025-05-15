@@ -83,7 +83,7 @@ export default function Image_generator() {
           aria-required="true"
           aria-label="Prompt for image generation"
         />
-        {plan === 'hobby' && (
+        {plan === 'standard' && (
           <div>
             <label htmlFor="model_id" className="font-semibold">Choose model:</label>
             <select
@@ -99,7 +99,7 @@ export default function Image_generator() {
             </select>
           </div>
         )}
-        {plan !== 'hobby' && (
+        {plan !== 'standard' && (
           <input type="hidden" name="model_id" value="fal-ai/flux/schnell" />
         )}
         <button

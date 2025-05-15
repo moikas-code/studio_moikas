@@ -13,7 +13,7 @@ function calculate_required_tokens(width: number, height: number): number {
 
 // Helper to get plan limits
 function get_plan_limit(plan: string): number {
-  if (plan === "hobby") return 500;
+  if (plan === "standard") return 625;
   return 100; // default to free
 }
 
@@ -94,13 +94,13 @@ export async function POST(req: NextRequest) {
           { status: 403 }
         );
       }
-    } else if (plan === "hobby") {
+    } else if (plan === "standard") {
       if (!selected_model_id) {
         selected_model_id = "fal-ai/flux/dev";
       }
       if (selected_model_id !== "fal-ai/flux/schnell" && selected_model_id !== "fal-ai/flux/dev") {
         return NextResponse.json(
-          { error: "Hobby users can only use fal-ai/flux/schnell or fal-ai/flux/dev" },
+          { error: "Standard users can only use fal-ai/flux/schnell or fal-ai/flux/dev" },
           { status: 403 }
         );
       }
