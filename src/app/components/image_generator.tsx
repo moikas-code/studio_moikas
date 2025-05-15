@@ -140,6 +140,8 @@ export default function Image_generator() {
           prompt: prompt_text,
           model_id,
           aspect_ratio: aspect_label,
+          width: preview_width,
+          height: preview_height,
         }),
       });
       const data = await response.json();
