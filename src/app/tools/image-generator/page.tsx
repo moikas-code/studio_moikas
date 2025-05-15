@@ -7,7 +7,7 @@ import React from "react";
  */
 export default function Image_generator_page() {
   return (
-    <div className="w-full">
+    <div className="w-full px-3 md:px-0">
       <Image_generator />
     </div>
   );
