@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     // Parse and validate request body
     const body = await req.json();
     const prompt = typeof body.prompt === 'string' ? body.prompt : '';
-    const width = typeof body.width === 'number' ? body.width : 1024;
-    const height = typeof body.height === 'number' ? body.height : 1024;
+    let width = typeof body.width === 'number' ? body.width : 1024;
+    let height = typeof body.height === 'number' ? body.height : 1024;
     const model_id = typeof body.model_id === 'string' ? body.model_id : '';
     if (!prompt) {
       return NextResponse.json(
@@ -51,6 +51,30 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Determine width and height from aspect_ratio
+    if (typeof body.aspect_ratio === 'string') {
+      // Map aspect_ratio to width/height
+      const aspect_map: Record<string, { width: number, height: number }> = {
+        'portrait_4_3': { width: 800, height: 1066 },
+        'portrait_16_9': { width: 896, height: 1600 },
+        'square': { width: 1024, height: 1024 },
+        'square_hd': { width: 1536, height: 1536 },
+        'landscape_4_3': { width: 1066, height: 800 },
+        'landscape_16_9': { width: 1600, height: 896 },
+      };
+      if (aspect_map[body.aspect_ratio]) {
+        width = aspect_map[body.aspect_ratio].width;
+        height = aspect_map[body.aspect_ratio].height;
+      }
+    }
+    // Calculate pixel-based cost
+    function get_tokens_for_size(width: number, height: number) {
+      return Math.ceil((width * height) / 1_000_000);
+    }
+    const size_tokens = get_tokens_for_size(width, height);
+    const model_tokens = get_model_cost(plan, selected_model_id);
+    const required_tokens = size_tokens * model_tokens;
 
     // Caching: hash the request params and use a namespaced key
     const safe_user_id = typeof userId === 'string' ? userId : '';
@@ -90,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const { data: subscription, error: sub_error } = await supabase
       .from("subscriptions")
-      .select("tokens, plan, renewed_at")
+      .select("tokens, plan, renewed_at, pro_tokens_used, pro_tokens_cap")
       .eq("user_id", user.id)
       .single();
 
@@ -102,7 +126,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const tokens = subscription.tokens;
+    const { tokens, pro_tokens_used, pro_tokens_cap } = subscription;
     plan = subscription.plan;
 
     // Restrict model access by plan
@@ -136,35 +160,69 @@ export async function POST(req: NextRequest) {
       selected_model_id = "fal-ai/flux/schnell";
     }
 
-    // Use get_model_cost to determine required tokens for the selected model
-    const required_tokens = get_model_cost(plan, selected_model_id);
-
-    // Check if user has enough tokens before deducting
-    if (tokens < required_tokens) {
-      return NextResponse.json(
-        { error: "Insufficient tokens", required_tokens, tokens },
-        { status: 402 }
-      );
-    }
-
-    // Deduct tokens atomically using stored procedure
-    const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
-      p_user_id: user.id,
-      p_required_tokens: required_tokens,
-    });
-
-    if (deduct_error) {
-      console.error("Token deduction error:", deduct_error.message);
-      if (deduct_error.message.includes("Insufficient tokens")) {
+    // Special logic for pro model monthly cap
+    if (plan === "standard" && selected_model_id === "fal-ai/flux/pro") {
+      if ((pro_tokens_used ?? 0) + required_tokens > (pro_tokens_cap ?? 1700)) {
+        return NextResponse.json(
+          { error: "Monthly cap for FLUX.1 [pro] reached.", pro_tokens_used, pro_tokens_cap },
+          { status: 402 }
+        );
+      }
+      // Deduct from both pools
+      const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
+        p_user_id: user.id,
+        p_required_tokens: required_tokens,
+      });
+      if (deduct_error) {
+        console.error("Token deduction error:", deduct_error.message);
+        if (deduct_error.message.includes("Insufficient tokens")) {
+          return NextResponse.json(
+            { error: "Insufficient tokens", required_tokens, tokens },
+            { status: 402 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Failed to deduct tokens" },
+          { status: 500 }
+        );
+      }
+      // Increment pro_tokens_used
+      const { error: pro_error } = await supabase
+        .from("subscriptions")
+        .update({ pro_tokens_used: (pro_tokens_used ?? 0) + required_tokens })
+        .eq("user_id", user.id);
+      if (pro_error) {
+        console.error("Pro tokens update error:", pro_error.message);
+        return NextResponse.json(
+          { error: "Failed to update pro model usage" },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Non-pro model: only deduct from general tokens
+      if (tokens < required_tokens) {
         return NextResponse.json(
           { error: "Insufficient tokens", required_tokens, tokens },
           { status: 402 }
         );
       }
-      return NextResponse.json(
-        { error: "Failed to deduct tokens" },
-        { status: 500 }
-      );
+      const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
+        p_user_id: user.id,
+        p_required_tokens: required_tokens,
+      });
+      if (deduct_error) {
+        console.error("Token deduction error:", deduct_error.message);
+        if (deduct_error.message.includes("Insufficient tokens")) {
+          return NextResponse.json(
+            { error: "Insufficient tokens", required_tokens, tokens },
+            { status: 402 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Failed to deduct tokens" },
+          { status: 500 }
+        );
+      }
     }
 
     // Generate the image
