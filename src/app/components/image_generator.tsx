@@ -20,10 +20,40 @@ export default function Image_generator() {
   const [is_loading, set_is_loading] = useState(false);
   const [error_message, set_error_message] = useState<string | null>(null);
 
-  const { refresh_mp, plan } = useContext(MpContext);
+  const { refresh_mp, plan, mp_tokens } = useContext(MpContext);
 
   // State for model selection
   const [model_id, set_model_id] = useState<string>("fal-ai/flux/schnell");
+
+  const MODEL_OPTIONS = [
+    {
+      value: "fal-ai/flux/schnell",
+      label: "FLUX.1 [schnell] (fast, lower cost)",
+      cost: 1,
+      plans: ["free", "standard"],
+    },
+    {
+      value: "fal-ai/flux/dev",
+      label: "FLUX.1 [dev] (high quality)",
+      cost: 8,
+      plans: ["standard"],
+    },
+    {
+      value: "fal-ai/flux/pro",
+      label: "FLUX.1 [pro] (premium)",
+      cost: 17,
+      plans: ["standard"],
+    },
+  ];
+
+  // Helper to get cost for selected model
+  const get_model_cost = (model_id: string) => {
+    const model = MODEL_OPTIONS.find(m => m.value === model_id);
+    return model ? model.cost : 1;
+  };
+
+  // Filter models based on plan
+  const available_models = MODEL_OPTIONS.filter(m => m.plans.includes(plan || "free"));
 
   // Handler for generating the image
   const handle_generate_image = async (e: React.FormEvent) => {
@@ -83,29 +113,37 @@ export default function Image_generator() {
           aria-required="true"
           aria-label="Prompt for image generation"
         />
-        {plan === 'standard' && (
-          <div>
-            <label htmlFor="model_id" className="font-semibold">Choose model:</label>
-            <select
-              id="model_id"
-              className="select select-bordered w-full mt-1"
-              value={model_id}
-              onChange={e => set_model_id(e.target.value)}
-              disabled={is_loading}
-              aria-label="Select image generation model"
-            >
-              <option value="fal-ai/flux/dev">FLUX.1 [dev] (high quality)</option>
-              <option value="fal-ai/flux/schnell">FLUX.1 [schnell] (fast, lower cost)</option>
-            </select>
-          </div>
-        )}
-        {plan !== 'standard' && (
-          <input type="hidden" name="model_id" value="fal-ai/flux/schnell" />
-        )}
+        {/* Show model options and costs for the user's plan */}
+        <div>
+          <label htmlFor="model_id" className="font-semibold">Choose model:</label>
+          <select
+            id="model_id"
+            className="select select-bordered w-full mt-1"
+            value={model_id}
+            onChange={e => set_model_id(e.target.value)}
+            disabled={is_loading}
+            aria-label="Select image generation model"
+          >
+            {available_models.map(model => (
+              <option key={model.value} value={model.value}>
+                {model.label} — {model.cost} token{model.cost > 1 ? 's' : ''} per image
+              </option>
+            ))}
+          </select>
+        </div>
+        {/* Show user's token balance and cost for selected model */}
+        <div className="text-sm mt-1">
+          <span className="font-mono">Your tokens: {typeof mp_tokens === 'number' ? mp_tokens : '--'}</span>
+          <br />
+          <span>Cost for this image: <span className="font-mono">{get_model_cost(model_id)}</span> token{get_model_cost(model_id) > 1 ? 's' : ''}</span>
+          {typeof mp_tokens === 'number' && mp_tokens < get_model_cost(model_id) && (
+            <div className="text-error mt-1">Not enough tokens for this model.</div>
+          )}
+        </div>
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={is_loading}
+          disabled={is_loading || (typeof mp_tokens === 'number' && mp_tokens < get_model_cost(model_id))}
           aria-busy={is_loading}
         >
           {is_loading ? 'Generating...' : 'Generate Image'}

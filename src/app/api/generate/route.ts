@@ -4,7 +4,7 @@ import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
 import { Redis } from '@upstash/redis';
-import { calculate_required_tokens, get_plan_limit, is_new_month, check_rate_limit, generate_imggen_cache_key } from '@/lib/generate_helpers';
+import { check_rate_limit, generate_imggen_cache_key, get_model_cost } from '@/lib/generate_helpers';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -52,8 +52,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const required_tokens = calculate_required_tokens(width, height);
-
     // Caching: hash the request params and use a namespaced key
     const safe_user_id = typeof userId === 'string' ? userId : '';
     const safe_prompt = typeof prompt === 'string' ? prompt : '';
@@ -69,7 +67,7 @@ export async function POST(req: NextRequest) {
     if (typeof cached === 'string') {
       try {
         const cached_obj = JSON.parse(cached);
-        return NextResponse.json({ image_base64: cached_obj.image_base64, mp_used: required_tokens, cached: true });
+        return NextResponse.json({ image_base64: cached_obj.image_base64, mp_used: cached_obj.mp_used, cached: true });
       } catch (err) {
         console.error('Redis cached value parse error:', err);
       }
@@ -104,9 +102,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let { tokens, renewed_at } = subscription;
+    const tokens = subscription.tokens;
     plan = subscription.plan;
-    const plan_limit = get_plan_limit(plan);
 
     // Restrict model access by plan
     selected_model_id = model_id;
@@ -124,9 +121,13 @@ export async function POST(req: NextRequest) {
       if (!selected_model_id) {
         selected_model_id = "fal-ai/flux/dev";
       }
-      if (selected_model_id !== "fal-ai/flux/schnell" && selected_model_id !== "fal-ai/flux/dev") {
+      if (
+        selected_model_id !== "fal-ai/flux/schnell" &&
+        selected_model_id !== "fal-ai/flux/dev" &&
+        selected_model_id !== "fal-ai/flux/pro"
+      ) {
         return NextResponse.json(
-          { error: "Standard users can only use fal-ai/flux/schnell or fal-ai/flux/dev" },
+          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, or fal-ai/flux/pro" },
           { status: 403 }
         );
       }
@@ -135,23 +136,15 @@ export async function POST(req: NextRequest) {
       selected_model_id = "fal-ai/flux/schnell";
     }
 
-    // Reset tokens if a new month has started, but only for non-free plans
-    if (plan !== "free" && is_new_month(renewed_at)) {
-      tokens = plan_limit;
-      renewed_at = new Date().toISOString();
-      const { error: reset_error } = await supabase
-        .from("subscriptions")
-        .update({ tokens, renewed_at })
-        .eq("user_id", user.id);
+    // Use get_model_cost to determine required tokens for the selected model
+    const required_tokens = get_model_cost(plan, selected_model_id);
 
-      if (reset_error) {
-        console.error("Token reset error:", reset_error.message);
-        return NextResponse.json(
-          { error: "Failed to reset tokens" },
-          { status: 500 }
-        );
-      }
-      console.log(`Tokens reset for user ${userId}: ${tokens} tokens`);
+    // Check if user has enough tokens before deducting
+    if (tokens < required_tokens) {
+      return NextResponse.json(
+        { error: "Insufficient tokens", required_tokens, tokens },
+        { status: 402 }
+      );
     }
 
     // Deduct tokens atomically using stored procedure
@@ -164,7 +157,7 @@ export async function POST(req: NextRequest) {
       console.error("Token deduction error:", deduct_error.message);
       if (deduct_error.message.includes("Insufficient tokens")) {
         return NextResponse.json(
-          { error: "Insufficient tokens" },
+          { error: "Insufficient tokens", required_tokens, tokens },
           { status: 402 }
         );
       }
@@ -194,7 +187,8 @@ export async function POST(req: NextRequest) {
       model_id: selected_model_id,
       prompt,
       width,
-      height
+      height,
+      mp_used: required_tokens
     });
     try {
       await redis.set(cache_key, cache_value, { ex: 3600 });
@@ -203,7 +197,8 @@ export async function POST(req: NextRequest) {
       // Fallback: do not cache if Redis is unavailable
     }
 
-    return NextResponse.json({ image_base64: base64, mp_used: required_tokens });
+    // Return model cost in the response
+    return NextResponse.json({ image_base64: base64, mp_used: required_tokens, model_cost: required_tokens });
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error("Image generation error:", error.message);
