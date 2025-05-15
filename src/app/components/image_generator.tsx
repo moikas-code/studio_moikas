@@ -219,6 +219,7 @@ export default function Image_generator() {
           </svg>
         </button>
       </div>
+
       {/* Main options card (settings) */}
       {show_settings && (
         <form
@@ -235,14 +236,14 @@ export default function Image_generator() {
               <div className="flex flex-col md:flex-row w-full items-center justify-center gap-8">
                 {/* Aspect ratio preview (placeholder) */}
                 <div className="flex flex-col items-center justify-center w-[250px]! h-[250px]!">
-                <div
-                  className="border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 w-[100px] h-[100px] flex-shrink-0  mx-6 my-2 p-4"
-                  style={placeholder_style}
-                >
-                  <span className="text-lg font-semibold text-gray-700">
-                    {current_preset.ratio}
-                  </span>
-                </div>
+                  <div
+                    className="border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 w-[100px] h-[100px] flex-shrink-0  mx-6 my-2 p-4"
+                    style={placeholder_style}
+                  >
+                    <span className="text-lg font-semibold text-gray-700">
+                      {current_preset.ratio}
+                    </span>
+                  </div>
                 </div>
                 {/* Preset buttons and slider */}
                 <div className="w-full max-w-md flex flex-col items-center gap-4">
@@ -311,13 +312,13 @@ export default function Image_generator() {
               </div>
             </div>
           </div>
-          {/* Error message */}
-          {error_message && (
-            <div className="alert alert-error border border-error bg-error/10 text-error font-bold shadow-lg mt-4">
-              {error_message}
-            </div>
-          )}
         </form>
+      )}
+      {/* Error message */}
+      {error_message && (
+        <div className="alert alert-error border border-error bg-error/10 text-error font-bold shadow-lg mt-4">
+          {error_message}
+        </div>
       )}
       {/* Image grid display, full width, in a card */}
       {image_base64.length > 0 && (
