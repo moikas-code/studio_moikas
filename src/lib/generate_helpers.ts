@@ -3,6 +3,7 @@
  * All identifiers use snake_case.
  */
 import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
 
 /**
  * Calculate required tokens (megapixels) for a given image size.
@@ -56,4 +57,13 @@ export async function check_rate_limit(redis: Redis, user_id: string, max_reques
   await redis.zadd(key, { score: now, member: `${now}` });
   await redis.expire(key, window_seconds);
   return { allowed: true, remaining: Math.max(0, max_requests - count - 1), reset: now + window_seconds };
+}
+
+/**
+ * Generate a namespaced Redis cache key for image generation.
+ * Key format: imggen:{user_id}:{model_id}:{hash}
+ */
+export function generate_imggen_cache_key(user_id: string, model_id: string, prompt: string, width: number, height: number): string {
+  const hash = crypto.createHash('sha256').update(`${prompt}:${width}:${height}`).digest('hex');
+  return `imggen:${user_id}:${model_id}:${hash}`;
 } 

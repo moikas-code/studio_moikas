@@ -4,13 +4,15 @@ import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
 import { Redis } from '@upstash/redis';
-import crypto from 'crypto';
-import { calculate_required_tokens, get_plan_limit, is_new_month, check_rate_limit } from '@/lib/generate_helpers';
+import { calculate_required_tokens, get_plan_limit, is_new_month, check_rate_limit, generate_imggen_cache_key } from '@/lib/generate_helpers';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
+
+// Redis key schema:
+// imggen:{user_id}:{model_id}:{hash} => { image_base64: string, created_at: string, ... }
 
 export async function POST(req: NextRequest) {
   let selected_model_id: string = '';
@@ -52,14 +54,25 @@ export async function POST(req: NextRequest) {
 
     const required_tokens = calculate_required_tokens(width, height);
 
-    // Caching: hash the request params
+    // Caching: hash the request params and use a namespaced key
     const safe_user_id = typeof userId === 'string' ? userId : '';
     const safe_prompt = typeof prompt === 'string' ? prompt : '';
     const safe_model_id = typeof model_id === 'string' ? model_id : '';
-    const cache_key = crypto.createHash('sha256').update(`${safe_user_id}:${safe_prompt}:${width}:${height}:${safe_model_id}`).digest('hex');
-    const cached = await redis.get(`imggen:${cache_key}`);
+    const cache_key = generate_imggen_cache_key(safe_user_id, safe_model_id, safe_prompt, width, height);
+    let cached;
+    try {
+      cached = await redis.get(cache_key);
+    } catch (err) {
+      console.error('Redis get error:', err);
+      cached = null;
+    }
     if (typeof cached === 'string') {
-      return NextResponse.json({ image_base64: cached, mp_used: required_tokens, cached: true });
+      try {
+        const cached_obj = JSON.parse(cached);
+        return NextResponse.json({ image_base64: cached_obj.image_base64, mp_used: required_tokens, cached: true });
+      } catch (err) {
+        console.error('Redis cached value parse error:', err);
+      }
     }
 
     // Initialize Supabase client
@@ -174,8 +187,21 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // Cache the result
-    await redis.set(`imggen:${cache_key}`, base64);
+    // Cache the result as a JSON object with metadata
+    const cache_value = JSON.stringify({
+      image_base64: base64,
+      created_at: new Date().toISOString(),
+      model_id: selected_model_id,
+      prompt,
+      width,
+      height
+    });
+    try {
+      await redis.set(cache_key, cache_value, { ex: 3600 });
+    } catch (err) {
+      console.error('Redis set error:', err);
+      // Fallback: do not cache if Redis is unavailable
+    }
 
     return NextResponse.json({ image_base64: base64, mp_used: required_tokens });
   } catch (error: unknown) {
