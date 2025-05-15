@@ -7,8 +7,7 @@ import React from "react";
  */
 export default function Image_generator_page() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full">
-      <h1 className="text-3xl font-bold mb-8">Image Generator</h1>
+    <div className="w-full">
       <Image_generator />
     </div>
   );
