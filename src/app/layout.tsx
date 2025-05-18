@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     { media: "(prefers-color-scheme: dark)", color: "#35155D" },
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
   ],
-  authors: [{ name: "Warren Gates", url: "https://your-portfolio-url.com" }],
+  authors: [{ name: "Warren Gates", url: "https://moikas.com" }],
   viewport:
     "minimum-scale=1, initial-scale=1, width=device-width, shrink-to-fit=no, viewport-fit=cover",
   icons: [
@@ -47,14 +47,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Studio Moikas",
     description: "A creative studio app with AI-powered image generation.",
-    url: "https://your-domain.com",
+    url: "https://studio.moikas.com",
     siteName: "Studio Moikas",
     images: [
       {
-        url: "/icons/icon-512x512.png",
-        width: 512,
-        height: 512,
-        alt: "Studio Moikas Logo",
+        url: "/studio_moikas.PNG",
+        width: 1200,
+        height: 630,
+        alt: "Studio Moikas Landing Page",
       },
     ],
     locale: "en_US",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Studio Moikas",
     description: "A creative studio app with AI-powered image generation.",
-    images: ["/icons/icon-512x512.png"],
+    images: ["/studio_moikas.PNG"],
   },
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
