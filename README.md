@@ -1,6 +1,6 @@
 # Studio Moikas
 
-A modern creative studio app with AI-powered image generation, authentication, subscriptions, and analytics. Built with Next.js 15, React 19, Bun, Tailwind CSS, DaisyUI, Clerk, Supabase, and fal.ai.
+c authentication, subscriptions, and analytics. Built with Next.js 15, React 19, Bun, Tailwind CSS, DaisyUI, Clerk, Supabase, and fal.ai.
 
 ## Features
 

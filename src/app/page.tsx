@@ -2,23 +2,124 @@
 import React from "react";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import {
+  Sparkles,
+  Image as ImageIcon,
+  Sliders,
+  Zap,
+  FlaskRound,
+} from "lucide-react";
 
 export default function Home() {
   const { user } = useUser();
   const username = user?.username || user?.firstName || "Anon";
 
   return (
-    <div>
-      <div className="flex flex-col items-center justify-center min-h-full pt-10">
+    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-b from-purple-100 to-white dark:from-[#35155D] dark:to-[#0a0a0a]">
+      {/* Hero Section */}
+      <section className="w-full flex flex-col items-center justify-center text-center pt-16 pb-10 px-4">
+        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-4">
+          Studio.Moikas
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-700 dark:text-gray-200 max-w-2xl mx-auto mb-6">
+          Create stunning images from your imagination with AI-powered tools.
+          Flexible, fast, and fun.
+        </p>
+        <div className="flex flex-col md:flex-row gap-4 mt-4">
+          <SignedIn>
+            <Link href="/tools/image-generator">
+              <button className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary">
+                Start Creating
+              </button>
+            </Link>
+          </SignedIn>
+          <SignedOut>
+            <Link href="/sign-in">
+              <button className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary">
+                Get Started
+              </button>
+            </Link>
+          </SignedOut>
+        </div>
+      </section>
+
+      {/* Animated Demo Placeholder */}
+      <section className="w-full h-[400px] flex flex-col items-center justify-center py-4  mt-4">
+        <div className="relative w-full max-w-xl h-full flex flex-col md:flex-row items-center justify-between gap-4 py-4">
+          {/* Simple animation: prompt to image */}
+          <div className="-translate-y-1/2 flex flex-col items-center">
+            <div className="bg-white dark:bg-base-200 border border-base-300 rounded-xl px-6 py-3 shadow-md text-lg font-mono animate-pulse">
+              "A cat astronaut on Mars"
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 max-w-69 w-full h-1 bg-gradient-to-r from-purple-400 via-orange-400 to-pink-400 animate-gradient-x rounded-full" />
+            <span className="mt-2 text-xs text-gray-400">Your prompt</span>
+          </div>
+          <div className=" -translate-y-1/2 flex flex-col items-center">
+            <div className="bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl w-32 h-32 flex items-center justify-center shadow-lg animate-fade-in">
+              <ImageIcon className="w-16 h-16 text-white" />
+            </div>
+            <span className="mt-2 text-xs text-gray-400">
+              AI-generated image
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 py-12 px-4">
+        {/* Feature 1: AI Image Generation */}
+        <div className="card bg-white dark:bg-base-200 shadow-lg border border-base-200 flex flex-col items-center p-6 hover:scale-105 transition-transform duration-200">
+          <Sparkles className="w-10 h-10 text-purple-500 mb-3 animate-spin-slow" />
+          <h3 className="text-lg font-bold mb-2">AI Image Generation</h3>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            Turn your ideas into visuals instantly using advanced AI models.
+          </p>
+        </div>
+        {/* Feature 2: Flexible Aspect Ratios */}
+        <div className="card bg-white dark:bg-base-200 shadow-lg border border-base-200 flex flex-col items-center p-6 hover:scale-105 transition-transform duration-200">
+          <Sliders className="w-10 h-10 text-orange-500 mb-3 animate-wiggle" />
+          <h3 className="text-lg font-bold mb-2">Flexible Aspect Ratios</h3>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            Choose from a variety of aspect ratios to fit your creative needs.
+          </p>
+        </div>
+        {/* Feature 3: Multiple AI Models */}
+        <div className="card bg-white dark:bg-base-200 shadow-lg border border-base-200 flex flex-col items-center p-6 hover:scale-105 transition-transform duration-200">
+          <Zap className="w-10 h-10 text-pink-500 mb-3 animate-pulse" />
+          <h3 className="text-lg font-bold mb-2">Multiple AI Models</h3>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            Access different AI models for unique styles and results.
+          </p>
+        </div>
+        {/* Feature 4: Token-Based Usage */}
+        <div className="card bg-white dark:bg-base-200 shadow-lg border border-base-200 flex flex-col items-center p-6 hover:scale-105 transition-transform duration-200">
+          <span title="Mana Points">
+            <FlaskRound className="w-10 h-10 mb-3 animate-bounce" />
+          </span>
+          <h3 className="text-lg font-bold mb-2">Mana Points System</h3>
+          <p className="text-gray-600 dark:text-gray-300 text-center">
+            Track your creative power and manage your usage with Mana Points.
+          </p>
+        </div>
+      </section>
+
+      {/* Call to Action Section */}
+      <section className="w-full flex flex-col items-center justify-center py-8">
         <SignedIn>
-          <h1 className="text-3xl font-bold">Welcome back, {username.charAt(0).toUpperCase() + username.slice(1)}</h1>
-          <Link href="/pricing" className="btn btn-secondary mt-6">View Pricing</Link>
+          <Link href="/tools/image-generator">
+            <button className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary">
+              Start Creating Now
+            </button>
+          </Link>
         </SignedIn>
         <SignedOut>
-          <h1 className="text-3xl font-bold">Welcome to Studio.Moikas</h1>
-          <Link href="/pricing" className="btn btn-secondary mt-6">View Pricing</Link>
+          <Link href="/sign-up">
+            <button className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary">
+              Sign Up Free
+            </button>
+          </Link>
         </SignedOut>
-      </div>
+      </section>
     </div>
   );
 }

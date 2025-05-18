@@ -27,7 +27,7 @@ export default function Navbar() {
             ) : token_error ? (
               <span className="text-error text-xs" title={token_error} aria-live="polite">MP: --</span>
             ) : (
-              <span className="font-mono text-xs md:text-sm" title="Your available megapixels" aria-live="polite">MP: {mp_tokens}</span>
+              <span className="font-mono text-xs md:text-sm" title="Your available Mana Points" aria-live="polite">MP: {mp_tokens}</span>
             )}
             <UserButton afterSignOutUrl="/" />
           </div>

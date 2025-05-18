@@ -2,10 +2,8 @@ import React from "react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ClerkProvider, SignedIn } from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import Navbar from "./components/navbar";
-import Sidebar from "./components/sidebar";
-import User_sync from "./components/user_sync";
 import { MpProvider } from "./context/mp_context";
 import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
@@ -89,13 +87,7 @@ export default function RootLayout({
           <MpProvider>
             <Session_tracking />
             <Navbar />
-            <div className="flex min-h-screen">
-              <SignedIn>
-                <User_sync />
-                <Sidebar />
-              </SignedIn>
-              <main className="flex-1">{children}</main>
-            </div>
+            <main className="flex-1 min-h-screen">{children}</main>
             <footer className="w-full p-4 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">
               <Analytics_opt_out_toggle />
               {" | "}
