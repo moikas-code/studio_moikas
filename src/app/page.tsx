@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut, PricingTable } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -111,6 +111,24 @@ export default function Home() {
           <p className="text-gray-600 dark:text-gray-300 text-center">
             Track your creative power and manage your usage with Mana Points.
           </p>
+        </div>
+      </section>
+
+      {/* Pricing Table Section */}
+      <section className="w-full h-[500px] flex flex-col items-center justify-center py-8 px-4">
+        <div className="w-full max-w-3xl h-full [&>div]:h-full">
+          <PricingTable
+            appearance={{
+              elements: {
+                pricingTable: "w-full h-full flex flex-col md:flex-row gap-4 bg-white/80 dark:bg-base-200/80 rounded-xl shadow-lg p-6 border border-base-200",
+                pricingTableCard: "w-full",
+                pricingTablePlanCard: "flex-1 min-w-0 w-100 p-4 md:p-6 rounded-lg shadow-md",
+                pricingTablePlanCardTitle: "text-lg md:text-2xl font-bold text-primary",
+                pricingTablePlanCardPrice: "text-2xl md:text-3xl font-bold",
+                formButtonPrimary: "btn btn-primary btn-sm md:btn-md w-full mt-4",
+              },
+            }}
+          />
         </div>
       </section>
 
