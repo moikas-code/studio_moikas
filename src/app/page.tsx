@@ -10,10 +10,9 @@ import {
   Zap,
   FlaskRound,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 
 export default function Home() {
-  const { user } = useUser();
-  const username = user?.username || user?.firstName || "Anon";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-b from-purple-100 to-white dark:from-[#35155D] dark:to-[#0a0a0a]">
@@ -29,14 +28,20 @@ export default function Home() {
         <div className="flex flex-col md:flex-row gap-4 mt-4">
           <SignedIn>
             <Link href="/tools/image-generator">
-              <button className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary">
+              <button
+                className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary"
+                onClick={() => track("Landing Start Creating Click")}
+              >
                 Start Creating
               </button>
             </Link>
           </SignedIn>
           <SignedOut>
             <Link href="/sign-in">
-              <button className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary">
+              <button
+                className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary"
+                onClick={() => track("Landing Get Started Click")}
+              >
                 Get Started
               </button>
             </Link>
@@ -50,7 +55,7 @@ export default function Home() {
           {/* Simple animation: prompt to image */}
           <div className="-translate-y-1/2 flex flex-col items-center">
             <div className="bg-white dark:bg-base-200 border border-base-300 rounded-xl px-6 py-3 shadow-md text-lg font-mono animate-pulse">
-              "A cat astronaut on Mars"
+              &quot;A cat astronaut on Mars&quot;
             </div>
             <div className="absolute top-1/2 -translate-y-1/2 max-w-69 w-full h-1 bg-gradient-to-r from-purple-400 via-orange-400 to-pink-400 animate-gradient-x rounded-full" />
             <span className="mt-2 text-xs text-gray-400">Your prompt</span>
@@ -114,14 +119,20 @@ export default function Home() {
       <section className="w-full flex flex-col items-center justify-center py-8">
         <SignedIn>
           <Link href="/tools/image-generator">
-            <button className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary">
+            <button
+              className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
+              onClick={() => track("Landing Start Creating Now Click")}
+            >
               Start Creating Now
             </button>
           </Link>
         </SignedIn>
         <SignedOut>
           <Link href="/sign-up">
-            <button className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary">
+            <button
+              className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
+              onClick={() => track("Landing Sign Up Free Click")}
+            >
               Sign Up Free
             </button>
           </Link>
