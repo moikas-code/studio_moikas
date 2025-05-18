@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const { data: subscription, error: sub_error } = await supabase
       .from("subscriptions")
-      .select("tokens, plan, renewed_at, pro_tokens_used, pro_tokens_cap")
+      .select("tokens, plan, renewed_at, premium_generations_used")
       .eq("user_id", user.id)
       .single();
 
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tokens, pro_tokens_used, pro_tokens_cap } = subscription;
+    const { tokens } = subscription;
     plan = subscription.plan;
 
     // Restrict model access by plan
@@ -162,11 +162,8 @@ export async function POST(req: NextRequest) {
 
     // Special logic for pro model monthly cap
     if (plan === "standard" && selected_model_id === "fal-ai/flux/pro") {
-      if ((pro_tokens_used ?? 0) + required_tokens > (pro_tokens_cap ?? 1700)) {
-        return NextResponse.json(
-          { error: "Monthly cap for FLUX.1 [pro] reached.", pro_tokens_used, pro_tokens_cap },
-          { status: 402 }
-        );
+      if (subscription.premium_generations_used >= 100) {
+        return NextResponse.json({ error: "Premium generation limit reached (100)." }, { status: 403 });
       }
       // Deduct from both pools
       const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
@@ -186,10 +183,10 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
-      // Increment pro_tokens_used
+      // Increment premium_generations_used
       const { error: pro_error } = await supabase
         .from("subscriptions")
-        .update({ pro_tokens_used: (pro_tokens_used ?? 0) + required_tokens })
+        .update({ premium_generations_used: subscription.premium_generations_used + 1 })
         .eq("user_id", user.id);
       if (pro_error) {
         console.error("Pro tokens update error:", pro_error.message);
