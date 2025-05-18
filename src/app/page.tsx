@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Sparkles,
@@ -56,7 +57,13 @@ export default function Home() {
           </div>
           <div className=" -translate-y-1/2 flex flex-col items-center">
             <div className="bg-gradient-to-br from-orange-400 to-pink-500 rounded-xl w-32 h-32 flex items-center justify-center shadow-lg animate-fade-in">
-              <ImageIcon className="w-16 h-16 text-white" />
+              <Image
+                width={300}
+                height={300}
+                src="/A_cat_astronaut_on_Mars.png"
+                alt="AI-generated image"
+                className="w-30 h-30 text-white rounded shadow-md"
+              />
             </div>
             <span className="mt-2 text-xs text-gray-400">
               AI-generated image
