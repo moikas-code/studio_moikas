@@ -1,11 +1,10 @@
 "use client";
 import React from "react";
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import Image from "next/image";
 import Link from "next/link";
 import {
   Sparkles,
-  Image as ImageIcon,
   Sliders,
   Zap,
   FlaskRound,
