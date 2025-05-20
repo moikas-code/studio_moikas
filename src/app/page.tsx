@@ -29,7 +29,7 @@ export default function Home() {
             <Link href="/tools/image-generator">
               <button
                 className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary"
-                onClick={() => track("Landing Start Creating Click")}
+                onClick={() => track("Landing-HERO-Start_Creating-Click")}
               >
                 Start Creating
               </button>
@@ -39,7 +39,7 @@ export default function Home() {
             <Link href="/sign-in">
               <button
                 className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary"
-                onClick={() => track("Landing Get Started Click")}
+                onClick={() => track("Landing-HERO-Get_Started-Click")}
               >
                 Get Started
               </button>
@@ -120,7 +120,7 @@ export default function Home() {
           <Link href="/tools/image-generator">
             <button
               className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
-              onClick={() => track("Landing Start Creating Now Click")}
+              onClick={() => track("Landing-CTA-Start_Creating_Now-Click")}
             >
               Start Creating Now
             </button>
@@ -130,7 +130,7 @@ export default function Home() {
           <Link href="/sign-up">
             <button
               className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
-              onClick={() => track("Landing Sign Up Free Click")}
+              onClick={() => track("Landing-CTA-Sign_Up_Free-Click")}
             >
               Sign Up Free
             </button>
