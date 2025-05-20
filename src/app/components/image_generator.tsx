@@ -13,6 +13,8 @@ import Image_grid from "./image_grid";
 export default function Image_generator() {
   // State for the prompt input
   const [prompt_text, set_prompt_text] = useState("");
+  // State for Image Prompt Description
+  const [prompt_description, set_prompt_description] = useState("");
   // State for the generated image (base64)
   const [image_base64, set_image_base64] = useState<string[]>([]); // support grid
   // State for the Mana Points used
@@ -154,6 +156,7 @@ export default function Image_generator() {
           ? data.image_base64
           : [data.image_base64]
       );
+      set_prompt_description(prompt_text ?? "");
       set_mana_points_used(data.mp_used ?? null);
       await refresh_mp();
     } catch (error: unknown) {
@@ -352,7 +355,12 @@ export default function Image_generator() {
       {/* Error message (always below menu/input) */}
       <Error_display error_message={error_message} />
       {/* Image grid display, full width, in a card (always below menu/input) */}
-      <Image_grid image_base64={image_base64} prompt_text={prompt_text} mana_points_used={mana_points_used} />
+      <Image_grid
+        image_base64={image_base64}
+        prompt_text={prompt_description}
+        mana_points_used={mana_points_used}
+        plan={plan}
+      />
       {/* Cost display at the bottom of the page */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
         <div className="card bg-base-100 shadow-lg border border-orange-300 px-8 py-4 flex flex-row items-center gap-4">
