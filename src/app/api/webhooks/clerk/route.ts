@@ -90,13 +90,13 @@ export async function POST(req: Request) {
         }
 
         // Initialize subscription for new user
-
         const { error: subError } = await supabase
           .from("subscriptions")
           .insert({
             user_id: userData.id,
             plan: "free",
-            tokens: 100,
+            permanent_tokens: 100,
+            renewable_tokens: 0,
             renewed_at: now,
           });
 
@@ -123,6 +123,42 @@ export async function POST(req: Request) {
           console.error("Error updating user:", updateError.message);
           throw new Error(`Failed to update user: ${updateError.message}`);
         }
+
+        // --- PLAN SYNC LOGIC ---
+        // Try to get plan from Clerk's public_metadata or custom field
+        let plan = "free";
+        if (data.public_metadata && typeof data.public_metadata.plan === "string") {
+          plan = data.public_metadata.plan;
+        } else if (data.private_metadata && typeof data.private_metadata.plan === "string") {
+          plan = data.private_metadata.plan;
+        }
+        // Fetch user_id from Supabase
+        const { data: user_row, error: user_row_error } = await supabase
+          .from("users")
+          .select("id")
+          .eq("clerk_id", clerk_user_id)
+          .single();
+        if (!user_row_error && user_row?.id) {
+          // Update subscription plan in Supabase
+          let update_fields: any = { plan, renewed_at: new Date().toISOString() };
+          if (plan === "standard") {
+            update_fields.renewable_tokens = 4000;
+          } else {
+            update_fields.permanent_tokens = 100;
+          }
+          const { error: sub_update_error } = await supabase
+            .from("subscriptions")
+            .update(update_fields)
+            .eq("user_id", user_row.id);
+          if (sub_update_error) {
+            console.error("Error updating subscription plan:", sub_update_error.message);
+          } else {
+            console.log(`Updated subscription plan for user ${clerk_user_id} to ${plan}`);
+          }
+        } else {
+          console.error("Could not find user for plan update", user_row_error?.message);
+        }
+        // --- END PLAN SYNC LOGIC ---
 
         console.log(`User updated: ${clerk_user_id}`);
         await track('User Updated', {

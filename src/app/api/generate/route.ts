@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
 
     const { data: subscription, error: sub_error } = await supabase
       .from("subscriptions")
-      .select("tokens, plan, renewed_at, premium_generations_used")
+      .select("plan, renewed_at, premium_generations_used, renewable_tokens, permanent_tokens")
       .eq("user_id", user.id)
       .single();
 
@@ -126,8 +126,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tokens } = subscription;
     plan = subscription.plan;
+    const renewable_tokens = subscription.renewable_tokens ?? 0;
+    const permanent_tokens = subscription.permanent_tokens ?? 0;
 
     // Restrict model access by plan
     selected_model_id = model_id;
@@ -165,56 +166,66 @@ export async function POST(req: NextRequest) {
       if (subscription.premium_generations_used >= 100) {
         return NextResponse.json({ error: "Premium generation limit reached (100)." }, { status: 403 });
       }
-      // Deduct from both pools
-      const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
-        p_user_id: user.id,
-        p_required_tokens: required_tokens,
-      });
-      if (deduct_error) {
-        console.error("Token deduction error:", deduct_error.message);
-        if (deduct_error.message.includes("Insufficient tokens")) {
+      // Deduct from renewable first, then permanent if needed
+      let to_deduct = required_tokens;
+      let new_renewable = renewable_tokens;
+      let new_permanent = permanent_tokens;
+      if (renewable_tokens >= to_deduct) {
+        new_renewable -= to_deduct;
+        to_deduct = 0;
+      } else {
+        to_deduct -= renewable_tokens;
+        new_renewable = 0;
+        if (permanent_tokens >= to_deduct) {
+          new_permanent -= to_deduct;
+          to_deduct = 0;
+        } else {
           return NextResponse.json(
-            { error: "Insufficient tokens", required_tokens, tokens },
+            { error: "Insufficient tokens", required_tokens, renewable_tokens, permanent_tokens },
             { status: 402 }
           );
         }
+      }
+      // Update tokens in Supabase
+      const { error: update_error } = await supabase
+        .from("subscriptions")
+        .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent, premium_generations_used: subscription.premium_generations_used + 1 })
+        .eq("user_id", user.id);
+      if (update_error) {
+        console.error("Token deduction error:", update_error.message);
         return NextResponse.json(
           { error: "Failed to deduct tokens" },
           { status: 500 }
         );
       }
-      // Increment premium_generations_used
-      const { error: pro_error } = await supabase
-        .from("subscriptions")
-        .update({ premium_generations_used: subscription.premium_generations_used + 1 })
-        .eq("user_id", user.id);
-      if (pro_error) {
-        console.error("Pro tokens update error:", pro_error.message);
-        return NextResponse.json(
-          { error: "Failed to update pro model usage" },
-          { status: 500 }
-        );
-      }
     } else {
-      // Non-pro model: only deduct from general tokens
-      if (tokens < required_tokens) {
-        return NextResponse.json(
-          { error: "Insufficient tokens", required_tokens, tokens },
-          { status: 402 }
-        );
-      }
-      const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
-        p_user_id: user.id,
-        p_required_tokens: required_tokens,
-      });
-      if (deduct_error) {
-        console.error("Token deduction error:", deduct_error.message);
-        if (deduct_error.message.includes("Insufficient tokens")) {
+      // Non-pro model: deduct from renewable first, then permanent if needed
+      let to_deduct = required_tokens;
+      let new_renewable = renewable_tokens;
+      let new_permanent = permanent_tokens;
+      if (renewable_tokens >= to_deduct) {
+        new_renewable -= to_deduct;
+        to_deduct = 0;
+      } else {
+        to_deduct -= renewable_tokens;
+        new_renewable = 0;
+        if (permanent_tokens >= to_deduct) {
+          new_permanent -= to_deduct;
+          to_deduct = 0;
+        } else {
           return NextResponse.json(
-            { error: "Insufficient tokens", required_tokens, tokens },
+            { error: "Insufficient tokens", required_tokens, renewable_tokens, permanent_tokens },
             { status: 402 }
           );
         }
+      }
+      // Update tokens in Supabase
+      const { error: update_error } = await supabase
+        .from("subscriptions")
+        .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent })
+        .eq("user_id", user.id);
+      if (update_error) {
+        console.error("Token deduction error:", update_error.message);
         return NextResponse.json(
           { error: "Failed to deduct tokens" },
           { status: 500 }

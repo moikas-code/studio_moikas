@@ -16,6 +16,7 @@
     "supabase:db:push": "supabase db push",
     "supabase:db:reset": "supabase db reset",
     "supabase:migration:up": "supabase migration up",
+    "supabase:migration:down": "supabase migration down",
     "tunnel:init": "docker pull cloudflare/cloudflared:latest",
     "tunnel:login": "docker run -it --rm cloudflare/cloudflared:latest tunnel login",
     "tunnel:start": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://host.docker.internal:3000"

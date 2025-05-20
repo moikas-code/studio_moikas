@@ -2,23 +2,24 @@
 
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+
 import { useSupabaseClient } from "@/lib/supabase_client";
+import { auth } from "@clerk/nextjs/server";
 
 /**
  * User_sync component ensures the signed-in Clerk user is present in Supabase,
  * and initializes a subscription if missing. Runs on login and user change.
  */
-export default function User_sync() {
-  const { user, isLoaded } = useUser();
-  const supabase = useSupabaseClient();
+interface User_sync_props {
+  plan: string;
+}
 
+export default function User_sync({ plan }: User_sync_props) {
+  const { user, isLoaded } = useUser();
+
+  const supabase = useSupabaseClient();
   // Placeholder: implement actual logic to determine if user is standard
   // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  const is_standard_user = (user: any): boolean => {
-    // TODO: Replace with real check, e.g.:
-    // return user.publicMetadata?.plan === 'standard';
-    return false;
-  };
 
   useEffect(() => {
     if (!isLoaded || !user || !supabase) return;
@@ -44,8 +45,8 @@ export default function User_sync() {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
-        const plan = is_standard_user(user) ? "standard" : "free";
-        const tokens = plan === "standard" ? 625 : 100;
+        const renewable_tokens = plan === "standard" ? 4000 : 0;
+        const permanent_tokens = 100;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -62,7 +63,8 @@ export default function User_sync() {
           .insert({
             user_id,
             plan,
-            tokens,
+            renewable_tokens,
+            permanent_tokens,
             renewed_at: new Date().toISOString(),
           });
         if (insert_error) {
@@ -72,7 +74,7 @@ export default function User_sync() {
         // Check if subscription exists
         const { data: subscription, error: sub_error } = await supabase
           .from("subscriptions")
-          .select("id, plan")
+          .select("id, plan, renewable_tokens, permanent_tokens")
           .eq("user_id", user_id)
           .single();
 
@@ -84,26 +86,35 @@ export default function User_sync() {
 
         // If subscription does not exist, create it
         if (!subscription) {
-          const plan = is_standard_user(user) ? "standard" : "free";
-          const tokens = plan === "standard" ? 625 : 100;
+          const renewable_tokens = plan === "standard" ? 4000 : 0;
+          const permanent_tokens = 100;
           const { error: insert_error } = await supabase
             .from("subscriptions")
             .insert({
               user_id,
               plan,
-              tokens,
+              renewable_tokens,
+              permanent_tokens,
               renewed_at: new Date().toISOString(),
             });
           if (insert_error) {
             console.error("Supabase subscription insert error:", insert_error.message);
           }
-        } else if (subscription.plan !== (is_standard_user(user) ? "standard" : "free")) {
+        } else if (subscription.plan !== plan) {
           // If plan changed, update subscription
-          const plan = is_standard_user(user) ? "standard" : "free";
-          const tokens = plan === "standard" ? 625 : 100;
+          let update_fields: any = { plan, renewed_at: new Date().toISOString() };
+          if (plan === "standard") {
+            update_fields.renewable_tokens = 4000;
+            // Do not touch permanent_tokens
+          } else if (plan === "free") {
+            // Only set permanent_tokens if not already present
+            if (!subscription.permanent_tokens || subscription.permanent_tokens < 100) {
+              update_fields.permanent_tokens = 100;
+            }
+          }
           const { error: update_error } = await supabase
             .from("subscriptions")
-            .update({ plan, tokens })
+            .update(update_fields)
             .eq("user_id", user_id);
           if (update_error) {
             console.error("Supabase subscription update error:", update_error.message);
@@ -114,7 +125,7 @@ export default function User_sync() {
 
     sync_user();
     // Only run when user or supabase client changes
-  }, [user, isLoaded, supabase]);
+  }, [user, isLoaded, supabase, plan]);
 
   return null;
-} 
+}
