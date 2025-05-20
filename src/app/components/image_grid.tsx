@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Image from "next/image";
+import { track } from "@vercel/analytics";
 
 interface Image_grid_props {
   image_base64: string[];
@@ -78,6 +79,13 @@ export default function Image_grid({ image_base64, prompt_text, mana_points_used
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    // Track download event
+    track("Image Download", {
+      format: ext,
+      plan: plan || 'unknown',
+      idx,
+      prompt_text: prompt_text.slice(0, 255),
+    });
     show_toast(`Downloaded as ${ext.toUpperCase()}`);
   }
 
