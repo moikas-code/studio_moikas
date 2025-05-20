@@ -140,7 +140,7 @@ export async function POST(req: Request) {
           .single();
         if (!user_row_error && user_row?.id) {
           // Update subscription plan in Supabase
-          let update_fields: any = { plan, renewed_at: new Date().toISOString() };
+          const update_fields: { plan: string; renewed_at: string; renewable_tokens?: number; permanent_tokens?: number } = { plan, renewed_at: new Date().toISOString() };
           if (plan === "standard") {
             update_fields.renewable_tokens = 4000;
           } else {

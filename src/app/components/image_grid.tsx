@@ -11,7 +11,6 @@ interface Image_grid_props {
 export default function Image_grid({ image_base64, prompt_text, mana_points_used, plan }: Image_grid_props) {
   const [toast_message, set_toast_message] = useState<string | null>(null);
   const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(null);
-  const [selected_format, set_selected_format] = useState<{ [key: number]: string }>({});
 
   // Helper to show toast
   function show_toast(message: string) {
@@ -143,7 +142,6 @@ export default function Image_grid({ image_base64, prompt_text, mana_points_used
                         className="px-4 py-2 text-left hover:bg-base-200 w-full"
                         onClick={async () => {
                           set_dropdown_open_idx(null);
-                          set_selected_format((prev) => ({ ...prev, [idx]: opt.value }));
                           await handle_download(img, opt.value, idx);
                         }}
                       >

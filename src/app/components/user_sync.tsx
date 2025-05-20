@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 
 import { useSupabaseClient } from "@/lib/supabase_client";
-import { auth } from "@clerk/nextjs/server";
 
 /**
  * User_sync component ensures the signed-in Clerk user is present in Supabase,
@@ -19,7 +18,6 @@ export default function User_sync({ plan }: User_sync_props) {
 
   const supabase = useSupabaseClient();
   // Placeholder: implement actual logic to determine if user is standard
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 
   useEffect(() => {
     if (!isLoaded || !user || !supabase) return;
@@ -102,7 +100,7 @@ export default function User_sync({ plan }: User_sync_props) {
           }
         } else if (subscription.plan !== plan) {
           // If plan changed, update subscription
-          let update_fields: any = { plan, renewed_at: new Date().toISOString() };
+          const update_fields: { plan: string; renewed_at: string; renewable_tokens?: number; permanent_tokens?: number } = { plan, renewed_at: new Date().toISOString() };
           if (plan === "standard") {
             update_fields.renewable_tokens = 4000;
             // Do not touch permanent_tokens
