@@ -4,6 +4,7 @@
  */
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Calculate required tokens (megapixels) for a given image size.
@@ -107,12 +108,12 @@ export async function deduct_tokens({
   user_id,
   required_tokens,
 }: {
-  supabase: unknown;
+  supabase: SupabaseClient;
   user_id: string;
   required_tokens: number;
 }): Promise<{ renewable_tokens: number; permanent_tokens: number }> {
   // Fetch current token balances
-  const { data: subscription, error } = await (supabase as any)
+  const { data: subscription, error } = await supabase
     .from("subscriptions")
     .select("renewable_tokens, permanent_tokens")
     .eq("user_id", user_id)
@@ -137,7 +138,7 @@ export async function deduct_tokens({
     }
   }
   // Update tokens in Supabase
-  const { error: update_error } = await (supabase as any)
+  const { error: update_error } = await supabase
     .from("subscriptions")
     .update({ renewable_tokens, permanent_tokens })
     .eq("user_id", user_id);

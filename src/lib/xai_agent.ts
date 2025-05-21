@@ -6,6 +6,7 @@ import {
 } from "@langchain/core/messages";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import { ChatOpenAIToolType } from "@langchain/core/experimental/openai_types";
 
 /**
  * Centralized function to handle xAI agent requests with tool support and dynamic system prompt.
@@ -26,7 +27,7 @@ export async function invoke_xai_agent_with_tools({
   system_message?: SystemMessage;
   prompt: HumanMessage;
   messages?: BaseMessage[];
-  tools?: unknown[];
+  tools?: ChatOpenAIToolType[];
   model_options?: Record<string, unknown>;
 }): Promise<string> {
   // Instantiate the xAI model with API key and any additional options
@@ -39,7 +40,8 @@ export async function invoke_xai_agent_with_tools({
   // If tools are provided, bind them and use the returned runnable
   let response;
   if (tools && Array.isArray(tools) && tools.length > 0) {
-    const runnable = model.bindTools(tools as any[]);
+    // TODO: Replace with correct type if not ChatOpenAIToolType
+    const runnable = model.bindTools(tools as ChatOpenAIToolType[]);
     response = await runnable.invoke(_messages);
   } else {
     response = await model.invoke(_messages);

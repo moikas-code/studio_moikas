@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
 import { Redis } from '@upstash/redis';
 import { check_rate_limit, generate_imggen_cache_key, get_model_cost } from '@/lib/generate_helpers';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -22,8 +23,8 @@ export async function POST(req: NextRequest) {
   let previous_permanent_tokens = 0;
   let previous_premium_generations_used = 0;
   let tokens_deducted = false;
-  let user: unknown = null;
-  let supabase: unknown = null;
+  let user: { id: string } | null = null;
+  let supabase: SupabaseClient | null = null;
   // --- Move prompt and body variables here ---
   let prompt: string = '';
   let body: Record<string, unknown> = {};
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
     supabase = await create_clerk_supabase_client_ssr();
 
     // Fetch user and subscription data
-    const { data: user_data, error: user_error } = await (supabase as any)
+    const { data: user_data, error: user_error } = await supabase
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const { data: subscription, error: sub_error } = await (supabase as any)
+    const { data: subscription, error: sub_error } = await supabase
       .from("subscriptions")
       .select("plan, renewed_at, premium_generations_used, renewable_tokens, permanent_tokens")
       .eq("user_id", user.id)
@@ -207,7 +208,7 @@ export async function POST(req: NextRequest) {
         }
       }
       // Update tokens in Supabase
-      const { error: update_error } = await (supabase as any)
+      const { error: update_error } = await supabase
         .from("subscriptions")
         .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent, premium_generations_used: subscription.premium_generations_used + 1 })
         .eq("user_id", user.id);
@@ -242,7 +243,7 @@ export async function POST(req: NextRequest) {
         }
       }
       // Update tokens in Supabase
-      const { error: update_error } = await (supabase as any)
+      const { error: update_error } = await supabase
         .from("subscriptions")
         .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent })
         .eq("user_id", user.id);
@@ -309,7 +310,7 @@ export async function POST(req: NextRequest) {
         if (plan === "standard" && selected_model_id === "fal-ai/flux-pro") {
           update_data.premium_generations_used = previous_premium_generations_used;
         }
-        await (supabase as any)
+        await supabase
           .from("subscriptions")
           .update(update_data)
           .eq("user_id", user.id);

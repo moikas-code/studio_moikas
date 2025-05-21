@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useContext, useRef, useEffect } from "react";
+import React, { useState, useContext, useRef, useEffect, useCallback } from "react";
 import { MpContext } from "../context/mp_context";
 import { MODEL_OPTIONS } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
@@ -164,113 +164,119 @@ export default function Image_generator() {
   };
 
   // Handler for generating the image
-  const handle_generate_image = async (e: React.FormEvent, custom?: {prompt: string, model: string, aspect: number, enhance: number}) => {
-    e.preventDefault();
-    set_show_settings(false); // Auto-hide options
-    set_is_loading(true);
-    set_error_message(null);
-    set_image_base64([]);
-    set_mana_points_used(null);
-    set_backend_cost(null);
+  const handle_generate_image = useCallback(
+    async (e: React.FormEvent, custom?: { prompt: string, model: string, aspect: number, enhance: number }) => {
+      e.preventDefault();
+      set_show_settings(false); // Auto-hide options
+      set_is_loading(true);
+      set_error_message(null);
+      set_image_base64([]);
+      set_mana_points_used(null);
+      set_backend_cost(null);
 
-    // Use custom values if provided (for redo), else current state
-    const used_prompt = custom?.prompt ?? prompt_text;
-    const used_model = custom?.model ?? model_id;
-    const used_aspect = custom?.aspect ?? aspect_index;
-    const used_enhance = custom?.enhance ?? enhancement_count;
-    const used_aspect_label = ASPECT_PRESETS[used_aspect].label;
-    const used_aspect_ratio = ASPECT_PRESETS[used_aspect].ratio;
-    const used_width = Math.round(Math.sqrt(PREVIEW_AREA * used_aspect_ratio));
-    const used_height = Math.round(PREVIEW_AREA / used_width);
+      // Use custom values if provided (for redo), else current state
+      const used_prompt = custom?.prompt ?? prompt_text;
+      const used_model = custom?.model ?? model_id;
+      const used_aspect = custom?.aspect ?? aspect_index;
+      const used_enhance = custom?.enhance ?? enhancement_count;
+      const used_aspect_label = ASPECT_PRESETS[used_aspect].label;
+      const used_aspect_ratio = ASPECT_PRESETS[used_aspect].ratio;
+      const used_width = Math.round(Math.sqrt(PREVIEW_AREA * used_aspect_ratio));
+      const used_height = Math.round(PREVIEW_AREA / used_width);
 
-    // Track the image generation event with as much relevant info as possible
-    track("Image Generation", {
-      event: "click",
-      model_id: used_model,
-      plan,
-      prompt_length: used_prompt.length,
-      prompt_text: used_prompt.slice(0, 255),
-      aspect_ratio: used_aspect_label,
-      timestamp: new Date().toISOString(),
-    });
-
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: used_prompt,
-          model_id: used_model,
-          aspect_ratio: used_aspect_label,
-          width: used_width,
-          height: used_height,
-          enhancement_mp: used_enhance,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to generate image");
-      }
-      set_image_base64(
-        Array.isArray(data.image_base64)
-          ? data.image_base64
-          : [data.image_base64]
-      );
-      set_prompt_description(used_prompt ?? "");
-      set_mana_points_used(data.mp_used ?? null);
-      set_backend_cost(data.enhancement_mp ?? null);
-      await refresh_mp();
-      // Reset prompt and enhancement count after generation
-      set_prompt_text("");
-      set_enhancement_count(0);
-      // Store last generation settings
-      update_last_generation(used_prompt, used_model, used_aspect, used_enhance);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        set_error_message(error.message || "An error occurred");
-      } else {
-        set_error_message("An error occurred");
-      }
-    } finally {
-      set_is_loading(false);
-    }
-  };
-
-  // Handler for enhancing the prompt
-  const handle_enhance_prompt = async () => {
-    if (!prompt_text || !prompt_text.trim()) return;
-    set_is_enhancing(true);
-    set_error_message(null);
-    try {
-      track("Enhance Prompt", {
+      // Track the image generation event with as much relevant info as possible
+      track("Image Generation", {
         event: "click",
+        model_id: used_model,
         plan,
-        prompt_length: prompt_text.length,
-        prompt_text: prompt_text.slice(0, 255),
+        prompt_length: used_prompt.length,
+        prompt_text: used_prompt.slice(0, 255),
+        aspect_ratio: used_aspect_label,
         timestamp: new Date().toISOString(),
       });
-      const response = await fetch("/api/enhance-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: prompt_text }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to enhance prompt");
+
+      try {
+        const response = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: used_prompt,
+            model_id: used_model,
+            aspect_ratio: used_aspect_label,
+            width: used_width,
+            height: used_height,
+            enhancement_mp: used_enhance,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to generate image");
+        }
+        set_image_base64(
+          Array.isArray(data.image_base64)
+            ? data.image_base64
+            : [data.image_base64]
+        );
+        set_prompt_description(used_prompt ?? "");
+        set_mana_points_used(data.mp_used ?? null);
+        set_backend_cost(data.enhancement_mp ?? null);
+        await refresh_mp();
+        // Reset prompt and enhancement count after generation
+        set_prompt_text("");
+        set_enhancement_count(0);
+        // Store last generation settings
+        update_last_generation(used_prompt, used_model, used_aspect, used_enhance);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          set_error_message(error.message || "An error occurred");
+        } else {
+          set_error_message("An error occurred");
+        }
+      } finally {
+        set_is_loading(false);
       }
-      set_prompt_text(data.enhanced_prompt || prompt_text);
-      set_enhancement_count((c) => c + 1);
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        set_error_message(error.message || "An error occurred");
-      } else {
-        set_error_message("An error occurred");
+    },
+    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, update_last_generation]
+  );
+
+  // Handler for enhancing the prompt
+  const handle_enhance_prompt = useCallback(
+    async () => {
+      if (!prompt_text || !prompt_text.trim()) return;
+      set_is_enhancing(true);
+      set_error_message(null);
+      try {
+        track("Enhance Prompt", {
+          event: "click",
+          plan,
+          prompt_length: prompt_text.length,
+          prompt_text: prompt_text.slice(0, 255),
+          timestamp: new Date().toISOString(),
+        });
+        const response = await fetch("/api/enhance-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: prompt_text }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to enhance prompt");
+        }
+        set_prompt_text(data.enhanced_prompt || prompt_text);
+        set_enhancement_count((c) => c + 1);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          set_error_message(error.message || "An error occurred");
+        } else {
+          set_error_message("An error occurred");
+        }
+      } finally {
+        set_is_enhancing(false);
+        await refresh_mp();
       }
-    } finally {
-      set_is_enhancing(false);
-      await refresh_mp();
-    }
-  };
+    },
+    [plan, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_is_enhancing, set_prompt_text]
+  );
 
   // Placeholder style for aspect ratio preview
   const placeholder_style = {
@@ -309,7 +315,7 @@ export default function Image_generator() {
         mp: get_tokens_for_size(preview_width, preview_height),
       })),
       total_mp:
-        enhancement_mp + image_base64.reduce((sum, _img) => sum + get_tokens_for_size(preview_width, preview_height), 0),
+        enhancement_mp + image_base64.length * get_tokens_for_size(preview_width, preview_height),
     };
   };
 
