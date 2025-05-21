@@ -31,6 +31,12 @@ export const MODEL_OPTIONS = [
     plans: ["free", "standard"],
   },
   {
+    value: "fal-ai/aura-flow",
+    label: "AURA-Flow [free]",
+    cost: 1,
+    plans: ["free", "standard"],
+  },
+  {
     value: "fal-ai/flux/dev",
     label: "FLUX.1 [dev]",
     cost: 8,
@@ -42,12 +48,18 @@ export const MODEL_OPTIONS = [
     cost: 17,
     plans: ["standard"],
   },
+  {
+    value: "fal-ai/sana/sprint",
+    label: "SANA Sprint [free]",
+    cost: 1,
+    plans: ["free", "standard"],
+  },
 ];
 
 export function get_model_cost(plan: string, model_id: string): number {
   const model = MODEL_OPTIONS.find((m) => m.value === model_id);
   if (!model) return 1;
-  if (plan === "free" && model.value !== "fal-ai/flux/schnell") return 1;
+  if (plan === "free" && !["fal-ai/flux/schnell", "fal-ai/aura-flow", "fal-ai/sana/sprint"].includes(model.value)) return 1;
   return model.cost;
 }
 
