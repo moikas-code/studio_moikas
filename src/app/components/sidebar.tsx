@@ -18,7 +18,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`h-screen w-64 bg-base-200 border-r border-base-300 flex flex-col shadow-lg z-40 fixed md:static transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 ${open ? "md:flex" : "hidden md:flex"}`}
+        className={`h-screen w-64 max-w-full bg-base-200 border-r border-base-300 flex flex-col shadow-lg z-40 fixed md:static transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 ${open ? "md:flex" : "hidden md:flex"} overflow-y-auto`}
         aria-label="Sidebar navigation"
       >
         {/* Close button for mobile */}

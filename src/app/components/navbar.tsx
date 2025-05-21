@@ -13,12 +13,12 @@ import { MpContext } from "../context/mp_context";
 export default function Navbar({ on_sidebar_toggle, sidebar_open }: { on_sidebar_toggle?: () => void; sidebar_open?: boolean }) {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
-    <nav className="navbar bg-base-100 shadow-md px-4" role="navigation" aria-label="Main navigation">
+    <nav className="navbar bg-base-100 shadow-md px-2 md:px-4" role="navigation" aria-label="Main navigation">
       <div className="flex-1 flex items-center">
-        {/* Mobile sidebar toggle button */}
+        {/* Sidebar toggle button (always visible) */}
         {on_sidebar_toggle && (
           <button
-            className="md:hidden btn btn-ghost btn-square mr-2"
+            className="btn btn-ghost btn-square mr-2"
             aria-label={sidebar_open ? "Close sidebar" : "Open sidebar"}
             onClick={on_sidebar_toggle}
           >
