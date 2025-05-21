@@ -10,11 +10,37 @@ import { MpContext } from "../context/mp_context";
  * Displays app title and authentication buttons.
  * Uses snake_case for all identifiers.
  */
-export default function Navbar() {
+export default function Navbar({ on_sidebar_toggle, sidebar_open }: { on_sidebar_toggle?: () => void; sidebar_open?: boolean }) {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
     <nav className="navbar bg-base-100 shadow-md px-4" role="navigation" aria-label="Main navigation">
-      <div className="flex-1">
+      <div className="flex-1 flex items-center">
+        {/* Mobile sidebar toggle button */}
+        {on_sidebar_toggle && (
+          <button
+            className="md:hidden btn btn-ghost btn-square mr-2"
+            aria-label={sidebar_open ? "Close sidebar" : "Open sidebar"}
+            onClick={on_sidebar_toggle}
+          >
+            {/* Hamburger icon */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-6 h-6"
+            >
+              {sidebar_open ? (
+                // X icon
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                // Hamburger icon
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5" />
+              )}
+            </svg>
+          </button>
+        )}
         <Link href="/" aria-label="Go to home page" className="text-xl font-bold hover:underline focus:underline outline-none">
           Studio.Moikas
         </Link>
