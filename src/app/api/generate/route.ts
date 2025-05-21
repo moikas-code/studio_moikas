@@ -154,26 +154,30 @@ export async function POST(req: NextRequest) {
     // Restrict model access by plan
     selected_model_id = model_id;
     if (plan === "free") {
-      if (!selected_model_id || selected_model_id !== "fal-ai/flux/schnell") {
+      const free_models = ["fal-ai/flux/schnell", "fal-ai/aura-flow", "fal-ai/sana/sprint"];
+      if (!selected_model_id || !free_models.includes(selected_model_id)) {
         selected_model_id = "fal-ai/flux/schnell";
       }
-      if (model_id && model_id !== "fal-ai/flux/schnell") {
+      if (model_id && !free_models.includes(model_id)) {
         return NextResponse.json(
-          { error: "Free users can only use fal-ai/flux/schnell" },
+          { error: "Free users can only use fal-ai/flux/schnell, fal-ai/aura-flow, or fal-ai/sana/sprint" },
           { status: 403 }
         );
       }
     } else if (plan === "standard") {
+      const standard_models = [
+        "fal-ai/flux/schnell",
+        "fal-ai/flux/dev",
+        "fal-ai/flux-pro",
+        "fal-ai/aura-flow",
+        "fal-ai/sana/sprint"
+      ];
       if (!selected_model_id) {
         selected_model_id = "fal-ai/flux/dev";
       }
-      if (
-        selected_model_id !== "fal-ai/flux/schnell" &&
-        selected_model_id !== "fal-ai/flux/dev" &&
-        selected_model_id !== "fal-ai/flux-pro"
-      ) {
+      if (!standard_models.includes(selected_model_id)) {
         return NextResponse.json(
-          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, or fal-ai/flux-pro" },
+          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, fal-ai/flux-pro, fal-ai/aura-flow, or fal-ai/sana/sprint" },
           { status: 403 }
         );
       }
