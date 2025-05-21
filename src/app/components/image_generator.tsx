@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useRef, useEffect } from "react";
 import { MpContext } from "../context/mp_context";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import Image_grid from "./image_grid";
-import { SendHorizontal, SendIcon } from "lucide-react";
+import { SendHorizontal, SendIcon, Sparkles } from "lucide-react";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -119,6 +119,32 @@ export default function Image_generator() {
   // Loading state for prompt enhancement
   const [is_enhancing, set_is_enhancing] = useState(false);
 
+  // Ref for the textarea to auto-expand
+  const prompt_textarea_ref = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-resize textarea on value or window resize
+  useEffect(() => {
+    const textarea = prompt_textarea_ref.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    }
+    // Handler for window resize
+    const handle_resize = () => {
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      }
+    };
+    window.addEventListener('resize', handle_resize);
+    return () => window.removeEventListener('resize', handle_resize);
+  }, [prompt_text]);
+
+  // Handler for textarea change with auto-resize
+  const handle_prompt_text_change = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    set_prompt_text(e.target.value);
+  };
+
   // Handler for generating the image
   const handle_generate_image = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,7 +202,7 @@ export default function Image_generator() {
 
   // Handler for enhancing the prompt
   const handle_enhance_prompt = async () => {
-    if (!prompt_text.trim()) return;
+    if (!prompt_text || !prompt_text.trim()) return;
     set_is_enhancing(true);
     set_error_message(null);
     try {
@@ -230,19 +256,37 @@ export default function Image_generator() {
                 d="M3 7h2l.4-1.2A2 2 0 017.3 4h9.4a2 2 0 011.9 1.8L19 7h2a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2zm0 0l2.293 2.293a1 1 0 001.414 0L12 5.414l5.293 5.293a1 1 0 001.414 0L21 7"
               />
             </svg>
-            {/* Multiline prompt input styled to match the reference image */}
+            {/* Multiline prompt input styled to match the reference image, auto-expanding */}
             <textarea
               id="prompt_text"
-              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none rounded-xl border-none min-h-[64px] max-h-60 py-2 px-0  focus:ring-0 focus:outline-none"
+              ref={prompt_textarea_ref}
+              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none min-h-[36px] py-2 px-0 border-b border-gray-200 focus:border-orange-500 focus:bg-white transition-colors duration-200 rounded-none shadow-none focus:ring-0 focus:outline-none leading-tight overflow-hidden placeholder:font-normal placeholder:text-gray-400"
               value={prompt_text}
-              onChange={(e) => set_prompt_text(e.target.value)}
+              onChange={handle_prompt_text_change}
               placeholder="What will you imagine?"
               required
               aria-required="true"
               aria-label="Prompt for image generation"
               rows={1}
-              style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
+              style={{
+                lineHeight: "1.6",
+                fontFamily: "inherit",
+                background: "none",
+                boxShadow: "none",
+              }}
             />
+            {/* Enhance Prompt Button */}
+            <div className="flex flex-col items-center ml-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
+                disabled={is_enhancing || !prompt_text || !prompt_text.trim() || is_loading}
+                aria-busy={is_enhancing}
+                onClick={handle_enhance_prompt}
+              >
+                {is_enhancing ? "..." : <Sparkles />}
+              </button>
+            </div>
             <button
               type="submit"
               className="ml-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold shadow hover:bg-orange-600 transition"
@@ -254,19 +298,7 @@ export default function Image_generator() {
               aria-busy={is_loading}
               onClick={handle_generate_image}
             >
-              {is_loading ? "Generating..." : <SendHorizontal />}
-            </button>
-            {/* Enhance Prompt Button */}
-            <button
-              type="button"
-              className="ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
-              disabled={
-                is_enhancing || !prompt_text.trim() || is_loading
-              }
-              aria-busy={is_enhancing}
-              onClick={handle_enhance_prompt}
-            >
-              {is_enhancing ? "Enhancing..." : "Enhance Prompt"}
+              {is_loading ? "..." : <SendHorizontal />}
             </button>
           </div>
           {/* Settings button */}
