@@ -107,12 +107,12 @@ export async function deduct_tokens({
   user_id,
   required_tokens,
 }: {
-  supabase: any;
+  supabase: unknown;
   user_id: string;
   required_tokens: number;
 }): Promise<{ renewable_tokens: number; permanent_tokens: number }> {
   // Fetch current token balances
-  const { data: subscription, error } = await supabase
+  const { data: subscription, error } = await (supabase as any)
     .from("subscriptions")
     .select("renewable_tokens, permanent_tokens")
     .eq("user_id", user_id)
@@ -137,7 +137,7 @@ export async function deduct_tokens({
     }
   }
   // Update tokens in Supabase
-  const { error: update_error } = await supabase
+  const { error: update_error } = await (supabase as any)
     .from("subscriptions")
     .update({ renewable_tokens, permanent_tokens })
     .eq("user_id", user_id);

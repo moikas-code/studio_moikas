@@ -2,7 +2,7 @@
 
 import React, { useState, useContext, useRef, useEffect } from "react";
 import { MpContext } from "../context/mp_context";
-import { MODEL_OPTIONS, get_model_cost } from "../../lib/generate_helpers";
+import { MODEL_OPTIONS } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
@@ -127,10 +127,10 @@ export default function Image_generator() {
 
   // Track enhancement usage
   const [enhancement_count, set_enhancement_count] = useState(0);
-  const [backend_cost, set_backend_cost] = useState<any>(null);
+  const [backend_cost, set_backend_cost] = useState<number | null>(null);
 
   // Store last used settings for redo/reuse
-  const [last_generation, set_last_generation] = useState<any>(null);
+  const [last_generation, set_last_generation] = useState<Record<string, unknown> | null>(null);
 
   // Update last_generation after successful generation
   const update_last_generation = (prompt: string, model: string, aspect: number, enhance: number) => {
@@ -145,21 +145,21 @@ export default function Image_generator() {
   // Redo: re-run generation with last settings
   const handle_redo = () => {
     if (!last_generation) return;
-    handle_generate_image(new Event('submit') as any, {
-      prompt: last_generation.prompt_text,
-      model: last_generation.model_id,
-      aspect: last_generation.aspect_index,
-      enhance: last_generation.enhancement_count,
+    handle_generate_image(new Event('submit') as unknown as React.FormEvent, {
+      prompt: last_generation.prompt_text as string,
+      model: last_generation.model_id as string,
+      aspect: last_generation.aspect_index as number,
+      enhance: last_generation.enhancement_count as number,
     });
   };
 
   // Reuse: copy prompt/settings to input and show settings
   const handle_reuse = () => {
     if (!last_generation) return;
-    set_prompt_text(last_generation.prompt_text);
-    set_model_id(last_generation.model_id);
-    set_aspect_index(last_generation.aspect_index);
-    set_enhancement_count(last_generation.enhancement_count);
+    set_prompt_text(last_generation.prompt_text as string);
+    set_model_id(last_generation.model_id as string);
+    set_aspect_index(last_generation.aspect_index as number);
+    set_enhancement_count(last_generation.enhancement_count as number);
     set_show_settings(true);
   };
 
@@ -218,7 +218,7 @@ export default function Image_generator() {
       );
       set_prompt_description(used_prompt ?? "");
       set_mana_points_used(data.mp_used ?? null);
-      set_backend_cost(data);
+      set_backend_cost(data.enhancement_mp ?? null);
       await refresh_mp();
       // Reset prompt and enhancement count after generation
       set_prompt_text("");
@@ -283,18 +283,18 @@ export default function Image_generator() {
   const get_costs = () => {
     if (backend_cost) {
       // Only include enhancement_mp if it was used
-      const enhancement_mp = backend_cost.enhancement_mp && backend_cost.enhancement_mp > 0 ? backend_cost.enhancement_mp : 0;
+      const enhancement_mp = backend_cost > 0 ? backend_cost : 0;
       return {
         enhancement_mp,
         images: [
           {
-            model: backend_cost.model_id,
-            width: backend_cost.width,
-            height: backend_cost.height,
-            mp: backend_cost.mp_used,
+            model: MODEL_OPTIONS.find((m) => m.value === model_id)?.label || model_id,
+            width: preview_width,
+            height: preview_height,
+            mp: mana_points_used ?? 0,
           },
         ],
-        total_mp: enhancement_mp + (backend_cost.mp_used || 0),
+        total_mp: enhancement_mp + (mana_points_used || 0),
       };
     }
     // fallback to local calculation if backend_cost is not set
@@ -319,7 +319,7 @@ export default function Image_generator() {
       if (e.ctrlKey && e.key === 'Enter') {
         e.preventDefault();
         if (!is_loading && prompt_text.trim()) {
-          handle_generate_image(new Event('submit') as any);
+          handle_generate_image(new Event('submit') as unknown as React.FormEvent);
         }
       } else if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
         e.preventDefault();
@@ -333,7 +333,7 @@ export default function Image_generator() {
     }
     window.addEventListener('keydown', handle_keydown);
     return () => window.removeEventListener('keydown', handle_keydown);
-  }, [prompt_text, is_loading, is_enhancing]);
+  }, [prompt_text, is_loading, is_enhancing, handle_enhance_prompt, handle_generate_image]);
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-start bg-base-100 py-8 relative">

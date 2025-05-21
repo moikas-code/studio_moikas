@@ -2,7 +2,6 @@ import withPWA from 'next-pwa';
 
 const next_config = {
   reactStrictMode: true,
-  swcMinify: true,
   compiler: {
     removeConsole: process.env.NODE_ENV !== 'development',
   },

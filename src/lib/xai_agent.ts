@@ -26,7 +26,7 @@ export async function invoke_xai_agent_with_tools({
   system_message?: SystemMessage;
   prompt: HumanMessage;
   messages?: BaseMessage[];
-  tools?: any[];
+  tools?: unknown[];
   model_options?: Record<string, unknown>;
 }): Promise<string> {
   // Instantiate the xAI model with API key and any additional options
@@ -39,7 +39,7 @@ export async function invoke_xai_agent_with_tools({
   // If tools are provided, bind them and use the returned runnable
   let response;
   if (tools && Array.isArray(tools) && tools.length > 0) {
-    const runnable = model.bindTools(tools);
+    const runnable = model.bindTools(tools as any[]);
     response = await runnable.invoke(_messages);
   } else {
     response = await model.invoke(_messages);

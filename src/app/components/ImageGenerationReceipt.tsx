@@ -104,7 +104,6 @@ export default function ImageGenerationCreation({
   timestamp,
   error_message,
   onShare,
-  onDownload,
   onRedo,
   onReuse,
 }: ImageGenerationCreationProps) {
@@ -121,9 +120,9 @@ export default function ImageGenerationCreation({
       const res = await fetch(`data:image/png;base64,${img}`);
       const blob = await res.blob();
       // Try to use the Async Clipboard API for image + text
-      if (navigator.clipboard && (window as any).ClipboardItem) {
+      if (navigator.clipboard && (window as unknown as { ClipboardItem?: unknown }).ClipboardItem) {
         const clipboard_items = [
-          new (window as any).ClipboardItem({
+          new (window as unknown as { ClipboardItem: typeof ClipboardItem }).ClipboardItem({
             "image/png": blob,
             "text/plain": new Blob(
               [
@@ -171,9 +170,9 @@ export default function ImageGenerationCreation({
         return;
       }
       // Try Clipboard API for image
-      if (navigator.clipboard && (window as any).ClipboardItem) {
+      if (navigator.clipboard && (window as unknown as { ClipboardItem?: unknown }).ClipboardItem) {
         const clipboard_items = [
-          new (window as any).ClipboardItem({ "image/png": blob })
+          new (window as unknown as { ClipboardItem: typeof ClipboardItem }).ClipboardItem({ "image/png": blob })
         ];
         await navigator.clipboard.write(clipboard_items);
         alert("Creation image copied to clipboard!");
