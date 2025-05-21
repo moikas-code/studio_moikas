@@ -80,4 +80,54 @@ export async function check_rate_limit(redis: Redis, user_id: string, max_reques
 export function generate_imggen_cache_key(user_id: string, model_id: string, prompt: string, width: number, height: number): string {
   const hash = crypto.createHash('sha256').update(`${prompt}:${width}:${height}`).digest('hex');
   return `imggen:${user_id}:${model_id}:${hash}`;
+}
+
+/**
+ * Deduct tokens from a user's account, prioritizing renewable tokens before permanent tokens.
+ * Throws an error if the user has insufficient tokens.
+ * Returns the updated token balances.
+ */
+export async function deduct_tokens({
+  supabase,
+  user_id,
+  required_tokens,
+}: {
+  supabase: any;
+  user_id: string;
+  required_tokens: number;
+}): Promise<{ renewable_tokens: number; permanent_tokens: number }> {
+  // Fetch current token balances
+  const { data: subscription, error } = await supabase
+    .from("subscriptions")
+    .select("renewable_tokens, permanent_tokens")
+    .eq("user_id", user_id)
+    .single();
+  if (error || !subscription) {
+    throw new Error("Subscription not found");
+  }
+  let renewable_tokens = subscription.renewable_tokens ?? 0;
+  let permanent_tokens = subscription.permanent_tokens ?? 0;
+  let to_deduct = required_tokens;
+  if (renewable_tokens >= to_deduct) {
+    renewable_tokens -= to_deduct;
+    to_deduct = 0;
+  } else {
+    to_deduct -= renewable_tokens;
+    renewable_tokens = 0;
+    if (permanent_tokens >= to_deduct) {
+      permanent_tokens -= to_deduct;
+      to_deduct = 0;
+    } else {
+      throw new Error("Insufficient tokens");
+    }
+  }
+  // Update tokens in Supabase
+  const { error: update_error } = await supabase
+    .from("subscriptions")
+    .update({ renewable_tokens, permanent_tokens })
+    .eq("user_id", user_id);
+  if (update_error) {
+    throw new Error("Failed to deduct tokens");
+  }
+  return { renewable_tokens, permanent_tokens };
 } 

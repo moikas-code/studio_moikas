@@ -115,6 +115,9 @@ export default function Image_generator() {
   // State for showing/hiding settings
   const [show_settings, set_show_settings] = useState(false);
 
+  // Loading state for prompt enhancement
+  const [is_enhancing, set_is_enhancing] = useState(false);
+
   // Handler for generating the image
   const handle_generate_image = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +173,35 @@ export default function Image_generator() {
     }
   };
 
+  // Handler for enhancing the prompt
+  const handle_enhance_prompt = async () => {
+    if (!prompt_text.trim()) return;
+    set_is_enhancing(true);
+    set_error_message(null);
+    try {
+      const response = await fetch("/api/enhance-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: prompt_text }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to enhance prompt");
+      }
+      set_prompt_text(data.enhanced_prompt || prompt_text);
+      // Optionally show a message or highlight
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        set_error_message(error.message || "An error occurred");
+      } else {
+        set_error_message("An error occurred");
+      }
+    } finally {
+      set_is_enhancing(false);
+      await refresh_mp();
+    }
+  };
+
   // Placeholder style for aspect ratio preview
   const placeholder_style = {
     width: `${preview_width / 8}px`, // Scale down for UI (e.g., 1024 -> 128px)
@@ -220,6 +252,18 @@ export default function Image_generator() {
               onClick={handle_generate_image}
             >
               {is_loading ? "Generating..." : "Generate"}
+            </button>
+            {/* Enhance Prompt Button */}
+            <button
+              type="button"
+              className="ml-2 px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
+              disabled={
+                is_enhancing || !prompt_text.trim() || is_loading
+              }
+              aria-busy={is_enhancing}
+              onClick={handle_enhance_prompt}
+            >
+              {is_enhancing ? "Enhancing..." : "Enhance Prompt"}
             </button>
           </div>
           {/* Settings button */}

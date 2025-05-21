@@ -66,7 +66,9 @@ export default function Image_grid({ image_base64, prompt_text, mana_points_used
       ext = 'pdf';
       // Dynamically import jsPDF
       const { jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ unit: 'px', format: [img.width, img.height] });
+      // Always use landscape orientation for PDF
+      const pdf = new jsPDF({ unit: 'px', format: [img.width, img.height], orientation: 'landscape' });
+      // Ensure the image fits the page (swap width/height if needed)
       pdf.addImage(`data:image/png;base64,${base64}`, 'PNG', 0, 0, img.width, img.height);
       blob = pdf.output('blob');
     }
