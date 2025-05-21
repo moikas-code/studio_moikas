@@ -23,7 +23,7 @@ function sidebar_reducer(state: SidebarState, action: SidebarAction): SidebarSta
   }
 }
 
-export default function LayoutWithSidebar({ children, plan }: { children: React.ReactNode; plan: string }) {
+export default function LayoutWithSidebar({ children}: { children: React.ReactNode }) {
   const [sidebar_state, dispatch] = useReducer(sidebar_reducer, { open: false });
   const pathname = usePathname();
   const show_sidebar = pathname.startsWith("/tools");

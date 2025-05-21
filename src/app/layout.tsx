@@ -11,7 +11,6 @@ import Cookie_consent_banner from "./components/cookie_consent_banner";
 import Analytics_opt_out_toggle from "./components/analytics_opt_out_toggle";
 import User_sync from "./components/user_sync";
 import { auth } from "@clerk/nextjs/server";
-import { usePathname } from "next/navigation";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
