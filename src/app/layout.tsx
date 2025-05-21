@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import Navbar from "./components/navbar";
-import Sidebar from "./components/sidebar";
 import LayoutWithSidebar from "./components/LayoutWithSidebar";
 import { MpProvider } from "./context/mp_context";
 import Analytics_wrapper from "./components/analytics_wrapper";

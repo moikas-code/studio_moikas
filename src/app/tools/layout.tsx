@@ -7,7 +7,5 @@ export default async function Tools_layout({
 }: {
   children: React.ReactNode;
 }) {
-  const { has } = await auth();
-  const plan = has({ plan: "standard" }) ? "standard" : "free";
-  return <ToolsLayoutClient plan={plan}>{children}</ToolsLayoutClient>;
+  return <ToolsLayoutClient>{children}</ToolsLayoutClient>;
 }
