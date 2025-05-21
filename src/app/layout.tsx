@@ -1,4 +1,4 @@
-import React, { useReducer } from "react";
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -22,24 +22,6 @@ const geist_mono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Sidebar reducer and actions
-interface SidebarState {
-  open: boolean;
-}
-type SidebarAction = { type: "toggle" } | { type: "close" } | { type: "open" };
-
-function sidebar_reducer(state: SidebarState, action: SidebarAction): SidebarState {
-  switch (action.type) {
-    case "toggle":
-      return { open: !state.open };
-    case "close":
-      return { open: false };
-    case "open":
-      return { open: true };
-    default:
-      return state;
-  }
-}
 
 export const metadata: Metadata = {
   title: "Studio Moikas",
