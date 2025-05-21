@@ -9,7 +9,8 @@ import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
 import Cookie_consent_banner from "./components/cookie_consent_banner";
 import Analytics_opt_out_toggle from "./components/analytics_opt_out_toggle";
-
+import User_sync from "./components/user_sync";
+import { auth } from "@clerk/nextjs/server";
 const geist_sans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -73,11 +74,13 @@ export const metadata: Metadata = {
   ),
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { has } = await auth();
+  const plan = has({ plan: "standard" }) ? "standard" : "free";
   return (
     <html lang="en">
       <body
@@ -86,6 +89,7 @@ export default function RootLayout({
         <ClerkProvider>
           <MpProvider>
             <Session_tracking />
+            <User_sync plan={plan} />
             <Navbar />
             <main className="flex-1 min-h-screen">{children}</main>
             <footer className="w-full p-4 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">
