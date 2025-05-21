@@ -2,10 +2,12 @@
 
 import React, { useState, useContext, useRef, useEffect } from "react";
 import { MpContext } from "../context/mp_context";
+import { MODEL_OPTIONS, get_model_cost } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import Image_grid from "./image_grid";
-import { SendHorizontal, SendIcon, Sparkles } from "lucide-react";
+import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
+import ImageGenerationReceipt from "./ImageGenerationReceipt";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -30,27 +32,6 @@ export default function Image_generator() {
 
   // State for model selection
   const [model_id, set_model_id] = useState<string>("fal-ai/flux/schnell");
-
-  const MODEL_OPTIONS = [
-    {
-      value: "fal-ai/flux/schnell",
-      label: "FLUX.1 [schnell]",
-      cost: 1,
-      plans: ["free", "standard"],
-    },
-    {
-      value: "fal-ai/flux/dev",
-      label: "FLUX.1 [dev]",
-      cost: 8,
-      plans: ["standard"],
-    },
-    {
-      value: "fal-ai/flux/pro",
-      label: "FLUX.1 [pro]",
-      cost: 17,
-      plans: ["standard"],
-    },
-  ];
 
   // State for aspect ratio slider (discrete, only supported ratios)
   const ASPECT_PRESETS = [
@@ -145,6 +126,10 @@ export default function Image_generator() {
     set_prompt_text(e.target.value);
   };
 
+  // Track enhancement usage
+  const [enhancement_count, set_enhancement_count] = useState(0);
+  const [backend_cost, set_backend_cost] = useState<any>(null);
+
   // Handler for generating the image
   const handle_generate_image = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +137,7 @@ export default function Image_generator() {
     set_error_message(null);
     set_image_base64([]);
     set_mana_points_used(null);
+    set_backend_cost(null);
 
     // Track the image generation event with as much relevant info as possible
     track("Image Generation", {
@@ -174,6 +160,7 @@ export default function Image_generator() {
           aspect_ratio: aspect_label,
           width: preview_width,
           height: preview_height,
+          enhancement_mp: enhancement_count,
         }),
       });
       const data = await response.json();
@@ -188,7 +175,11 @@ export default function Image_generator() {
       );
       set_prompt_description(prompt_text ?? "");
       set_mana_points_used(data.mp_used ?? null);
+      set_backend_cost(data);
       await refresh_mp();
+      // Reset prompt and enhancement count after generation
+      set_prompt_text("");
+      set_enhancement_count(0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         set_error_message(error.message || "An error occurred");
@@ -206,6 +197,13 @@ export default function Image_generator() {
     set_is_enhancing(true);
     set_error_message(null);
     try {
+      track("Enhance Prompt", {
+        event: "click",
+        plan,
+        prompt_length: prompt_text.length,
+        prompt_text: prompt_text.slice(0, 255),
+        timestamp: new Date().toISOString(),
+      });
       const response = await fetch("/api/enhance-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -216,7 +214,7 @@ export default function Image_generator() {
         throw new Error(data.error || "Failed to enhance prompt");
       }
       set_prompt_text(data.enhanced_prompt || prompt_text);
-      // Optionally show a message or highlight
+      set_enhancement_count((c) => c + 1);
     } catch (error: unknown) {
       if (error instanceof Error) {
         set_error_message(error.message || "An error occurred");
@@ -235,6 +233,62 @@ export default function Image_generator() {
     height: `${preview_height / 8}px`,
     transition: "all 0.3s ease",
   };
+
+  // Cost breakdown for receipt (from backend)
+  const get_costs = () => {
+    if (backend_cost) {
+      // Only include enhancement_mp if it was used
+      const enhancement_mp = backend_cost.enhancement_mp && backend_cost.enhancement_mp > 0 ? backend_cost.enhancement_mp : 0;
+      return {
+        enhancement_mp,
+        images: [
+          {
+            model: backend_cost.model_id,
+            width: backend_cost.width,
+            height: backend_cost.height,
+            mp: backend_cost.mp_used,
+          },
+        ],
+        total_mp: enhancement_mp + (backend_cost.mp_used || 0),
+      };
+    }
+    // fallback to local calculation if backend_cost is not set
+    // Only include enhancement_mp if it was used
+    const enhancement_mp = enhancement_count > 0 ? enhancement_count : 0;
+    return {
+      enhancement_mp,
+      images: image_base64.map(() => ({
+        model: MODEL_OPTIONS.find((m) => m.value === model_id)?.label || model_id,
+        width: preview_width,
+        height: preview_height,
+        mp: get_tokens_for_size(preview_width, preview_height),
+      })),
+      total_mp:
+        enhancement_mp + image_base64.reduce((sum, _img) => sum + get_tokens_for_size(preview_width, preview_height), 0),
+    };
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handle_keydown(e: KeyboardEvent) {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (!is_loading && prompt_text.trim()) {
+          handle_generate_image(new Event('submit') as any);
+        }
+      } else if (e.ctrlKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        set_prompt_text("");
+      } else if (e.ctrlKey && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        if (!is_enhancing && prompt_text.trim() && !is_loading) {
+          handle_enhance_prompt();
+        }
+      }
+    }
+    window.addEventListener('keydown', handle_keydown);
+    return () => window.removeEventListener('keydown', handle_keydown);
+  }, [prompt_text, is_loading, is_enhancing]);
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-start bg-base-100 py-8 relative">
@@ -280,11 +334,16 @@ export default function Image_generator() {
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
-                disabled={is_enhancing || !prompt_text || !prompt_text.trim() || is_loading}
+                disabled={
+                  is_enhancing ||
+                  !prompt_text ||
+                  !prompt_text.trim() ||
+                  is_loading
+                }
                 aria-busy={is_enhancing}
                 onClick={handle_enhance_prompt}
               >
-                {is_enhancing ? "..." : <Sparkles />}
+                {is_enhancing ? <ChefHat /> : <Sparkles />}
               </button>
             </div>
             <button
@@ -298,7 +357,7 @@ export default function Image_generator() {
               aria-busy={is_loading}
               onClick={handle_generate_image}
             >
-              {is_loading ? "..." : <SendHorizontal />}
+              {is_loading ? <Brush />  : <SendHorizontal />}
             </button>
           </div>
           {/* Settings button */}
@@ -433,23 +492,42 @@ export default function Image_generator() {
       {/* End sticky/menu container */}
       {/* Error message (always below menu/input) */}
       <Error_display error_message={error_message} />
-      {/* Image grid display, full width, in a card (always below menu/input) */}
-      <Image_grid
-        image_base64={image_base64}
-        prompt_text={prompt_description}
-        mana_points_used={mana_points_used}
-        plan={plan}
-      />
-      {/* Cost display at the bottom of the page */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="card bg-base-100 shadow-lg border border-orange-300 px-8 py-4 flex flex-row items-center gap-4">
-          <span className="font-semibold text-gray-700">Current Cost:</span>
-          <span className="font-mono text-lg text-orange-600">
-            {size_tokens_slider}
-          </span>
-          <span className="text-sm text-gray-500">MP (Model × Size)</span>
-        </div>
-      </div>
+      {/* Generation Receipt (show after generation or error) */}
+      {(image_base64.length > 0 || error_message) && (
+        <ImageGenerationReceipt
+          prompt_text={prompt_description || ""}
+          images={image_base64}
+          costs={get_costs()}
+          plan={plan || ""}
+          timestamp={new Date().toLocaleString()}
+          error_message={error_message}
+          onShare={() => {
+            if (navigator.share) {
+              navigator.share({
+                title: "My AI Image Generation Receipt",
+                text: `Prompt: ${prompt_description || ""}\nTotal MP: ${
+                  get_costs().total_mp
+                }`,
+              });
+            } else {
+              navigator.clipboard.writeText(
+                `Prompt: ${prompt_description || ""}\nTotal MP: ${
+                  get_costs().total_mp
+                }`
+              );
+              alert("Receipt copied to clipboard!");
+            }
+          }}
+          onDownload={(img, idx) => {
+            const a = document.createElement("a");
+            a.href = `data:image/png;base64,${img}`;
+            a.download = `generated_image_${idx + 1}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }}
+        />
+      )}
     </div>
   );
 }

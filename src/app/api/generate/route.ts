@@ -4,7 +4,7 @@ import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
 import { Redis } from '@upstash/redis';
-import { check_rate_limit, generate_imggen_cache_key, get_model_cost } from '@/lib/generate_helpers';
+import { check_rate_limit, generate_imggen_cache_key, get_model_cost, MODEL_OPTIONS } from '@/lib/generate_helpers';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -17,6 +17,19 @@ const redis = new Redis({
 export async function POST(req: NextRequest) {
   let selected_model_id: string = '';
   let plan: string = '';
+  // --- Refund mechanism variables ---
+  let previous_renewable_tokens = 0;
+  let previous_permanent_tokens = 0;
+  let previous_premium_generations_used = 0;
+  let tokens_deducted = false;
+  let user: any = null;
+  let supabase: any = null;
+  // --- Move prompt and body variables here ---
+  let prompt: string = '';
+  let body: any = {};
+  let width: number = 1024;
+  let height: number = 1024;
+  let model_id: string = '';
   try {
     // Authenticate user with Clerk
     const { userId } = await auth();
@@ -40,11 +53,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Parse and validate request body
-    const body = await req.json();
-    const prompt = typeof body.prompt === 'string' ? body.prompt : '';
-    let width = typeof body.width === 'number' ? body.width : 1024;
-    let height = typeof body.height === 'number' ? body.height : 1024;
-    const model_id = typeof body.model_id === 'string' ? body.model_id : '';
+    body = await req.json();
+    prompt = typeof body.prompt === 'string' ? body.prompt : '';
+    width = typeof body.width === 'number' ? body.width : 1024;
+    height = typeof body.height === 'number' ? body.height : 1024;
+    model_id = typeof body.model_id === 'string' ? body.model_id : '';
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
@@ -73,7 +86,7 @@ export async function POST(req: NextRequest) {
       return Math.ceil((width * height) / 1_000_000);
     }
     const size_tokens = get_tokens_for_size(width, height);
-    const model_tokens = get_model_cost(plan, selected_model_id);
+    const model_tokens = get_model_cost(plan, model_id);
     const required_tokens = size_tokens * model_tokens;
 
     // Caching: hash the request params and use a namespaced key
@@ -98,14 +111,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Supabase client
-    const supabase = await create_clerk_supabase_client_ssr();
+    supabase = await create_clerk_supabase_client_ssr();
 
     // Fetch user and subscription data
-    const { data: user, error: user_error } = await supabase
+    const { data: user_data, error: user_error } = await supabase
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
       .single();
+    user = user_data;
 
     if (user_error || !user) {
       console.error("User fetch error:", user_error?.message);
@@ -129,6 +143,10 @@ export async function POST(req: NextRequest) {
     plan = subscription.plan;
     const renewable_tokens = subscription.renewable_tokens ?? 0;
     const permanent_tokens = subscription.permanent_tokens ?? 0;
+    // --- Store previous token state for refund logic ---
+    previous_renewable_tokens = renewable_tokens;
+    previous_permanent_tokens = permanent_tokens;
+    previous_premium_generations_used = subscription.premium_generations_used ?? 0;
 
     // Restrict model access by plan
     selected_model_id = model_id;
@@ -149,10 +167,10 @@ export async function POST(req: NextRequest) {
       if (
         selected_model_id !== "fal-ai/flux/schnell" &&
         selected_model_id !== "fal-ai/flux/dev" &&
-        selected_model_id !== "fal-ai/flux/pro"
+        selected_model_id !== "fal-ai/flux-pro"
       ) {
         return NextResponse.json(
-          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, or fal-ai/flux/pro" },
+          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, or fal-ai/flux-pro" },
           { status: 403 }
         );
       }
@@ -162,7 +180,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Special logic for pro model monthly cap
-    if (plan === "standard" && selected_model_id === "fal-ai/flux/pro") {
+    if (plan === "standard" && selected_model_id === "fal-ai/flux-pro") {
       if (subscription.premium_generations_used >= 100) {
         return NextResponse.json({ error: "Premium generation limit reached (100)." }, { status: 403 });
       }
@@ -198,6 +216,8 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
+      // --- Mark deduction for refund logic ---
+      tokens_deducted = true;
     } else {
       // Non-pro model: deduct from renewable first, then permanent if needed
       let to_deduct = required_tokens;
@@ -231,6 +251,8 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
+      // --- Mark deduction for refund logic ---
+      tokens_deducted = true;
     }
 
     // Generate the image
@@ -264,15 +286,45 @@ export async function POST(req: NextRequest) {
     }
 
     // Return model cost in the response
-    return NextResponse.json({ image_base64: base64, mp_used: required_tokens, model_cost: required_tokens });
+    return NextResponse.json({
+      image_base64: base64,
+      mp_used: required_tokens,
+      model_cost: required_tokens,
+      model_id: selected_model_id,
+      width,
+      height,
+      plan,
+      enhancement_mp: body.enhancement_mp || 0
+    });
   } catch (error: unknown) {
+    // --- Refund logic: If tokens were deducted but image generation failed, refund tokens ---
+    if (tokens_deducted && user && supabase) {
+      try {
+        const update_data: any = {
+          renewable_tokens: previous_renewable_tokens,
+          permanent_tokens: previous_permanent_tokens,
+        };
+        if (plan === "standard" && selected_model_id === "fal-ai/flux-pro") {
+          update_data.premium_generations_used = previous_premium_generations_used;
+        }
+        await supabase
+          .from("subscriptions")
+          .update(update_data)
+          .eq("user_id", user.id);
+        // Optionally log refund success
+        console.log("[Refund] Tokens refunded due to image generation failure.");
+      } catch (refund_error) {
+        // Optionally log refund failure for manual review
+        console.error("[Refund] Failed to refund tokens:", refund_error);
+      }
+    }
     if (error instanceof Error) {
       console.error("Image generation error:", error.message);
       await track('Image Generation Failed', {
         status: 'error',
         model_id: selected_model_id ?? 'unknown',
         plan: plan ?? 'unknown',
-        prompt_length: prompt.length,
+        prompt_length: typeof prompt === 'string' ? prompt.length : 0,
         error_message: error.message.slice(0, 255),
         timestamp: new Date().toISOString(),
       });
@@ -283,7 +335,7 @@ export async function POST(req: NextRequest) {
       status: 'error',
       model_id: selected_model_id ?? 'unknown',
       plan: 'unknown',
-      prompt_length: prompt.length,
+      prompt_length: typeof prompt === 'string' ? prompt.length : 0,
       error_message: 'Unknown error',
       timestamp: new Date().toISOString(),
     });

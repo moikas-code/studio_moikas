@@ -21,18 +21,33 @@ export function get_plan_limit(plan: string): number {
   return 100; // default to free
 }
 
-/**
- * Get the token cost for a given model and plan.
- * - FLUX.1 [schnell]: 1 token (all plans)
- * - FLUX.1 [dev]: 8 tokens (standard only)
- * - FLUX.1 [pro]: 17 tokens (standard only)
- */
+// Centralized model options and cost logic
+export const MODEL_OPTIONS = [
+  {
+    value: "fal-ai/flux/schnell",
+    label: "FLUX.1 [schnell]",
+    cost: 1,
+    plans: ["free", "standard"],
+  },
+  {
+    value: "fal-ai/flux/dev",
+    label: "FLUX.1 [dev]",
+    cost: 8,
+    plans: ["standard"],
+  },
+  {
+    value: "fal-ai/flux-pro",
+    label: "FLUX.1 [pro]",
+    cost: 17,
+    plans: ["standard"],
+  },
+];
+
 export function get_model_cost(plan: string, model_id: string): number {
-  if (model_id === "fal-ai/flux/schnell") return 1;
-  if (model_id === "fal-ai/flux/dev" && plan === "standard") return 8;
-  if (model_id === "fal-ai/flux/pro" && plan === "standard") return 17;
-  // fallback: disallow or default to 1
-  return 1;
+  const model = MODEL_OPTIONS.find((m) => m.value === model_id);
+  if (!model) return 1;
+  if (plan === "free" && model.value !== "fal-ai/flux/schnell") return 1;
+  return model.cost;
 }
 
 /**
