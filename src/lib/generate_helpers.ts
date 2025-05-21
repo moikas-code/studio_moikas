@@ -4,7 +4,7 @@
  */
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Calculate required tokens (megapixels) for a given image size.
