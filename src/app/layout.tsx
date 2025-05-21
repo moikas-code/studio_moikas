@@ -5,6 +5,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Navbar from "./components/navbar";
 import Sidebar from "./components/sidebar";
+import LayoutWithSidebar from "./components/LayoutWithSidebar";
 import { MpProvider } from "./context/mp_context";
 import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
@@ -12,6 +13,7 @@ import Cookie_consent_banner from "./components/cookie_consent_banner";
 import Analytics_opt_out_toggle from "./components/analytics_opt_out_toggle";
 import User_sync from "./components/user_sync";
 import { auth } from "@clerk/nextjs/server";
+import { usePathname } from "next/navigation";
 
 const geist_sans = Geist({
   variable: "--font-geist-sans",
@@ -102,7 +104,6 @@ export default async function RootLayout({
 }>) {
   const { has } = await auth();
   const plan = has({ plan: "standard" }) ? "standard" : "free";
-  const [sidebar_state, dispatch] = useReducer(sidebar_reducer, { open: false });
   return (
     <html lang="en">
       <body
@@ -112,9 +113,7 @@ export default async function RootLayout({
           <MpProvider>
             <Session_tracking />
             <User_sync plan={plan} />
-            <Navbar on_sidebar_toggle={() => dispatch({ type: "toggle" })} sidebar_open={sidebar_state.open} />
-            <Sidebar open={sidebar_state.open} on_close={() => dispatch({ type: "close" })} />
-            <main className="flex-1 min-h-screen">{children}</main>
+            <LayoutWithSidebar plan={plan}>{children}</LayoutWithSidebar>
             <footer className="w-full p-4 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">
               <Analytics_opt_out_toggle />
               {" | "}

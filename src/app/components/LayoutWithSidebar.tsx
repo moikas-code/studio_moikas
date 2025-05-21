@@ -1,0 +1,37 @@
+"use client";
+import React, { useReducer } from "react";
+import Navbar from "./navbar";
+import Sidebar from "./sidebar";
+import { usePathname } from "next/navigation";
+
+// Sidebar reducer and actions
+interface SidebarState {
+  open: boolean;
+}
+type SidebarAction = { type: "toggle" } | { type: "close" } | { type: "open" };
+
+function sidebar_reducer(state: SidebarState, action: SidebarAction): SidebarState {
+  switch (action.type) {
+    case "toggle":
+      return { open: !state.open };
+    case "close":
+      return { open: false };
+    case "open":
+      return { open: true };
+    default:
+      return state;
+  }
+}
+
+export default function LayoutWithSidebar({ children, plan }: { children: React.ReactNode; plan: string }) {
+  const [sidebar_state, dispatch] = useReducer(sidebar_reducer, { open: false });
+  const pathname = usePathname();
+  const show_sidebar = pathname.startsWith("/tools");
+  return (
+    <>
+      <Navbar on_sidebar_toggle={() => dispatch({ type: "toggle" })} sidebar_open={sidebar_state.open} />
+      {show_sidebar && <Sidebar open={sidebar_state.open} on_close={() => dispatch({ type: "close" })} />}
+      <main className="flex-1 min-h-screen">{children}</main>
+    </>
+  );
+} 
