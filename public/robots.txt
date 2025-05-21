@@ -1,3 +1,9 @@
+# *
 User-agent: *
 Allow: /
-Sitemap: https://your-domain.com/sitemap.xml 
+
+# Host
+Host: https://studio.moikas.com
+
+# Sitemaps
+Sitemap: https://studio.moikas.com/sitemap.xml
