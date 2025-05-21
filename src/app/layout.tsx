@@ -92,7 +92,7 @@ export default async function RootLayout({
           <MpProvider>
             <Session_tracking />
             <User_sync plan={plan} />
-            <LayoutWithSidebar plan={plan}>{children}</LayoutWithSidebar>
+            <LayoutWithSidebar>{children}</LayoutWithSidebar>
             <footer className="w-full p-4 text-center text-xs text-gray-500 border-t border-gray-200 dark:border-gray-700">
               <Analytics_opt_out_toggle />
               {" | "}
