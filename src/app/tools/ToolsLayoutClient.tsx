@@ -2,7 +2,6 @@
 import React, { useReducer } from "react";
 import Sidebar from "../components/sidebar";
 import User_sync from "../components/user_sync";
-import Navbar from "../components/navbar";
 
 // Sidebar reducer and actions
 interface SidebarState {
@@ -28,10 +27,6 @@ export default function ToolsLayoutClient({ plan, children }: { plan: string; ch
   return (
     <div className="flex min-h-screen">
       <User_sync plan={plan} />
-      <Navbar
-        on_sidebar_toggle={() => dispatch({ type: "toggle" })}
-        sidebar_open={sidebar_state.open}
-      />
       <Sidebar
         open={sidebar_state.open}
         on_close={() => dispatch({ type: "close" })}
