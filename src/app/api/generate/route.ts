@@ -101,13 +101,15 @@ export async function POST(req: NextRequest) {
       console.error('Redis get error:', err);
       cached = null;
     }
-    if (typeof cached === 'string') {
+    if (typeof cached === 'string' && cached.trim().startsWith('{')) {
       try {
         const cached_obj = JSON.parse(cached);
         return NextResponse.json({ image_base64: cached_obj.image_base64, mp_used: cached_obj.mp_used, cached: true });
       } catch (err) {
-        console.error('Redis cached value parse error:', err);
+        console.error('Redis cached value parse error:', err, 'Value:', cached);
       }
+    } else if (cached) {
+      console.warn('Redis cache value is not a valid JSON string:', cached);
     }
 
     // Initialize Supabase client

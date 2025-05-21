@@ -5,7 +5,6 @@ import { MpContext } from "../context/mp_context";
 import { MODEL_OPTIONS, get_model_cost } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
-import Image_grid from "./image_grid";
 import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
 import ImageGenerationReceipt from "./ImageGenerationReceipt";
 
@@ -130,23 +129,68 @@ export default function Image_generator() {
   const [enhancement_count, set_enhancement_count] = useState(0);
   const [backend_cost, set_backend_cost] = useState<any>(null);
 
+  // Store last used settings for redo/reuse
+  const [last_generation, set_last_generation] = useState<any>(null);
+
+  // Update last_generation after successful generation
+  const update_last_generation = (prompt: string, model: string, aspect: number, enhance: number) => {
+    set_last_generation({
+      prompt_text: prompt,
+      model_id: model,
+      aspect_index: aspect,
+      enhancement_count: enhance,
+    });
+  };
+
+  // Redo: re-run generation with last settings
+  const handle_redo = () => {
+    if (!last_generation) return;
+    handle_generate_image(new Event('submit') as any, {
+      prompt: last_generation.prompt_text,
+      model: last_generation.model_id,
+      aspect: last_generation.aspect_index,
+      enhance: last_generation.enhancement_count,
+    });
+  };
+
+  // Reuse: copy prompt/settings to input and show settings
+  const handle_reuse = () => {
+    if (!last_generation) return;
+    set_prompt_text(last_generation.prompt_text);
+    set_model_id(last_generation.model_id);
+    set_aspect_index(last_generation.aspect_index);
+    set_enhancement_count(last_generation.enhancement_count);
+    set_show_settings(true);
+  };
+
   // Handler for generating the image
-  const handle_generate_image = async (e: React.FormEvent) => {
+  const handle_generate_image = async (e: React.FormEvent, custom?: {prompt: string, model: string, aspect: number, enhance: number}) => {
     e.preventDefault();
+    set_show_settings(false); // Auto-hide options
     set_is_loading(true);
     set_error_message(null);
     set_image_base64([]);
     set_mana_points_used(null);
     set_backend_cost(null);
 
+    // Use custom values if provided (for redo), else current state
+    const used_prompt = custom?.prompt ?? prompt_text;
+    const used_model = custom?.model ?? model_id;
+    const used_aspect = custom?.aspect ?? aspect_index;
+    const used_enhance = custom?.enhance ?? enhancement_count;
+    const used_aspect_label = ASPECT_PRESETS[used_aspect].label;
+    const used_aspect_ratio = ASPECT_PRESETS[used_aspect].ratio;
+    const used_width = Math.round(Math.sqrt(PREVIEW_AREA * used_aspect_ratio));
+    const used_height = Math.round(PREVIEW_AREA / used_width);
+
     // Track the image generation event with as much relevant info as possible
     track("Image Generation", {
       event: "click",
-      model_id,
+      model_id: used_model,
       plan,
-      prompt_length: prompt_text.length,
-      prompt_text: prompt_text.slice(0, 255), // limit to 255 chars for analytics
-      aspect_ratio: aspect_label,
+      prompt_length: used_prompt.length,
+      prompt_text: used_prompt.slice(0, 255),
+      aspect_ratio: used_aspect_label,
       timestamp: new Date().toISOString(),
     });
 
@@ -155,31 +199,32 @@ export default function Image_generator() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: prompt_text,
-          model_id,
-          aspect_ratio: aspect_label,
-          width: preview_width,
-          height: preview_height,
-          enhancement_mp: enhancement_count,
+          prompt: used_prompt,
+          model_id: used_model,
+          aspect_ratio: used_aspect_label,
+          width: used_width,
+          height: used_height,
+          enhancement_mp: used_enhance,
         }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate image");
       }
-      // Support grid: if data.image_base64 is an array, use it; else wrap in array
       set_image_base64(
         Array.isArray(data.image_base64)
           ? data.image_base64
           : [data.image_base64]
       );
-      set_prompt_description(prompt_text ?? "");
+      set_prompt_description(used_prompt ?? "");
       set_mana_points_used(data.mp_used ?? null);
       set_backend_cost(data);
       await refresh_mp();
       // Reset prompt and enhancement count after generation
       set_prompt_text("");
       set_enhancement_count(0);
+      // Store last generation settings
+      update_last_generation(used_prompt, used_model, used_aspect, used_enhance);
     } catch (error: unknown) {
       if (error instanceof Error) {
         set_error_message(error.message || "An error occurred");
@@ -357,7 +402,7 @@ export default function Image_generator() {
               aria-busy={is_loading}
               onClick={handle_generate_image}
             >
-              {is_loading ? <Brush />  : <SendHorizontal />}
+              {is_loading ? <Brush /> : <SendHorizontal />}
             </button>
           </div>
           {/* Settings button */}
@@ -467,10 +512,12 @@ export default function Image_generator() {
               <div className="flex flex-col md:flex-row gap-8">
                 {/* Model */}
                 <div className="flex-1 bg-base-50 rounded-xl border border-base-200 shadow-sm p-6 flex flex-col gap-4">
-                  <div className="font-semibold text-lg mb-2">Model</div>
+                  <div className="font-semibold text-black text-lg mb-2">
+                    Model
+                  </div>
                   <div className="w-full">
                     <select
-                      className="select select-bordered w-full text-base font-medium bg-white border-base-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition"
+                      className="select select-bordered w-full text-black font-medium bg-white border-base-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition"
                       value={model_id}
                       onChange={(e) => set_model_id(e.target.value)}
                       disabled={is_loading}
@@ -526,6 +573,8 @@ export default function Image_generator() {
             a.click();
             document.body.removeChild(a);
           }}
+          onRedo={image_base64.length > 0 ? handle_redo : undefined}
+          onReuse={image_base64.length > 0 ? handle_reuse : undefined}
         />
       )}
     </div>

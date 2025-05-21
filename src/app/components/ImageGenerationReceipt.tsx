@@ -25,6 +25,8 @@ interface ImageGenerationCreationProps {
   error_message?: string | null;
   onShare?: () => void;
   onDownload?: (img: string, idx: number) => void;
+  onRedo?: () => void; // Redo handler
+  onReuse?: () => void; // Reuse handler
   // For future: onTransferToEditor, onTransferToMerch
 }
 
@@ -103,6 +105,8 @@ export default function ImageGenerationCreation({
   error_message,
   onShare,
   onDownload,
+  onRedo,
+  onReuse,
 }: ImageGenerationCreationProps) {
   // Ref for the Creation container
   const Creation_ref = useRef<HTMLDivElement>(null);
@@ -300,8 +304,36 @@ export default function ImageGenerationCreation({
       className="max-w-xl mx-auto rounded-xl shadow p-6 border border-gray-200 mt-8"
       style={{ background: "#fff", color: "#222", transform: "scale(1.25)", transformOrigin: "top center" }} // html2canvas: avoid oklch colors; enlarge by 25%
     >
-      {/* NOTE: If oklch colors persist, override them in global CSS for this container. */}
-      <div className="text-xl font-bold mb-2">Creation Certificate</div>
+      {/* Title row with redo/reuse buttons */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xl font-bold">Creation Certificate</div>
+        {!is_exporting && (
+          <div className="flex gap-2">
+            {typeof onRedo === 'function' && (
+              <button
+                className="btn btn-xs btn-outline tooltip"
+                data-tip="Redo with same settings"
+                aria-label="Redo with same settings"
+                onClick={onRedo}
+                type="button"
+              >
+                Redo
+              </button>
+            )}
+            {typeof onReuse === 'function' && (
+              <button
+                className="btn btn-xs btn-outline tooltip"
+                data-tip="Reuse prompt and settings"
+                aria-label="Reuse prompt and settings"
+                onClick={onReuse}
+                type="button"
+              >
+                Reuse
+              </button>
+            )}
+          </div>
+        )}
+      </div>
       <div className="text-xs text-gray-500 mb-4">{timestamp}</div>
       <div className="mb-2">
         <span className="font-semibold">Prompt:</span>
@@ -448,6 +480,9 @@ export default function ImageGenerationCreation({
           </>
         )}
         {/* Future: Transfer to Editor/Merch */}
+      </div>
+      <div className="w-full text-center mt-4">
+        <span className="text-xs text-gray-400 select-none">studio.moikas.com</span>
       </div>
     </div>
   );
