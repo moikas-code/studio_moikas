@@ -1,6 +1,6 @@
 import React from "react";
+import ToolsLayoutClient from "./ToolsLayoutClient";
 import { auth } from "@clerk/nextjs/server";
-import ToolsLayoutClient from "../context/tool_layout_client";
 
 export default async function Tools_layout({
   children,
