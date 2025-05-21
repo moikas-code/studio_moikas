@@ -30,8 +30,10 @@ export default function LayoutWithSidebar({ children}: { children: React.ReactNo
   return (
     <>
       <Navbar on_sidebar_toggle={() => dispatch({ type: "toggle" })} sidebar_open={sidebar_state.open} />
-      {show_sidebar && <Sidebar open={sidebar_state.open} on_close={() => dispatch({ type: "close" })} />}
-      <main className="flex-1 min-h-screen">{children}</main>
+      <div className="flex min-h-screen w-full">
+        {show_sidebar && <Sidebar open={sidebar_state.open} on_close={() => dispatch({ type: "close" })} />}
+        <main className="flex-1 min-h-screen">{children}</main>
+      </div>
     </>
   );
 } 
