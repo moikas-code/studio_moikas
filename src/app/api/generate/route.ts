@@ -5,7 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
 import { Redis } from '@upstash/redis';
 import { check_rate_limit, generate_imggen_cache_key, get_model_cost } from '@/lib/generate_helpers';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
