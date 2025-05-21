@@ -5,6 +5,7 @@ import { MpContext } from "../context/mp_context";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import Image_grid from "./image_grid";
+import { SendHorizontal, SendIcon } from "lucide-react";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -229,16 +230,18 @@ export default function Image_generator() {
                 d="M3 7h2l.4-1.2A2 2 0 017.3 4h9.4a2 2 0 011.9 1.8L19 7h2a2 2 0 012 2v9a2 2 0 01-2 2H3a2 2 0 01-2-2V9a2 2 0 012-2zm0 0l2.293 2.293a1 1 0 001.414 0L12 5.414l5.293 5.293a1 1 0 001.414 0L21 7"
               />
             </svg>
-            <input
+            {/* Multiline prompt input styled to match the reference image */}
+            <textarea
               id="prompt_text"
-              type="text"
-              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400"
+              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none rounded-xl border-none min-h-[64px] max-h-60 py-2 px-0  focus:ring-0 focus:outline-none"
               value={prompt_text}
               onChange={(e) => set_prompt_text(e.target.value)}
               placeholder="What will you imagine?"
               required
               aria-required="true"
               aria-label="Prompt for image generation"
+              rows={1}
+              style={{ lineHeight: '1.6', fontFamily: 'inherit' }}
             />
             <button
               type="submit"
@@ -251,7 +254,7 @@ export default function Image_generator() {
               aria-busy={is_loading}
               onClick={handle_generate_image}
             >
-              {is_loading ? "Generating..." : "Generate"}
+              {is_loading ? "Generating..." : <SendHorizontal />}
             </button>
             {/* Enhance Prompt Button */}
             <button
