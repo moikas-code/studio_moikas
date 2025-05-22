@@ -241,15 +241,15 @@ export default function ImageGenerationCreation({
           ]);
           alert("Creation image copied to clipboard!");
           return;
-        } catch (err) {
-          console.error("Clipboard image copy failed:", err);
+        } catch (error) {
+          console.error("Clipboard image copy failed:", error);
           // Fallback: copy just the prompt text
           try {
             await navigator.clipboard.writeText(
               `${prompt_text}\n\n[Image not copied: browser unsupported]\n\nCreated on https://studio.moikas.com`
             );
             alert("Prompt text copied. Image clipboard not supported in this browser.");
-          } catch (textErr) {
+          } catch (error) {
             alert("Failed to copy image or text to clipboard.");
           }
           return;
@@ -258,8 +258,8 @@ export default function ImageGenerationCreation({
       // Fallback: show alert dialog only (no download)
       alert("Sharing and clipboard are not supported in this browser. Please try copying the prompt text manually.");
       return;
-    } catch (err) {
-      alert("Failed to share Creation: " + (err instanceof Error ? err.message : String(err)));
+    } catch (error) {
+      alert("Failed to share Creation: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       set_is_exporting(false);
     }

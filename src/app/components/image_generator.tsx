@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useContext, useRef, useEffect, useCallback } from "react";
+import React, { useState, useContext, useRef, useEffect, useCallback, useLayoutEffect } from "react";
 import { MpContext } from "../context/mp_context";
 import { get_tokens_for_size, MODEL_OPTIONS, add_overlay_to_image } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
@@ -337,12 +337,26 @@ export default function Image_generator() {
     return () => window.removeEventListener('keydown', handle_keydown);
   }, [prompt_text, is_loading, is_enhancing, handle_enhance_prompt, handle_generate_image]);
 
+  // Ref for the prompt input container
+  const prompt_input_ref = useRef<HTMLDivElement>(null);
+  const [prompt_input_height, set_prompt_input_height] = useState(0);
+
+  // Measure the height of the prompt input container
+  useLayoutEffect(() => {
+    if (prompt_input_ref.current) {
+      set_prompt_input_height(prompt_input_ref.current.offsetHeight);
+    }
+  }, [prompt_text]); // re-measure when prompt_text changes
+
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-start bg-base-100 py-8 relative">
       {/* Sticky input and settings menu container */}
-      <div className="w-full flex flex-col items-center   bg-base-100">
+      <div className="w-full flex flex-col items-center z-30 sticky top-0 bg-base-100 relative">
         {/* Prompt input */}
-        <div className="w-full max-w-5xl mx-auto mb-0 flex flex-col md:flex-row items-center gap-2 py-2">
+        <div
+          ref={prompt_input_ref}
+          className="w-full max-w-5xl mx-auto mb-0 flex items-center gap-2 py-2"
+        >
           <div className="flex w-full items-center gap-2 flex-1 p-4 rounded-xl border border-base-200 bg-white shadow-sm">
             <svg
               className="w-6 h-6 text-gray-400"
@@ -442,7 +456,8 @@ export default function Image_generator() {
         {show_settings && (
           <form
             onSubmit={handle_generate_image}
-            className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30"
+            className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 absolute"
+            style={{ top: prompt_input_height }}
           >
             <div className="bg-white rounded-2xl shadow-lg border border-base-200 p-8 flex flex-col gap-8">
               {/* Image Size section, updated to match Midjourney */}
