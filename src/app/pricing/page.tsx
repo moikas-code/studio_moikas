@@ -1,4 +1,5 @@
 import { PricingTable } from '@clerk/nextjs';
+import Link from "next/link";
 
 /**
  * Pricing page for Studio.Moikas
@@ -20,6 +21,11 @@ export default function Pricing_page() {
           },
         }}
       />
+      <div className="mt-6">
+        <Link href="/buy-tokens" className="btn btn-primary">
+          Buy More Tokens
+        </Link>
+      </div>
     </div>
   );
 } 

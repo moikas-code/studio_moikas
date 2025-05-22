@@ -257,3 +257,12 @@ export async function add_overlay_to_image(base64: string, overlay_text = "studi
     img.src = `data:image/png;base64,${base64}`;
   });
 }
+
+/**
+ * Logs events and errors for auditing and debugging.
+ * Extend this to log to external services (e.g., Sentry, Logtail, Datadog) as needed.
+ */
+export function log_event(event_type: string, details: Record<string, unknown>) {
+  // eslint-disable-next-line no-console
+  console.log(`[${new Date().toISOString()}] [${event_type}]`, details);
+}

@@ -8,6 +8,7 @@ import { useSupabaseClient } from "@/lib/supabase_client";
 /**
  * User_sync component ensures the signed-in Clerk user is present in Supabase,
  * and initializes a subscription if missing. Runs on login and user change.
+ * Does NOT handle monthly token resets; those are handled by scheduled DB jobs.
  */
 interface User_sync_props {
   plan: string;
@@ -17,7 +18,6 @@ export default function User_sync({ plan }: User_sync_props) {
   const { user, isLoaded } = useUser();
 
   const supabase = useSupabaseClient();
-  // Placeholder: implement actual logic to determine if user is standard
 
   useEffect(() => {
     if (!isLoaded || !user || !supabase) return;
@@ -43,8 +43,8 @@ export default function User_sync({ plan }: User_sync_props) {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
-        const renewable_tokens = plan === "standard" ? 4000 : 0;
-        const permanent_tokens = 100;
+        const renewable_tokens = plan === "standard" ? 4000 : plan === "free" ? 125 : 0;
+        const permanent_tokens = plan === "free" ? 0 : 100;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -84,8 +84,8 @@ export default function User_sync({ plan }: User_sync_props) {
 
         // If subscription does not exist, create it
         if (!subscription) {
-          const renewable_tokens = plan === "standard" ? 4000 : 0;
-          const permanent_tokens = 100;
+          const renewable_tokens = plan === "standard" ? 4000 : plan === "free" ? 125 : 0;
+          const permanent_tokens = plan === "free" ? 0 : 100;
           const { error: insert_error } = await supabase
             .from("subscriptions")
             .insert({
@@ -100,15 +100,13 @@ export default function User_sync({ plan }: User_sync_props) {
           }
         } else if (subscription.plan !== plan) {
           // If plan changed, update subscription
-          const update_fields: { plan: string; renewed_at: string; renewable_tokens?: number; permanent_tokens?: number } = { plan, renewed_at: new Date().toISOString() };
+          const update_fields: { plan: string; renewable_tokens?: number; permanent_tokens?: number; renewed_at?: string } = { plan };
           if (plan === "standard") {
             update_fields.renewable_tokens = 4000;
-            // Do not touch permanent_tokens
+            update_fields.renewed_at = new Date().toISOString();
           } else if (plan === "free") {
-            // Only set permanent_tokens if not already present
-            if (!subscription.permanent_tokens || subscription.permanent_tokens < 100) {
-              update_fields.permanent_tokens = 100;
-            }
+            update_fields.renewable_tokens = 125;
+            update_fields.renewed_at = new Date().toISOString();
           }
           const { error: update_error } = await supabase
             .from("subscriptions")
