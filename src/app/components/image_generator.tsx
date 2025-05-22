@@ -76,11 +76,6 @@ export default function Image_generator() {
     set_aspect_index(5);
   }
 
-  // Helper to get pixel count and tokens for the selected aspect ratio
-  function get_pixels(width: number, height: number) {
-    return width * height;
-  }
-
   // Get current dimensions and tokens based on aspect ratio
   const slider_width = preview_width;
   const slider_height = preview_height;
@@ -237,7 +232,7 @@ export default function Image_generator() {
         set_is_loading(false);
       }
     },
-    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, update_last_generation]
+    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, update_last_generation, ASPECT_PRESETS]
   );
 
   // Handler for enhancing the prompt
@@ -556,23 +551,6 @@ export default function Image_generator() {
           plan={plan || ""}
           timestamp={new Date().toLocaleString()}
           error_message={error_message}
-          onShare={() => {
-            if (navigator.share) {
-              navigator.share({
-                title: "My AI Image Generation Receipt",
-                text: `Prompt: ${prompt_description || ""}\nTotal MP: ${
-                  get_costs().total_mp
-                }`,
-              });
-            } else {
-              navigator.clipboard.writeText(
-                `Prompt: ${prompt_description || ""}\nTotal MP: ${
-                  get_costs().total_mp
-                }`
-              );
-              alert("Receipt copied to clipboard!");
-            }
-          }}
           onDownload={(img, idx) => {
             const a = document.createElement("a");
             a.href = `data:image/png;base64,${img}`;

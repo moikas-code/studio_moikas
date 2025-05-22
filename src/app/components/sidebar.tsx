@@ -57,6 +57,21 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 <span className="text-base font-medium">Image Generator</span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="https://x.com/moikas_official"
+                className="justify-start"
+                aria-label="Help and News"
+              >
+                <span className="flex items-center gap-2">
+                  {/* Question mark icon */}
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M12 14a4 4 0 10-4-4 4 4 0 004 4zm0 0v2" />
+                  </svg>
+                  Help/News
+                </span>
+              </Link>
+            </li>
             {/* Add more tool links here as needed */}
           </ul>
         </nav>

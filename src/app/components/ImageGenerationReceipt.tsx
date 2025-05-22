@@ -24,7 +24,6 @@ interface ImageGenerationCreationProps {
   plan: string;
   timestamp: string;
   error_message?: string | null;
-  onShare?: () => void;
   onDownload?: (img: string, idx: number) => void;
   onRedo?: () => void; // Redo handler
   onReuse?: () => void; // Reuse handler
@@ -132,7 +131,6 @@ export default function ImageGenerationCreation({
   plan,
   timestamp,
   error_message,
-  onShare,
   onRedo,
   onReuse,
 }: ImageGenerationCreationProps) {
