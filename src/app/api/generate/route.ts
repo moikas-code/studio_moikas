@@ -12,7 +12,6 @@ import {
   FREE_MODEL_IDS,
   STANDARD_MODEL_IDS,
 } from "@/lib/generate_helpers";
-import { add_overlay_to_image_node } from "@/lib/generate_helpers_node";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 const redis = new Redis({
@@ -316,10 +315,7 @@ export async function POST(req: NextRequest) {
       height,
       selected_model_id
     );
-    let base64 = Buffer.from(image.uint8Array).toString("base64");
-    if (plan === "free") {
-      base64 = await add_overlay_to_image_node(base64);
-    }
+    const base64 = Buffer.from(image.uint8Array).toString("base64");
 
     // On successful generation
     await track("Image Generated", {

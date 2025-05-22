@@ -391,6 +391,7 @@ export default function ImageGenerationCreation({
                 height={211}
                 unoptimized
                 priority
+                onContextMenu={e => e.preventDefault()}
               />
               {/* Vertical column of share/download buttons with extra padding */}
               {!is_exporting && (
