@@ -456,7 +456,7 @@ export default function Image_generator() {
         {show_settings && (
           <form
             onSubmit={handle_generate_image}
-            className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 absolute"
+            className={`w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 absolute options-card-animated${show_settings ? '' : ' hide'}`}
             style={{ top: prompt_input_height }}
           >
             <div className="bg-white rounded-2xl shadow-lg border border-base-200 p-8 flex flex-col gap-8">
@@ -578,6 +578,16 @@ export default function Image_generator() {
           onReuse={image_base64.length > 0 ? handle_reuse : undefined}
         />
       )}
+      {/* Add this style block for the animation */}
+      <style jsx>{`
+        .options-card-animated {
+          transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          opacity: 1;
+        }
+        .options-card-animated.hide {
+          opacity: 0;
+        }
+      `}</style>
     </div>
   );
 }

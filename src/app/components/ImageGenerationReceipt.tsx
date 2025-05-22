@@ -221,15 +221,6 @@ export default function ImageGenerationCreation({
       // Convert canvas to blob
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Failed to create image blob");
-      // Try Web Share API with files
-      // if (navigator.canShare && navigator.canShare({ files: [new File([blob], "Creation.png", { type: "image/png" })] })) {
-      //   await navigator.share({
-      //     files: [new File([blob], "Creation.png", { type: "image/png" })],
-      //     title: "AI Image Generation Creation",
-      //     text: `Prompt: ${prompt_text}\n\nCreated on https://studio.moikas.com`,
-      //   });
-      //   return;
-      // }
       // Try Clipboard API for image
       if (
         navigator.clipboard &&

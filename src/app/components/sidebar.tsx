@@ -4,6 +4,7 @@ import { BadgeHelp } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import Image from "next/image";
+import { track } from "@vercel/analytics";
 
 /**
  * Sidebar component for Studio App.
@@ -101,6 +102,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 aria-label="Community Discord"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => track("Sidebar Community Clicked", { timestamp: new Date().toISOString() })}
               >
                 <span className="flex items-center gap-2">
                   {/* Discord icon */}
@@ -119,6 +121,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 href="https://x.com/moikas_official"
                 className="justify-start"
                 aria-label="Help and News"
+                onClick={() => track("Sidebar Help/News Clicked", { timestamp: new Date().toISOString() })}
               >
                 <span className="flex items-center gap-2">
                   {/* Question mark icon */}
