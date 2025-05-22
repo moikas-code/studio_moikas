@@ -2,10 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { generate_flux_image } from "@/lib/fal_client";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
-import { track } from '@vercel/analytics/server';
-import { Redis } from '@upstash/redis';
-import { check_rate_limit, generate_imggen_cache_key, get_model_cost } from '@/lib/generate_helpers';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { track } from "@vercel/analytics/server";
+import { Redis } from "@upstash/redis";
+import {
+  check_rate_limit,
+  generate_imggen_cache_key,
+  get_model_cost,
+  get_tokens_for_size,
+  FREE_MODEL_IDS,
+  STANDARD_MODEL_IDS,
+} from "@/lib/generate_helpers";
+import { add_overlay_to_image_node } from "@/lib/generate_helpers_node";
+import { SupabaseClient } from "@supabase/supabase-js";
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -16,8 +24,8 @@ const redis = new Redis({
 // imggen:{user_id}:{model_id}:{hash} => { image_base64: string, created_at: string, ... }
 
 export async function POST(req: NextRequest) {
-  let selected_model_id: string = '';
-  let plan: string = '';
+  let selected_model_id: string = "";
+  let plan: string = "";
   // --- Refund mechanism variables ---
   let previous_renewable_tokens = 0;
   let previous_permanent_tokens = 0;
@@ -26,11 +34,11 @@ export async function POST(req: NextRequest) {
   let user: { id: string } | null = null;
   let supabase: SupabaseClient | null = null;
   // --- Move prompt and body variables here ---
-  let prompt: string = '';
+  let prompt: string = "";
   let body: Record<string, unknown> = {};
   let width: number = 1024;
   let height: number = 1024;
-  let model_id: string = '';
+  let model_id: string = "";
   try {
     // Authenticate user with Clerk
     const { userId } = await auth();
@@ -39,26 +47,37 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine user plan and queue type
-    const is_standard = plan === 'standard';
+    const is_standard = plan === "standard";
     // Apply different rate limits
-    const rate = await check_rate_limit(redis, userId, is_standard ? 60 : 10, 60); // 60/min for standard, 10/min for free
+    const rate = await check_rate_limit(
+      redis,
+      userId,
+      is_standard ? 60 : 10,
+      60
+    ); // 60/min for standard, 10/min for free
     if (!rate.allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Try again soon." },
-        { status: 429, headers: { 'X-RateLimit-Remaining': rate.remaining.toString(), 'X-RateLimit-Reset': rate.reset.toString() } }
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": rate.remaining.toString(),
+            "X-RateLimit-Reset": rate.reset.toString(),
+          },
+        }
       );
     }
     // Artificial delay for free users (slow queue)
     if (!is_standard) {
-      await new Promise(res => setTimeout(res, 2000)); // 2s delay for free users
+      await new Promise((res) => setTimeout(res, 2000)); // 2s delay for free users
     }
 
     // Parse and validate request body
     body = await req.json();
-    prompt = typeof body.prompt === 'string' ? body.prompt : '';
-    width = typeof body.width === 'number' ? body.width : 1024;
-    height = typeof body.height === 'number' ? body.height : 1024;
-    model_id = typeof body.model_id === 'string' ? body.model_id : '';
+    prompt = typeof body.prompt === "string" ? body.prompt : "";
+    width = typeof body.width === "number" ? body.width : 1024;
+    height = typeof body.height === "number" ? body.height : 1024;
+    model_id = typeof body.model_id === "string" ? body.model_id : "";
     if (!prompt) {
       return NextResponse.json(
         { error: "Prompt is required" },
@@ -67,50 +86,57 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine width and height from aspect_ratio
-    if (typeof body.aspect_ratio === 'string') {
+    if (typeof body.aspect_ratio === "string") {
       // Map aspect_ratio to width/height
-      const aspect_map: Record<string, { width: number, height: number }> = {
-        'portrait_4_3': { width: 800, height: 1066 },
-        'portrait_16_9': { width: 896, height: 1600 },
-        'square': { width: 1024, height: 1024 },
-        'square_hd': { width: 1536, height: 1536 },
-        'landscape_4_3': { width: 1066, height: 800 },
-        'landscape_16_9': { width: 1600, height: 896 },
+      const aspect_map: Record<string, { width: number; height: number }> = {
+        portrait_4_3: { width: 800, height: 1066 },
+        portrait_16_9: { width: 896, height: 1600 },
+        square: { width: 1024, height: 1024 },
+        square_hd: { width: 1536, height: 1536 },
+        landscape_4_3: { width: 1066, height: 800 },
+        landscape_16_9: { width: 1600, height: 896 },
       };
       if (aspect_map[body.aspect_ratio]) {
         width = aspect_map[body.aspect_ratio].width;
         height = aspect_map[body.aspect_ratio].height;
       }
     }
-    // Calculate pixel-based cost
-    function get_tokens_for_size(width: number, height: number) {
-      return Math.ceil((width * height) / 1_000_000);
-    }
+
     const size_tokens = get_tokens_for_size(width, height);
     const model_tokens = get_model_cost(plan, model_id);
     const required_tokens = size_tokens * model_tokens;
 
     // Caching: hash the request params and use a namespaced key
-    const safe_user_id = typeof userId === 'string' ? userId : '';
-    const safe_prompt = typeof prompt === 'string' ? prompt : '';
-    const safe_model_id = typeof model_id === 'string' ? model_id : '';
-    const cache_key = generate_imggen_cache_key(safe_user_id, safe_model_id, safe_prompt, width, height);
+    const safe_user_id = typeof userId === "string" ? userId : "";
+    const safe_prompt = typeof prompt === "string" ? prompt : "";
+    const safe_model_id = typeof model_id === "string" ? model_id : "";
+    const cache_key = generate_imggen_cache_key(
+      safe_user_id,
+      safe_model_id,
+      safe_prompt,
+      width,
+      height
+    );
     let cached: unknown;
     try {
       cached = await redis.get(cache_key);
     } catch (err) {
-      console.error('Redis get error:', err);
+      console.error("Redis get error:", err);
       cached = null;
     }
-    if (typeof cached === 'string' && cached.trim().startsWith('{')) {
+    if (typeof cached === "string" && cached.trim().startsWith("{")) {
       try {
         const cached_obj = JSON.parse(cached);
-        return NextResponse.json({ image_base64: cached_obj.image_base64, mp_used: cached_obj.mp_used, cached: true });
+        return NextResponse.json({
+          image_base64: cached_obj.image_base64,
+          mp_used: cached_obj.mp_used,
+          cached: true,
+        });
       } catch (err) {
-        console.error('Redis cached value parse error:', err, 'Value:', cached);
+        console.error("Redis cached value parse error:", err, "Value:", cached);
       }
     } else if (cached) {
-      console.warn('Redis cache value is not a valid JSON string:', cached);
+      console.warn("Redis cache value is not a valid JSON string:", cached);
     }
 
     // Initialize Supabase client
@@ -131,7 +157,9 @@ export async function POST(req: NextRequest) {
 
     const { data: subscription, error: sub_error } = await supabase
       .from("subscriptions")
-      .select("plan, renewed_at, premium_generations_used, renewable_tokens, permanent_tokens")
+      .select(
+        "plan, renewed_at, premium_generations_used, renewable_tokens, permanent_tokens"
+      )
       .eq("user_id", user.id)
       .single();
 
@@ -149,35 +177,34 @@ export async function POST(req: NextRequest) {
     // --- Store previous token state for refund logic ---
     previous_renewable_tokens = renewable_tokens;
     previous_permanent_tokens = permanent_tokens;
-    previous_premium_generations_used = subscription.premium_generations_used ?? 0;
+    previous_premium_generations_used =
+      subscription.premium_generations_used ?? 0;
 
     // Restrict model access by plan
     selected_model_id = model_id;
     if (plan === "free") {
-      const free_models = ["fal-ai/flux/schnell", "fal-ai/aura-flow", "fal-ai/sana/sprint"];
-      if (!selected_model_id || !free_models.includes(selected_model_id)) {
-        selected_model_id = "fal-ai/flux/schnell";
+      if (!selected_model_id || !FREE_MODEL_IDS.includes(selected_model_id)) {
+        selected_model_id = FREE_MODEL_IDS[0];
       }
-      if (model_id && !free_models.includes(model_id)) {
+      if (model_id && !FREE_MODEL_IDS.includes(model_id)) {
         return NextResponse.json(
-          { error: "Free users can only use fal-ai/flux/schnell, fal-ai/aura-flow, or fal-ai/sana/sprint" },
+          {
+            error:
+              `Free users can only use: ${FREE_MODEL_IDS.join(", ")}`,
+          },
           { status: 403 }
         );
       }
     } else if (plan === "standard") {
-      const standard_models = [
-        "fal-ai/flux/schnell",
-        "fal-ai/flux/dev",
-        "fal-ai/flux-pro",
-        "fal-ai/aura-flow",
-        "fal-ai/sana/sprint"
-      ];
       if (!selected_model_id) {
         selected_model_id = "fal-ai/flux/dev";
       }
-      if (!standard_models.includes(selected_model_id)) {
+      if (!STANDARD_MODEL_IDS.includes(selected_model_id)) {
         return NextResponse.json(
-          { error: "Standard users can only use fal-ai/flux/schnell, fal-ai/flux/dev, fal-ai/flux-pro, fal-ai/aura-flow, or fal-ai/sana/sprint" },
+          {
+            error:
+              `Standard users can only use: ${STANDARD_MODEL_IDS.join(", ")}`,
+          },
           { status: 403 }
         );
       }
@@ -189,7 +216,10 @@ export async function POST(req: NextRequest) {
     // Special logic for pro model monthly cap
     if (plan === "standard" && selected_model_id === "fal-ai/flux-pro") {
       if (subscription.premium_generations_used >= 100) {
-        return NextResponse.json({ error: "Premium generation limit reached (100)." }, { status: 403 });
+        return NextResponse.json(
+          { error: "Premium generation limit reached (100)." },
+          { status: 403 }
+        );
       }
       // Deduct from renewable first, then permanent if needed
       let to_deduct = required_tokens;
@@ -206,7 +236,12 @@ export async function POST(req: NextRequest) {
           to_deduct = 0;
         } else {
           return NextResponse.json(
-            { error: "Insufficient tokens", required_tokens, renewable_tokens, permanent_tokens },
+            {
+              error: "Insufficient tokens",
+              required_tokens,
+              renewable_tokens,
+              permanent_tokens,
+            },
             { status: 402 }
           );
         }
@@ -214,7 +249,11 @@ export async function POST(req: NextRequest) {
       // Update tokens in Supabase
       const { error: update_error } = await supabase
         .from("subscriptions")
-        .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent, premium_generations_used: subscription.premium_generations_used + 1 })
+        .update({
+          renewable_tokens: new_renewable,
+          permanent_tokens: new_permanent,
+          premium_generations_used: subscription.premium_generations_used + 1,
+        })
         .eq("user_id", user.id);
       if (update_error) {
         console.error("Token deduction error:", update_error.message);
@@ -241,7 +280,12 @@ export async function POST(req: NextRequest) {
           to_deduct = 0;
         } else {
           return NextResponse.json(
-            { error: "Insufficient tokens", required_tokens, renewable_tokens, permanent_tokens },
+            {
+              error: "Insufficient tokens",
+              required_tokens,
+              renewable_tokens,
+              permanent_tokens,
+            },
             { status: 402 }
           );
         }
@@ -249,7 +293,10 @@ export async function POST(req: NextRequest) {
       // Update tokens in Supabase
       const { error: update_error } = await supabase
         .from("subscriptions")
-        .update({ renewable_tokens: new_renewable, permanent_tokens: new_permanent })
+        .update({
+          renewable_tokens: new_renewable,
+          permanent_tokens: new_permanent,
+        })
         .eq("user_id", user.id);
       if (update_error) {
         console.error("Token deduction error:", update_error.message);
@@ -263,14 +310,22 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate the image
-    const image = await generate_flux_image(prompt, width, height, selected_model_id);
-    const base64 = Buffer.from(image.uint8Array).toString("base64");
+    const image = await generate_flux_image(
+      prompt,
+      width,
+      height,
+      selected_model_id
+    );
+    let base64 = Buffer.from(image.uint8Array).toString("base64");
+    if (plan === "free") {
+      base64 = await add_overlay_to_image_node(base64);
+    }
 
     // On successful generation
-    await track('Image Generated', {
-      status: 'success',
-      model_id: selected_model_id ?? 'unknown',
-      plan: plan ?? 'unknown',
+    await track("Image Generated", {
+      status: "success",
+      model_id: selected_model_id ?? "unknown",
+      plan: plan ?? "unknown",
       prompt_length: prompt.length,
       timestamp: new Date().toISOString(),
     });
@@ -283,12 +338,12 @@ export async function POST(req: NextRequest) {
       prompt,
       width,
       height,
-      mp_used: required_tokens
+      mp_used: required_tokens,
     });
     try {
       await redis.set(cache_key, cache_value, { ex: 3600 });
     } catch (err) {
-      console.error('Redis set error:', err);
+      console.error("Redis set error:", err);
       // Fallback: do not cache if Redis is unavailable
     }
 
@@ -301,7 +356,7 @@ export async function POST(req: NextRequest) {
       width,
       height,
       plan,
-      enhancement_mp: body.enhancement_mp || 0
+      enhancement_mp: body.enhancement_mp || 0,
     });
   } catch (error: unknown) {
     // --- Refund logic: If tokens were deducted but image generation failed, refund tokens ---
@@ -312,14 +367,17 @@ export async function POST(req: NextRequest) {
           permanent_tokens: previous_permanent_tokens,
         };
         if (plan === "standard" && selected_model_id === "fal-ai/flux-pro") {
-          update_data.premium_generations_used = previous_premium_generations_used;
+          update_data.premium_generations_used =
+            previous_premium_generations_used;
         }
         await supabase
           .from("subscriptions")
           .update(update_data)
           .eq("user_id", user.id);
         // Optionally log refund success
-        console.log("[Refund] Tokens refunded due to image generation failure.");
+        console.log(
+          "[Refund] Tokens refunded due to image generation failure."
+        );
       } catch (refund_error) {
         // Optionally log refund failure for manual review
         console.error("[Refund] Failed to refund tokens:", refund_error);
@@ -327,23 +385,23 @@ export async function POST(req: NextRequest) {
     }
     if (error instanceof Error) {
       console.error("Image generation error:", error.message);
-      await track('Image Generation Failed', {
-        status: 'error',
-        model_id: selected_model_id ?? 'unknown',
-        plan: plan ?? 'unknown',
-        prompt_length: typeof prompt === 'string' ? prompt.length : 0,
+      await track("Image Generation Failed", {
+        status: "error",
+        model_id: selected_model_id ?? "unknown",
+        plan: plan ?? "unknown",
+        prompt_length: typeof prompt === "string" ? prompt.length : 0,
         error_message: error.message.slice(0, 255),
         timestamp: new Date().toISOString(),
       });
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     console.error("Unknown image generation error:", error);
-    await track('Image Generation Failed', {
-      status: 'error',
-      model_id: selected_model_id ?? 'unknown',
-      plan: 'unknown',
-      prompt_length: typeof prompt === 'string' ? prompt.length : 0,
-      error_message: 'Unknown error',
+    await track("Image Generation Failed", {
+      status: "error",
+      model_id: selected_model_id ?? "unknown",
+      plan: "unknown",
+      prompt_length: typeof prompt === "string" ? prompt.length : 0,
+      error_message: "Unknown error",
       timestamp: new Date().toISOString(),
     });
     return NextResponse.json({ error: "Unknown error" }, { status: 500 });

@@ -13,7 +13,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
     <>
       {/* Overlay for mobile */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-40 z-30 md:hidden transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+        className={`fixed h-screen inset-0 bg-black bg-opacity-40 z-30 md:hidden transition-opacity duration-200 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
         onClick={on_close}
         aria-hidden={!open}
       />

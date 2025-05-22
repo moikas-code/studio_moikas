@@ -2,7 +2,7 @@
 
 import React, { useState, useContext, useRef, useEffect, useCallback } from "react";
 import { MpContext } from "../context/mp_context";
-import { MODEL_OPTIONS } from "../../lib/generate_helpers";
+import { get_tokens_for_size, MODEL_OPTIONS, add_overlay_to_image } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
@@ -30,7 +30,9 @@ export default function Image_generator() {
   const { refresh_mp, plan, mp_tokens: mana_points } = useContext(MpContext);
 
   // State for model selection
-  const [model_id, set_model_id] = useState<string>("fal-ai/flux/schnell");
+  const [model_id, set_model_id] = useState<string>(
+    "fal-ai/sana"
+  );
 
   // State for aspect ratio slider (discrete, only supported ratios)
   const ASPECT_PRESETS = [
@@ -77,10 +79,6 @@ export default function Image_generator() {
   // Helper to get pixel count and tokens for the selected aspect ratio
   function get_pixels(width: number, height: number) {
     return width * height;
-  }
-  function get_tokens_for_size(width: number, height: number) {
-    // 1 token per 1MP, round up
-    return Math.ceil(get_pixels(width, height) / 1_000_000);
   }
 
   // Get current dimensions and tokens based on aspect ratio
@@ -212,11 +210,14 @@ export default function Image_generator() {
         if (!response.ok) {
           throw new Error(data.error || "Failed to generate image");
         }
-        set_image_base64(
-          Array.isArray(data.image_base64)
-            ? data.image_base64
-            : [data.image_base64]
-        );
+        let images = Array.isArray(data.image_base64)
+          ? data.image_base64
+          : [data.image_base64];
+        // Apply overlay for free users
+        if (plan === 'free') {
+          images = await Promise.all(images.map((img: string) => add_overlay_to_image(img)));
+        }
+        set_image_base64(images);
         set_prompt_description(used_prompt ?? "");
         set_mana_points_used(data.mp_used ?? null);
         set_backend_cost(data.enhancement_mp ?? null);
@@ -346,7 +347,7 @@ export default function Image_generator() {
       {/* Sticky input and settings menu container */}
       <div className="w-full flex flex-col items-center z-30 sticky top-0 bg-base-100">
         {/* Prompt input */}
-        <div className="w-full max-w-5xl mx-auto mb-0 flex items-center gap-2 py-2">
+        <div className="w-full max-w-5xl mx-auto mb-0 flex flex-col md:flex-row items-center gap-2 py-2">
           <div className="flex items-center gap-2 flex-1 p-4 rounded-xl border border-base-200 bg-white shadow-sm">
             <svg
               className="w-6 h-6 text-gray-400"
@@ -381,7 +382,7 @@ export default function Image_generator() {
               }}
             />
             {/* Enhance Prompt Button */}
-            <div className="flex flex-col items-center ml-2">
+            <div className="flex flex-col md:flex-row items-center ml-2 gap-2">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
@@ -396,20 +397,21 @@ export default function Image_generator() {
               >
                 {is_enhancing ? <ChefHat /> : <Sparkles />}
               </button>
+
+              <button
+                type="submit"
+                className="md:ml-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold shadow hover:bg-orange-600 transition"
+                disabled={
+                  is_loading ||
+                  (typeof mana_points === "number" &&
+                    mana_points < size_tokens_slider)
+                }
+                aria-busy={is_loading}
+                onClick={handle_generate_image}
+              >
+                {is_loading ? <Brush /> : <SendHorizontal />}
+              </button>
             </div>
-            <button
-              type="submit"
-              className="ml-2 px-4 py-2 rounded-lg bg-orange-500 text-white font-semibold shadow hover:bg-orange-600 transition"
-              disabled={
-                is_loading ||
-                (typeof mana_points === "number" &&
-                  mana_points < size_tokens_slider)
-              }
-              aria-busy={is_loading}
-              onClick={handle_generate_image}
-            >
-              {is_loading ? <Brush /> : <SendHorizontal />}
-            </button>
           </div>
           {/* Settings button */}
           <button
