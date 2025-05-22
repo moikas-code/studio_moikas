@@ -3,6 +3,7 @@
 import { BadgeHelp } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import Image from "next/image";
 
 /**
  * Sidebar component for Studio App.
@@ -14,7 +15,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
     <>
       {/* Overlay for mobile */}
       <div
-        className={`fixed h-screen inset-0 bg-black bg-opacity-40 z-30 md:hidden transition-opacity duration-200 ${
+        className={`fixed h-screen inset-0 bg-black bg-opacity-40 z-30 lg:hidden transition-opacity duration-200 ${
           open
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -23,7 +24,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`h-screen w-64 max-w-full bg-base-200 border-r border-base-300 flex flex-col shadow-lg z-40 fixed md:static transition-transform duration-200 ${
+        className={`h-screen w-64 max-w-full bg-base-200 border-r border-base-300 flex flex-col shadow-lg z-40 fixed lg:static transition-transform duration-200 ${
           open ? "translate-x-0" : "-translate-x-full"
         } md:translate-x-0 ${
           open ? "md:flex" : "hidden md:flex"
@@ -82,6 +83,36 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
               >
                 <span className="text-base font-medium">Image Generator</span>
               </Link>
+            </li>
+            {/* Add more tool links here as needed */}
+          </ul>
+        </nav>
+        <div className="p-6 border-b border-base-300">
+          <p className="text-sm font-bold tracking-tight text-primary">
+            Support
+          </p>
+        </div>
+        <nav className="flex-1 p-4" aria-label="Main tools">
+          <ul className="menu menu-lg rounded-box w-full">
+            <li>
+              <a
+                href="https://discord.gg/DnbkrC8"
+                className="justify-start"
+                aria-label="Community Discord"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="flex items-center gap-2">
+                  {/* Discord icon */}
+                  <Image
+                    src="/Discord.svg"
+                    alt="Discord"
+                    width={24}
+                    height={24}
+                  />
+                  Community
+                </span>
+              </a>
             </li>
             <li>
               <Link

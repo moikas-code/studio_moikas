@@ -340,10 +340,10 @@ export default function Image_generator() {
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-start bg-base-100 py-8 relative">
       {/* Sticky input and settings menu container */}
-      <div className="w-full flex flex-col items-center z-30 sticky top-0 bg-base-100">
+      <div className="w-full flex flex-col items-center   bg-base-100">
         {/* Prompt input */}
         <div className="w-full max-w-5xl mx-auto mb-0 flex flex-col md:flex-row items-center gap-2 py-2">
-          <div className="flex items-center gap-2 flex-1 p-4 rounded-xl border border-base-200 bg-white shadow-sm">
+          <div className="flex w-full items-center gap-2 flex-1 p-4 rounded-xl border border-base-200 bg-white shadow-sm">
             <svg
               className="w-6 h-6 text-gray-400"
               fill="none"
