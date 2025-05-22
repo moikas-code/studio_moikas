@@ -39,55 +39,74 @@ function sanitize_filename(str: string) {
 async function handle_download(base64: string, format: string, idx: number) {
   const img = new window.Image();
   img.src = `data:image/png;base64,${base64}`;
-  await new Promise((resolve) => { img.onload = resolve; });
+  await new Promise((resolve) => {
+    img.onload = resolve;
+  });
   let ext = format;
-  let mime_type = 'image/png';
+  let mime_type = "image/png";
   let blob: Blob | null = null;
-  if (format === 'png') {
-    mime_type = 'image/png';
-    ext = 'png';
-    const canvas = document.createElement('canvas');
+  if (format === "png") {
+    mime_type = "image/png";
+    ext = "png";
+    const canvas = document.createElement("canvas");
     canvas.width = img.width;
     canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(img, 0, 0);
-    blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
-  } else if (format === 'jpeg') {
-    mime_type = 'image/jpeg';
-    ext = 'jpg';
-    const canvas = document.createElement('canvas');
+    blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, mime_type)
+    );
+  } else if (format === "jpeg") {
+    mime_type = "image/jpeg";
+    ext = "jpg";
+    const canvas = document.createElement("canvas");
     canvas.width = img.width;
     canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(img, 0, 0);
-    blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
-  } else if (format === 'webp') {
-    mime_type = 'image/webp';
-    ext = 'webp';
-    const canvas = document.createElement('canvas');
+    blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, mime_type)
+    );
+  } else if (format === "webp") {
+    mime_type = "image/webp";
+    ext = "webp";
+    const canvas = document.createElement("canvas");
     canvas.width = img.width;
     canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(img, 0, 0);
-    blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
-  } else if (format === 'svg') {
-    ext = 'svg';
+    blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, mime_type)
+    );
+  } else if (format === "svg") {
+    ext = "svg";
     // Wrap the image in an SVG element
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${img.width}' height='${img.height}'><image href='data:image/png;base64,${base64}' width='${img.width}' height='${img.height}'/></svg>`;
-    blob = new Blob([svg], { type: 'image/svg+xml' });
-  } else if (format === 'pdf') {
-    ext = 'pdf';
-    const { jsPDF } = await import('jspdf');
-    const pdf = new jsPDF({ unit: 'px', format: [img.width, img.height], orientation: 'landscape' });
-    pdf.addImage(`data:image/png;base64,${base64}`, 'PNG', 0, 0, img.width, img.height);
-    blob = pdf.output('blob');
+    blob = new Blob([svg], { type: "image/svg+xml" });
+  } else if (format === "pdf") {
+    ext = "pdf";
+    const { jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({
+      unit: "px",
+      format: [img.width, img.height],
+      orientation: "landscape",
+    });
+    pdf.addImage(
+      `data:image/png;base64,${base64}`,
+      "PNG",
+      0,
+      0,
+      img.width,
+      img.height
+    );
+    blob = pdf.output("blob");
   }
   if (!blob) return;
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = `generated_image_${idx + 1}.${ext}`;
   document.body.appendChild(a);
@@ -97,7 +116,10 @@ async function handle_download(base64: string, format: string, idx: number) {
 }
 
 // Helper to draw overlay text on a canvas (bottom right corner)
-function draw_overlay_on_canvas(canvas: HTMLCanvasElement, overlay_text = "studio.moikas.com") {
+function draw_overlay_on_canvas(
+  canvas: HTMLCanvasElement,
+  overlay_text = "studio.moikas.com"
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const font_size = Math.max(16, Math.floor(canvas.height * 0.04));
@@ -137,28 +159,37 @@ export default function ImageGenerationCreation({
   // Ref for the Creation container
   const Creation_ref = useRef<HTMLDivElement>(null);
   const [is_exporting, set_is_exporting] = useState(false);
-  const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(null);
+  const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(
+    null
+  );
   const [overlaid_images, set_overlaid_images] = useState<string[]>(images);
 
   // Apply overlay to images for free users
   useEffect(() => {
     let is_mounted = true;
     async function process_images() {
-      if (plan === 'free') {
-        const processed = await Promise.all(images.map(img => add_overlay_to_image(img)));
+      if (plan === "free") {
+        const processed = await Promise.all(
+          images.map((img) => add_overlay_to_image(img))
+        );
         if (is_mounted) set_overlaid_images(processed);
       } else {
         set_overlaid_images(images);
       }
     }
     process_images();
-    return () => { is_mounted = false; };
+    return () => {
+      is_mounted = false;
+    };
   }, [images, plan]);
 
   // --- Share image and prompt text ---
   async function handle_share_image(img: string) {
     try {
-      track("Creation Share Image", { plan, timestamp: new Date().toISOString() });
+      track("Creation Share Image", {
+        plan,
+        timestamp: new Date().toISOString(),
+      });
       // Add overlay
       const img_with_overlay = await add_overlay_to_image(img);
       // Convert base64 to Blob
@@ -166,10 +197,7 @@ export default function ImageGenerationCreation({
       const blob = await res.blob();
 
       // Try to use the Async Clipboard API for image
-      if (
-        navigator.clipboard &&
-        typeof window.ClipboardItem !== "undefined"
-      ) {
+      if (navigator.clipboard && typeof window.ClipboardItem !== "undefined") {
         try {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
@@ -208,7 +236,10 @@ export default function ImageGenerationCreation({
     set_is_exporting(true);
     await new Promise((resolve) => setTimeout(resolve, 0)); // Wait for DOM update
     try {
-      track("Creation Share Creation", { plan, timestamp: new Date().toISOString() });
+      track("Creation Share Creation", {
+        plan,
+        timestamp: new Date().toISOString(),
+      });
       // Render the Creation DOM node to a canvas
       const canvas = await html2canvas(Creation_ref.current, {
         backgroundColor: "#0000",
@@ -216,17 +247,16 @@ export default function ImageGenerationCreation({
         scale: 2,
       });
       // Apply overlay for free users
-      if (plan === 'free') {
+      if (plan === "free") {
         draw_overlay_on_canvas(canvas, "studio.moikas.com");
       }
       // Convert canvas to blob
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/png")
+      );
       if (!blob) throw new Error("Failed to create image blob");
       // Try Clipboard API for image
-      if (
-        navigator.clipboard &&
-        typeof window.ClipboardItem !== "undefined"
-      ) {
+      if (navigator.clipboard && typeof window.ClipboardItem !== "undefined") {
         try {
           await navigator.clipboard.write([
             new window.ClipboardItem({ "image/png": blob }),
@@ -240,7 +270,9 @@ export default function ImageGenerationCreation({
             await navigator.clipboard.writeText(
               `${prompt_text}\n\n[Image not copied: browser unsupported]\n\nCreated on https://studio.moikas.com`
             );
-            alert("Prompt text copied. Image clipboard not supported in this browser.");
+            alert(
+              "Prompt text copied. Image clipboard not supported in this browser."
+            );
           } catch (error) {
             alert("Failed to copy image or text to clipboard.");
             console.error("Clipboard text copy failed:", error);
@@ -249,10 +281,15 @@ export default function ImageGenerationCreation({
         }
       }
       // Fallback: show alert dialog only (no download)
-      alert("Sharing and clipboard are not supported in this browser. Please try copying the prompt text manually.");
+      alert(
+        "Sharing and clipboard are not supported in this browser. Please try copying the prompt text manually."
+      );
       return;
     } catch (error) {
-      alert("Failed to share Creation: " + (error instanceof Error ? error.message : String(error)));
+      alert(
+        "Failed to share Creation: " +
+          (error instanceof Error ? error.message : String(error))
+      );
     } finally {
       set_is_exporting(false);
     }
@@ -264,7 +301,10 @@ export default function ImageGenerationCreation({
     set_is_exporting(true);
     await new Promise((resolve) => setTimeout(resolve, 0)); // Wait for DOM update
     try {
-      track("Creation Export PDF", { plan, timestamp: new Date().toISOString() });
+      track("Creation Export PDF", {
+        plan,
+        timestamp: new Date().toISOString(),
+      });
       const jsPDFModule = await import("jspdf");
       const jsPDF = jsPDFModule.jsPDF;
       const pdf = new jsPDF({
@@ -285,28 +325,32 @@ export default function ImageGenerationCreation({
         },
       });
     } catch (err) {
-      alert("Failed to export PDF: " + (err instanceof Error ? err.message : String(err)));
+      alert(
+        "Failed to export PDF: " +
+          (err instanceof Error ? err.message : String(err))
+      );
     } finally {
       set_is_exporting(false);
     }
   }
 
   // Download options by plan
-  const base_options = [
-    { value: 'png', label: 'PNG' },
-  ];
+  const base_options = [{ value: "png", label: "PNG" }];
   const standard_options = [
-    { value: 'jpeg', label: 'JPEG' },
-    { value: 'webp', label: 'WebP' },
-    { value: 'svg', label: 'SVG' },
-    { value: 'pdf', label: 'PDF' },
+    { value: "jpeg", label: "JPEG" },
+    { value: "webp", label: "WebP" },
+    { value: "svg", label: "SVG" },
+    { value: "pdf", label: "PDF" },
   ];
-  const all_options = plan === 'standard' ? [...base_options, ...standard_options] : base_options;
+  const all_options =
+    plan === "standard" ? [...base_options, ...standard_options] : base_options;
 
   if (error_message) {
     return (
       <div className="max-w-xl mx-auto bg-red-50 border border-red-300 rounded-xl shadow p-6 mt-8">
-        <div className="text-xl font-bold text-red-700 mb-2">Generation Failed</div>
+        <div className="text-xl font-bold text-red-700 mb-2">
+          Generation Failed
+        </div>
         <div className="text-xs text-gray-500 mb-4">{timestamp}</div>
         <div className="mb-2">
           <span className="font-semibold">Prompt:</span>
@@ -334,7 +378,9 @@ export default function ImageGenerationCreation({
         <div className="flex flex-col md:flex-row justify-between w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between">
             <div className="text-xl font-bold">Creation Certificate</div>
-            <div className="text-xs text-gray-500 mb-4 md:hidden">{timestamp}</div>
+            <div className="text-xs text-gray-500 mb-4 md:hidden">
+              {timestamp}
+            </div>
           </div>
           {!is_exporting && (
             <div className="flex gap-2">
@@ -364,7 +410,9 @@ export default function ImageGenerationCreation({
           )}
         </div>
       </div>
-      <div className="text-xs text-gray-500 mb-4 hidden md:block">{timestamp}</div>
+      <div className="text-xs text-gray-500 mb-4 hidden md:block">
+        {timestamp}
+      </div>
       <div className="mb-2">
         <span className="font-semibold">Prompt:</span>
         <span className="ml-2 italic">{prompt_text}</span>
@@ -391,7 +439,7 @@ export default function ImageGenerationCreation({
                 height={211}
                 unoptimized
                 priority
-                onContextMenu={e => e.preventDefault()}
+                onContextMenu={(e) => e.preventDefault()}
               />
               {/* Vertical column of share/download buttons with extra padding */}
               {!is_exporting && (
@@ -442,25 +490,34 @@ export default function ImageGenerationCreation({
                       </button>
                     </>
                   ) : (
-                    <button
-                      className="btn btn-xs btn-primary"
-                      onClick={async () => {
-                        track("Creation Download", {
-                          plan,
-                          format: "png",
-                          timestamp: new Date().toISOString(),
-                        });
-                        const a = document.createElement("a");
-                        a.href = `data:image/png;base64,${img}`;
-                        a.download = file_name;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                      }}
-                      aria-label="Download image"
-                    >
-                      Download
-                    </button>
+                    <>
+                      <button
+                        className="btn btn-xs btn-primary"
+                        onClick={async () => {
+                          track("Creation Download", {
+                            plan,
+                            format: "png",
+                            timestamp: new Date().toISOString(),
+                          });
+                          const a = document.createElement("a");
+                          a.href = `data:image/png;base64,${img}`;
+                          a.download = file_name;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                        }}
+                        aria-label="Download image"
+                      >
+                        Download
+                      </button>
+                      <button
+                        className="btn btn-xs btn-outline"
+                        onClick={() => handle_share_image(img)}
+                        aria-label="Share image"
+                      >
+                        Share
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -536,4 +593,4 @@ export default function ImageGenerationCreation({
       </div>
     </div>
   );
-} 
+}
