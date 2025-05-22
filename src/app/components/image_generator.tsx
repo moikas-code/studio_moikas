@@ -369,7 +369,7 @@ export default function Image_generator() {
               className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none min-h-[36px] py-2 px-0 border-b border-gray-200 focus:border-orange-500 focus:bg-white transition-colors duration-200 rounded-none shadow-none focus:ring-0 focus:outline-none leading-tight overflow-hidden placeholder:font-normal placeholder:text-gray-400"
               value={prompt_text}
               onChange={handle_prompt_text_change}
-              placeholder="What will you imagine?"
+              placeholder="What will you create?"
               required
               aria-required="true"
               aria-label="Prompt for image generation"

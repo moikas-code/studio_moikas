@@ -97,6 +97,34 @@ async function handle_download(base64: string, format: string, idx: number) {
   URL.revokeObjectURL(url);
 }
 
+// Helper to draw overlay text on a canvas (bottom right corner)
+function draw_overlay_on_canvas(canvas: HTMLCanvasElement, overlay_text = "studio.moikas.com") {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const font_size = Math.max(16, Math.floor(canvas.height * 0.04));
+  ctx.font = `bold ${font_size}px sans-serif`;
+  ctx.textBaseline = "bottom";
+  ctx.textAlign = "right";
+  ctx.globalAlpha = 0.8;
+  ctx.fillStyle = "#000";
+  const text_width = ctx.measureText(overlay_text).width;
+  const padding = 8;
+  const margin = 12;
+  ctx.fillRect(
+    canvas.width - text_width - 2 * padding - margin,
+    canvas.height - font_size - padding - margin,
+    text_width + 2 * padding,
+    font_size + 2 * padding
+  );
+  ctx.globalAlpha = 1.0;
+  ctx.fillStyle = "#fff";
+  ctx.fillText(
+    overlay_text,
+    canvas.width - margin - padding,
+    canvas.height - margin - padding
+  );
+}
+
 export default function ImageGenerationCreation({
   prompt_text,
   images,
@@ -188,37 +216,50 @@ export default function ImageGenerationCreation({
         useCORS: true,
         scale: 2,
       });
+      // Apply overlay for free users
+      if (plan === 'free') {
+        draw_overlay_on_canvas(canvas, "studio.moikas.com");
+      }
       // Convert canvas to blob
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("Failed to create image blob");
       // Try Web Share API with files
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], "Creation.png", { type: "image/png" })] })) {
-        await navigator.share({
-          files: [new File([blob], "Creation.png", { type: "image/png" })],
-          title: "AI Image Generation Creation",
-          text: `Prompt: ${prompt_text}\n\nCreated on https://studio.moikas.com`,
-        });
-        return;
-      }
+      // if (navigator.canShare && navigator.canShare({ files: [new File([blob], "Creation.png", { type: "image/png" })] })) {
+      //   await navigator.share({
+      //     files: [new File([blob], "Creation.png", { type: "image/png" })],
+      //     title: "AI Image Generation Creation",
+      //     text: `Prompt: ${prompt_text}\n\nCreated on https://studio.moikas.com`,
+      //   });
+      //   return;
+      // }
       // Try Clipboard API for image
-      if (navigator.clipboard && (window as unknown as { ClipboardItem?: unknown }).ClipboardItem) {
-        const clipboard_items = [
-          new (window as unknown as { ClipboardItem: typeof ClipboardItem }).ClipboardItem({ "image/png": blob })
-        ];
-        await navigator.clipboard.write(clipboard_items);
-        alert("Creation image copied to clipboard!");
-        return;
+      if (
+        navigator.clipboard &&
+        typeof window.ClipboardItem !== "undefined"
+      ) {
+        try {
+          await navigator.clipboard.write([
+            new window.ClipboardItem({ "image/png": blob }),
+          ]);
+          alert("Creation image copied to clipboard!");
+          return;
+        } catch (err) {
+          console.error("Clipboard image copy failed:", err);
+          // Fallback: copy just the prompt text
+          try {
+            await navigator.clipboard.writeText(
+              `${prompt_text}\n\n[Image not copied: browser unsupported]\n\nCreated on https://studio.moikas.com`
+            );
+            alert("Prompt text copied. Image clipboard not supported in this browser.");
+          } catch (textErr) {
+            alert("Failed to copy image or text to clipboard.");
+          }
+          return;
+        }
       }
-      // Fallback: download the image
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Creation.png";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      alert("Creation image downloaded (clipboard/share not supported).");
+      // Fallback: show alert dialog only (no download)
+      alert("Sharing and clipboard are not supported in this browser. Please try copying the prompt text manually.");
+      return;
     } catch (err) {
       alert("Failed to share Creation: " + (err instanceof Error ? err.message : String(err)));
     } finally {
