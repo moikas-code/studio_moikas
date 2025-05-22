@@ -183,6 +183,7 @@ export default function ImageGenerationCreation({
           alert(
             "Prompt text copied. Image clipboard not supported in this browser."
           );
+          console.error("Clipboard image copy failed:", err);
         }
       } else {
         // Fallback: copy just the prompt text
@@ -242,6 +243,7 @@ export default function ImageGenerationCreation({
             alert("Prompt text copied. Image clipboard not supported in this browser.");
           } catch (error) {
             alert("Failed to copy image or text to clipboard.");
+            console.error("Clipboard text copy failed:", error);
           }
           return;
         }

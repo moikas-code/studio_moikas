@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useContext, useRef, useEffect, useCallback, useLayoutEffect } from "react";
+import React, { useState, useContext, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from "react";
 import { MpContext } from "../context/mp_context";
 import { get_tokens_for_size, MODEL_OPTIONS, add_overlay_to_image } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
@@ -35,7 +35,7 @@ export default function Image_generator() {
   );
 
   // State for aspect ratio slider (discrete, only supported ratios)
-  const ASPECT_PRESETS = [
+  const ASPECT_PRESETS = useMemo(() => [
     { label: "1:2", ratio: 0.5 },
     { label: "9:16", ratio: 9 / 16 },
     { label: "2:3", ratio: 2 / 3 },
@@ -47,7 +47,7 @@ export default function Image_generator() {
     { label: "3:2", ratio: 3 / 2 },
     { label: "16:9", ratio: 16 / 9 },
     { label: "2:1", ratio: 2 },
-  ];
+  ], []);
   // Slider value is the index
   const [aspect_index, set_aspect_index] = useState(5); // Default to 1:1
 
@@ -125,37 +125,6 @@ export default function Image_generator() {
   // Store last used settings for redo/reuse
   const [last_generation, set_last_generation] = useState<Record<string, unknown> | null>(null);
 
-  // Update last_generation after successful generation
-  const update_last_generation = (prompt: string, model: string, aspect: number, enhance: number) => {
-    set_last_generation({
-      prompt_text: prompt,
-      model_id: model,
-      aspect_index: aspect,
-      enhancement_count: enhance,
-    });
-  };
-
-  // Redo: re-run generation with last settings
-  const handle_redo = () => {
-    if (!last_generation) return;
-    handle_generate_image(new Event('submit') as unknown as React.FormEvent, {
-      prompt: last_generation.prompt_text as string,
-      model: last_generation.model_id as string,
-      aspect: last_generation.aspect_index as number,
-      enhance: last_generation.enhancement_count as number,
-    });
-  };
-
-  // Reuse: copy prompt/settings to input and show settings
-  const handle_reuse = () => {
-    if (!last_generation) return;
-    set_prompt_text(last_generation.prompt_text as string);
-    set_model_id(last_generation.model_id as string);
-    set_aspect_index(last_generation.aspect_index as number);
-    set_enhancement_count(last_generation.enhancement_count as number);
-    set_show_settings(true);
-  };
-
   // Handler for generating the image
   const handle_generate_image = useCallback(
     async (e: React.FormEvent, custom?: { prompt: string, model: string, aspect: number, enhance: number }) => {
@@ -221,7 +190,12 @@ export default function Image_generator() {
         set_prompt_text("");
         set_enhancement_count(0);
         // Store last generation settings
-        update_last_generation(used_prompt, used_model, used_aspect, used_enhance);
+        set_last_generation({
+          prompt_text: used_prompt,
+          model_id: used_model,
+          aspect_index: used_aspect,
+          enhancement_count: used_enhance,
+        });
       } catch (error: unknown) {
         if (error instanceof Error) {
           set_error_message(error.message || "An error occurred");
@@ -232,8 +206,29 @@ export default function Image_generator() {
         set_is_loading(false);
       }
     },
-    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, update_last_generation, ASPECT_PRESETS]
+    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, set_last_generation, ASPECT_PRESETS]
   );
+
+  // Redo: re-run generation with last settings
+  const handle_redo = useCallback(() => {
+    if (!last_generation) return;
+    handle_generate_image(new Event('submit') as unknown as React.FormEvent, {
+      prompt: last_generation.prompt_text as string,
+      model: last_generation.model_id as string,
+      aspect: last_generation.aspect_index as number,
+      enhance: last_generation.enhancement_count as number,
+    });
+  }, [last_generation, handle_generate_image]);
+
+  // Reuse: copy prompt/settings to input and show settings
+  const handle_reuse = useCallback(() => {
+    if (!last_generation) return;
+    set_prompt_text(last_generation.prompt_text as string);
+    set_model_id(last_generation.model_id as string);
+    set_aspect_index(last_generation.aspect_index as number);
+    set_enhancement_count(last_generation.enhancement_count as number);
+    set_show_settings(true);
+  }, [last_generation]);
 
   // Handler for enhancing the prompt
   const handle_enhance_prompt = useCallback(
