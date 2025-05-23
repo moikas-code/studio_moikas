@@ -1,5 +1,9 @@
-import { fal } from "@ai-sdk/fal";
-import { experimental_generateImage as generateImage } from "ai";
+import { fal } from "@fal-ai/client";
+
+interface FalQueueUpdate {
+  status: string;
+  logs?: { message: string }[];
+}
 
 // Accept extra options for fal-ai/sana
 export async function generate_flux_image(
@@ -13,37 +17,33 @@ export async function generate_flux_image(
     seed?: number;
     guidance_scale?: number;
     style_name?: string;
+    image_size?: string;
+    num_images?: number;
   } = {}
 ) {
-  const size = `${width}x${height}` as `${number}x${number}`;
-  //build sana options
-  const sana_options = {
-    ...(options.seed !== undefined && { seed: options.seed }),
-    providerOptions: {
-      ...(options.negative_prompt !== undefined && {
-        negative_prompt: options.negative_prompt,
-      }),
-      ...(options.num_inference_steps !== undefined && {
-        num_inference_steps: options.num_inference_steps,
-      }),
-
-      ...(options.guidance_scale !== undefined && {
-        guidance_scale: options.guidance_scale,
-      }),
-      ...(options.style_name !== undefined && {
-        style_name: options.style_name,
-      }),
-    },
+  // Compose image_size if not provided
+  const image_size = options.image_size || {
+    width,
+    height,
   };
-  // Build payload
-  const payload = {
-    model: fal.image(model_id),
+  const input: Record<string, unknown> = {
     prompt,
-    size,
-    ...(model_id === "fal-ai/sana" ? sana_options : {}),
+    ...(options.negative_prompt !== undefined && { negative_prompt: options.negative_prompt }),
+    ...(options.num_inference_steps !== undefined && { num_inference_steps: options.num_inference_steps }),
+    ...(options.seed !== undefined && { seed: options.seed }),
+    ...(options.guidance_scale !== undefined && { guidance_scale: options.guidance_scale }),
+    ...(options.style_name !== undefined && { style_name: options.style_name }),
+    image_size,
+    ...(options.num_images !== undefined && { num_images: options.num_images }),
   };
-  const { image } = await generateImage(
-    payload as Parameters<typeof generateImage>[0]
-  );
-  return image;
+  const result = await fal.subscribe(model_id, {
+    input,
+    logs: true,
+    onQueueUpdate: (update: FalQueueUpdate) => {
+      if (update.status === "IN_PROGRESS" && update.logs) {
+        update.logs.map((log) => log.message).forEach(console.log);
+      }
+    },
+  });
+  return result;
 }

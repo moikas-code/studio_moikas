@@ -337,14 +337,21 @@ export async function POST(req: NextRequest) {
     console.log('SANA options for fal_client:', sana_options);
 
     // Generate the image
-    const image = await generate_flux_image(
+    const result = await generate_flux_image(
       prompt,
       width,
       height,
       selected_model_id,
       sana_options
     );
-    const base64 = Buffer.from(image.uint8Array).toString("base64");
+    // Extract image URL and convert to base64
+    const image_url = result.data?.images?.[0]?.url;
+    let image_base64 = null;
+    if (image_url) {
+      const response = await fetch(image_url);
+      const arrayBuffer = await response.arrayBuffer();
+      image_base64 = Buffer.from(arrayBuffer).toString("base64");
+    }
 
     // On successful generation
     await track("Image Generated", {
@@ -357,7 +364,7 @@ export async function POST(req: NextRequest) {
 
     // Cache the result as a JSON object with metadata
     const cache_value = JSON.stringify({
-      image_base64: base64,
+      image_base64,
       created_at: new Date().toISOString(),
       model_id: selected_model_id,
       prompt,
@@ -374,7 +381,7 @@ export async function POST(req: NextRequest) {
 
     // Return model cost in the response
     return NextResponse.json({
-      image_base64: base64,
+      image_base64,
       mp_used: required_tokens,
       model_cost: required_tokens,
       model_id: selected_model_id,
