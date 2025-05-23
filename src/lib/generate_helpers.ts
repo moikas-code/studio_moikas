@@ -34,7 +34,7 @@ const FREE_MODELS = [
   },
   {
     value: "fal-ai/sana/sprint",
-    label: "SANA Sprint",
+    label: "SANA Fast",
     cost: 1,
     plans: ["free", "standard"],
   },
