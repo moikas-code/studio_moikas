@@ -472,9 +472,9 @@ export default function Image_generator() {
         {/* Prompt input */}
         <div
           ref={prompt_input_ref}
-          className="w-full max-w-5xl mx-auto mb-0 flex items-center gap-2 py-2"
+          className="w-full max-w-xs sm:max-w-md md:max-w-2xl mx-auto mb-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 py-2"
         >
-          <div className="flex w-full items-center gap-2 flex-1 p-4 rounded-xl border border-base-200 bg-white shadow-sm">
+          <div className="flex w-full items-center gap-2 flex-1 p-3 sm:p-4 rounded-xl border border-base-200 bg-white shadow-sm min-w-0">
             <svg
               className="w-6 h-6 text-gray-400"
               fill="none"
@@ -492,7 +492,7 @@ export default function Image_generator() {
             <textarea
               id="prompt_text"
               ref={prompt_textarea_ref}
-              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none min-h-[36px] py-2 px-0 border-b border-gray-200 focus:border-orange-500 focus:bg-white transition-colors duration-200 rounded-none shadow-none focus:ring-0 focus:outline-none leading-tight overflow-hidden placeholder:font-normal placeholder:text-gray-400"
+              className="flex-1 bg-transparent outline-none text-lg text-gray-900 placeholder:text-gray-400 resize-none min-h-[36px] py-2 px-0 border-b border-gray-200 focus:border-orange-500 focus:bg-white transition-colors duration-200 rounded-none shadow-none focus:ring-0 focus:outline-none leading-tight overflow-hidden placeholder:font-normal placeholder:text-gray-400 min-w-0"
               value={prompt_text}
               onChange={handle_prompt_text_change}
               placeholder="What will you create?"
@@ -508,7 +508,7 @@ export default function Image_generator() {
               }}
             />
             {/* Enhance Prompt Button */}
-            <div className="flex flex-col md:flex-row items-center ml-2 gap-2">
+            <div className="flex flex-row items-center ml-0 sm:ml-2 gap-2 flex-shrink-0">
               <button
                 type="button"
                 className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold shadow hover:bg-blue-600 transition"
@@ -539,10 +539,40 @@ export default function Image_generator() {
               </button>
             </div>
           </div>
-          {/* Settings button */}
+          {/* Settings button: stack below input on mobile */}
+          <div className="w-full flex sm:hidden mt-2">
+            <button
+              type="button"
+              className="btn btn-square w-10 h-10 mx-auto p-0 flex items-center justify-center tooltip border-2 border-orange-400 bg-white hover:bg-orange-50 text-orange-600 shadow focus:outline-none focus:ring-2 focus:ring-orange-400"
+              data-tip={show_settings ? "Hide settings" : "Show settings"}
+              aria-label={show_settings ? "Hide settings" : "Show settings"}
+              aria-pressed={show_settings}
+              tabIndex={0}
+              onClick={() => set_show_settings((s) => !s)}
+            >
+              <svg
+                className={`w-7 h-7 transition-transform duration-300 ${
+                  show_settings
+                    ? "rotate-0 text-orange-500"
+                    : "rotate-90 text-gray-500"
+                }`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm7.94-2.34a1 1 0 0 0 .26-1.09l-1-1.73a1 1 0 0 1 0-.94l1-1.73a1 1 0 0 0-.26-1.09l-2-2a1 1 0 0 0-1.09-.26l-1.73 1a1 1 0 0 1-.94 0l-1.73-1a1 1 0 0 0-1.09.26l-2 2a1 1 0 0 0-.26 1.09l1 1.73a1 1 0 0 1 0 .94l-1 1.73a1 1 0 0 0 .26 1.09l2 2a1 1 0 0 0 1.09.26l1.73-1a1 1 0 0 1 .94 0l1.73 1a1 1 0 0 0 1.09-.26l2-2z"
+                />
+              </svg>
+            </button>
+          </div>
+          {/* Settings button: inline for sm and up */}
           <button
             type="button"
-            className="btn btn-square ml-2 p-0 flex items-center justify-center tooltip border-2 border-orange-400 bg-white hover:bg-orange-50 text-orange-600 shadow focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="btn btn-square ml-2 p-0 hidden sm:flex items-center justify-center tooltip border-2 border-orange-400 bg-white hover:bg-orange-50 text-orange-600 shadow focus:outline-none focus:ring-2 focus:ring-orange-400"
             data-tip={show_settings ? "Hide settings" : "Show settings"}
             aria-label={show_settings ? "Hide settings" : "Show settings"}
             aria-pressed={show_settings}
