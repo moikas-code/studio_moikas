@@ -311,12 +311,36 @@ export async function POST(req: NextRequest) {
       tokens_deducted = true;
     }
 
+    // Prepare sana options if model is fal-ai/sana
+    const sana_options =
+      model_id === "fal-ai/sana"
+        ? {
+            negative_prompt:
+              typeof body.negative_prompt === "string"
+                ? body.negative_prompt
+                : undefined,
+            num_inference_steps:
+              typeof body.num_inference_steps === "number"
+                ? body.num_inference_steps
+                : undefined,
+            seed:
+              typeof body.seed === "number"
+                ? body.seed
+                : undefined,
+            style_name:
+              typeof body.style_name === "string"
+                ? body.style_name
+                : undefined,
+          }
+        : {};
+
     // Generate the image
     const image = await generate_flux_image(
       prompt,
       width,
       height,
-      selected_model_id
+      selected_model_id,
+      sana_options
     );
     const base64 = Buffer.from(image.uint8Array).toString("base64");
 

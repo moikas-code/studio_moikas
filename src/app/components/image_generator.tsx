@@ -125,6 +125,36 @@ export default function Image_generator() {
   // Store last used settings for redo/reuse
   const [last_generation, set_last_generation] = useState<Record<string, unknown> | null>(null);
 
+  // Add at the top, after other useState hooks
+  const SANA_STYLE_OPTIONS = [
+    "(No style)",
+    "Cinematic",
+    "Photographic",
+    "Anime",
+    "Manga",
+    "Digital Art",
+    "Pixel art",
+    "Fantasy art",
+    "Neonpunk",
+    "3D Model",
+  ];
+  const [num_inference_steps, set_num_inference_steps] = useState(18);
+  const [seed, set_seed] = useState(() => Math.floor(Math.random() * 1000000));
+  const [style_name, set_style_name] = useState("(No style)");
+
+  // Helper to parse negative prompt from --no or --n
+  function extract_negative_prompt(prompt: string): { prompt: string; negative_prompt: string } {
+    const regex = /\s--(?:no|n)\s+([^\-][^\n]*)/i;
+    const match = prompt.match(regex);
+    if (match) {
+      const negative_prompt = match[1].trim();
+      // Remove the --no/--n part from the prompt
+      const cleaned_prompt = prompt.replace(regex, "").trim();
+      return { prompt: cleaned_prompt, negative_prompt };
+    }
+    return { prompt, negative_prompt: "" };
+  }
+
   // Handler for generating the image
   const handle_generate_image = useCallback(
     async (e: React.FormEvent, custom?: { prompt: string, model: string, aspect: number, enhance: number }) => {
@@ -158,16 +188,26 @@ export default function Image_generator() {
       });
 
       try {
+        const { prompt: parsed_prompt, negative_prompt } =
+          used_model === "fal-ai/sana"
+            ? extract_negative_prompt(used_prompt)
+            : { prompt: used_prompt, negative_prompt: "" };
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            prompt: used_prompt,
+            prompt: parsed_prompt,
             model_id: used_model,
             aspect_ratio: used_aspect_label,
             width: used_width,
             height: used_height,
             enhancement_mp: used_enhance,
+            ...(used_model === "fal-ai/sana" && {
+              negative_prompt,
+              num_inference_steps,
+              seed,
+              style_name,
+            }),
           }),
         });
         const data = await response.json();
@@ -206,7 +246,7 @@ export default function Image_generator() {
         set_is_loading(false);
       }
     },
-    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, set_last_generation, ASPECT_PRESETS]
+    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, set_last_generation, ASPECT_PRESETS, num_inference_steps, seed, style_name]
   );
 
   // Redo: re-run generation with last settings
@@ -544,6 +584,52 @@ export default function Image_generator() {
                     </select>
                   </div>
                 </div>
+                {model_id === "fal-ai/sana" && (
+                  <div className="flex flex-col gap-4 mt-4">
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <label htmlFor="num_inference_steps" className="font-medium text-gray-700 w-48">Inference Steps</label>
+                      <input
+                        id="num_inference_steps"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={num_inference_steps}
+                        onChange={e => set_num_inference_steps(Number(e.target.value))}
+                        className="input input-bordered w-24"
+                      />
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <label htmlFor="seed" className="font-medium text-gray-700 w-48">Seed</label>
+                      <input
+                        id="seed"
+                        type="number"
+                        value={seed}
+                        onChange={e => set_seed(Number(e.target.value))}
+                        className="input input-bordered w-32"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-xs ml-2"
+                        onClick={() => set_seed(Math.floor(Math.random() * 1000000))}
+                      >
+                        Randomize
+                      </button>
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4 items-center">
+                      <label htmlFor="style_name" className="font-medium text-gray-700 w-48">Style</label>
+                      <select
+                        id="style_name"
+                        value={style_name}
+                        onChange={e => set_style_name(e.target.value)}
+                        className="select select-bordered w-48"
+                      >
+                        {SANA_STYLE_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </form>
