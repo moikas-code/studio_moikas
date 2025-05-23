@@ -60,18 +60,48 @@ export async function POST(req: NextRequest) {
   // Handle the event
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    // Prefer client_reference_id (should be Clerk user ID)
-    let user_id = session?.client_reference_id;
-    // If not present, look up by Stripe customer ID
+    // Always look up the user in Supabase by Clerk ID or Stripe customer ID
+    let user_id: string | null = null;
+    const supabase = createClient(supabase_url, supabase_service_key);
+
+    // Try to find user by Clerk ID (client_reference_id)
+    if (session?.client_reference_id) {
+      const { data: user_row, error: user_row_error } = await supabase
+        .from("users")
+        .select("id")
+        .eq("clerk_id", session.client_reference_id)
+        .single();
+      if (user_row && user_row.id) {
+        user_id = user_row.id;
+      } else if (user_row_error) {
+        log_event("stripe_webhook_clerk_id_lookup_failed", { error: user_row_error.message, client_reference_id: session.client_reference_id });
+      }
+    }
+
+    // If not found, try to find user by Stripe customer ID
     if (!user_id && session.customer) {
-      const supabase = createClient(supabase_url, supabase_service_key);
-      const { data: userRow } = await supabase
+      const { data: user_row, error: user_row_error } = await supabase
         .from("users")
         .select("id")
         .eq("stripe_customer_id", session.customer)
         .single();
-      user_id = userRow?.id;
+      if (user_row && user_row.id) {
+        user_id = user_row.id;
+      } else if (user_row_error) {
+        log_event("stripe_webhook_stripe_customer_id_lookup_failed", { error: user_row_error.message, stripe_customer_id: session.customer });
+      }
     }
+
+    // Validate user_id is a UUID
+    function is_valid_uuid(uuid: string): boolean {
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
+    }
+
+    if (!user_id || !is_valid_uuid(user_id)) {
+      log_event("stripe_webhook_missing_or_invalid_user", { user_id, session });
+      return NextResponse.json({ error: "User not found or invalid for this session" }, { status: 400 });
+    }
+
     let price_id = session?.metadata?.price_id;
     if (!price_id) {
       price_id = await get_first_price_id_from_session(session);
@@ -85,12 +115,11 @@ export async function POST(req: NextRequest) {
       if (session.amount_total === 600) tokens_to_add = 1000;
       if (session.amount_total === 1600) tokens_to_add = 3000;
     }
-    if (!user_id || !tokens_to_add) {
-      log_event("stripe_webhook_missing_data", { user_id, tokens_to_add, price_id, session });
-      return NextResponse.json({ error: "Missing user_id or tokens_to_add" }, { status: 400 });
+    if (!tokens_to_add) {
+      log_event("stripe_webhook_missing_tokens_to_add", { user_id, tokens_to_add, price_id, session });
+      return NextResponse.json({ error: "Missing tokens_to_add" }, { status: 400 });
     }
     // Update user's permanent tokens in Supabase
-    const supabase = createClient(supabase_url, supabase_service_key);
     const { error } = await supabase.rpc("add_permanent_tokens", {
       in_user_id: user_id, // must match parameter name
       in_tokens_to_add: tokens_to_add,
