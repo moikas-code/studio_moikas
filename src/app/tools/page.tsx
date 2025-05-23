@@ -10,7 +10,7 @@ export default function Tools_home_page() {
 
   return (
     <Protect feature={"all_freemium_features"} fallback={<div>Loading...</div>}>
-    <div className="w-full max-w-3xl mx-auto py-12 px-4 flex flex-col items-center">
+    <div className="h-full w-full max-w-3xl mx-auto py-12 px-4 flex flex-col items-center">
       <h1 className="text-3xl md:text-4xl font-bold mb-4 text-center">Welcome, {isLoaded ? username : "..."}!</h1>
       <p className="text-lg text-gray-700 dark:text-gray-200 mb-8 text-center">
         This is your creative tools dashboard. Here you can access all Studio Moikas tools.
