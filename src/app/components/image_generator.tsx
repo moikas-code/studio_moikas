@@ -141,6 +141,7 @@ export default function Image_generator() {
   const [num_inference_steps, set_num_inference_steps] = useState(18);
   const [seed, set_seed] = useState(() => Math.floor(Math.random() * 1000000));
   const [style_name, set_style_name] = useState("(No style)");
+  const [guidance_scale, set_guidance_scale] = useState(5);
 
   // Helper to parse negative prompt from --no or --n
   function extract_negative_prompt(prompt: string): { prompt: string; negative_prompt: string } {
@@ -202,6 +203,7 @@ export default function Image_generator() {
           ...(used_model === "fal-ai/sana" && {
             negative_prompt,
             num_inference_steps,
+            guidance_scale,
             seed,
             style_name,
           }),
@@ -231,6 +233,8 @@ export default function Image_generator() {
         // Reset prompt and enhancement count after generation
         set_prompt_text("");
         set_enhancement_count(0);
+        // Randomize seed after each generation
+        set_seed(Math.floor(Math.random() * 1000000));
         // Store last generation settings
         set_last_generation({
           prompt_text: used_prompt,
@@ -238,6 +242,7 @@ export default function Image_generator() {
           aspect_index: used_aspect,
           enhancement_count: used_enhance,
         });
+        set_guidance_scale(5);
       } catch (error: unknown) {
         if (error instanceof Error) {
           set_error_message(error.message || "An error occurred");
@@ -248,7 +253,7 @@ export default function Image_generator() {
         set_is_loading(false);
       }
     },
-    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, set_last_generation, ASPECT_PRESETS, num_inference_steps, seed, style_name]
+    [aspect_index, enhancement_count, model_id, plan, PREVIEW_AREA, prompt_text, refresh_mp, set_enhancement_count, set_error_message, set_image_base64, set_is_loading, set_mana_points_used, set_prompt_description, set_show_settings, set_last_generation, ASPECT_PRESETS, num_inference_steps, seed, style_name, set_guidance_scale]
   );
 
   // Redo: re-run generation with last settings
@@ -587,48 +592,96 @@ export default function Image_generator() {
                   </div>
                 </div>
                 {model_id === "fal-ai/sana" && (
-                  <div className="flex flex-col gap-4 mt-4">
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <label htmlFor="num_inference_steps" className="font-medium text-gray-700 w-48">Inference Steps</label>
-                      <input
-                        id="num_inference_steps"
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={num_inference_steps}
-                        onChange={e => set_num_inference_steps(Number(e.target.value))}
-                        className="input input-bordered w-24"
-                      />
+                  <div className="flex-1 bg-base-50 rounded-xl border border-primary/30 shadow p-6 flex flex-col gap-4 mt-4">
+                    <div className="text-lg font-bold text-primary mb-2 flex items-center gap-2">
+                      SANA Advanced Options
+                      <span className="tooltip tooltip-bottom" data-tip="These options are specific to the SANA model.">
+                        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                      </span>
                     </div>
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <label htmlFor="seed" className="font-medium text-gray-700 w-48">Seed</label>
-                      <input
-                        id="seed"
-                        type="number"
-                        value={seed}
-                        onChange={e => set_seed(Number(e.target.value))}
-                        className="input input-bordered w-32"
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-xs ml-2"
-                        onClick={() => set_seed(Math.floor(Math.random() * 1000000))}
-                      >
-                        Randomize
-                      </button>
-                    </div>
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                      <label htmlFor="style_name" className="font-medium text-gray-700 w-48">Style</label>
-                      <select
-                        id="style_name"
-                        value={style_name}
-                        onChange={e => set_style_name(e.target.value)}
-                        className="select select-bordered w-48"
-                      >
-                        {SANA_STYLE_OPTIONS.map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Inference Steps */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="num_inference_steps" className="font-medium text-gray-700 flex items-center gap-1">
+                          Inference Steps
+                          <span className="tooltip tooltip-bottom" data-tip="Number of denoising steps (1-50). Higher = more detail, slower.">
+                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                          </span>
+                        </label>
+                        <input
+                          id="num_inference_steps"
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={num_inference_steps}
+                          onChange={e => set_num_inference_steps(Number(e.target.value))}
+                          className="input input-bordered w-full"
+                        />
+                      </div>
+                      {/* Guidance Scale (CFG) */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="guidance_scale" className="font-medium text-gray-700 flex items-center gap-1">
+                          CFG (Guidance Scale)
+                          <span className="tooltip tooltip-bottom" data-tip="How closely the image matches your prompt (1-20, default 5). Higher = more literal.">
+                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                          </span>
+                        </label>
+                        <input
+                          id="guidance_scale"
+                          type="number"
+                          min={1}
+                          max={20}
+                          step={0.1}
+                          value={guidance_scale}
+                          onChange={e => set_guidance_scale(Number(e.target.value))}
+                          className="input input-bordered w-full"
+                        />
+                      </div>
+                      {/* Seed */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="seed" className="font-medium text-gray-700 flex items-center gap-1">
+                          Seed
+                          <span className="tooltip tooltip-bottom" data-tip="Set a number for repeatable results, or randomize for variety.">
+                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                          </span>
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            id="seed"
+                            type="number"
+                            value={seed}
+                            onChange={e => set_seed(Number(e.target.value))}
+                            className="input input-bordered w-full"
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-xs btn-outline ml-2"
+                            onClick={() => set_seed(Math.floor(Math.random() * 1000000))}
+                            tabIndex={0}
+                          >
+                            Randomize
+                          </button>
+                        </div>
+                      </div>
+                      {/* Style Name */}
+                      <div className="flex flex-col gap-1">
+                        <label htmlFor="style_name" className="font-medium text-gray-700 flex items-center gap-1">
+                          Style
+                          <span className="tooltip tooltip-bottom" data-tip="Choose a visual style for your image.">
+                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                          </span>
+                        </label>
+                        <select
+                          id="style_name"
+                          value={style_name}
+                          onChange={e => set_style_name(e.target.value)}
+                          className="select select-bordered w-full"
+                        >
+                          {SANA_STYLE_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
                 )}
