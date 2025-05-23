@@ -498,46 +498,46 @@ export default function Image_generator() {
         {show_settings && (
           <form
             onSubmit={handle_generate_image}
-            className={`w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 absolute options-card-animated${show_settings ? '' : ' hide'}`}
-            style={{ top: prompt_input_height }}
+            className={`w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 options-card-animated${show_settings ? '' : ' hide'} md:absolute`}
+            style={{ top: show_settings && prompt_input_height && window.innerWidth >= 768 ? prompt_input_height : undefined }}
           >
-            <div className="bg-white rounded-2xl shadow-lg border border-base-200 p-8 flex flex-col gap-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-base-200 p-4 md:p-8 flex flex-col gap-4 md:gap-8">
               {/* Image Size section, updated to match Midjourney */}
-              <div className="flex flex-col bg-white rounded-xl shadow border border-base-200 p-6 items-center relative w-full">
-                <div className="text-2xl font-semibold text-gray-800 select-none mb-4 w-full text-center">
+              <div className="flex flex-col bg-white rounded-xl shadow border border-base-200 p-4 md:p-6 items-center relative w-full">
+                <div className="text-lg md:text-2xl font-semibold text-gray-800 select-none mb-2 md:mb-4 w-full text-center">
                   Image Size
                 </div>
                 {/* Flex row for preview and controls */}
-                <div className="flex flex-col md:flex-row w-full items-center justify-center gap-8">
+                <div className="flex flex-col md:flex-row w-full items-center justify-center gap-4 md:gap-8">
                   {/* Aspect ratio preview (placeholder) */}
-                  <div className="flex flex-col items-center justify-center w-[250px]! h-[250px]!">
+                  <div className="flex flex-col items-center justify-center w-[120px] md:w-[250px]! h-[120px] md:h-[250px]!">
                     <div
-                      className="border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 w-[100px] h-[100px] flex-shrink-0  mx-6 my-2 p-4"
-                      style={placeholder_style}
+                      className="border border-gray-200 rounded-md flex items-center justify-center bg-gray-50 w-[48px] h-[48px] md:w-[100px] md:h-[100px] flex-shrink-0 mx-2 md:mx-6 my-1 md:my-2 p-2 md:p-4"
+                      style={{ ...placeholder_style, width: window.innerWidth < 768 ? `${preview_width / 16}px` : placeholder_style.width, height: window.innerWidth < 768 ? `${preview_height / 16}px` : placeholder_style.height }}
                     >
-                      <span className="text-lg font-semibold text-gray-700">
+                      <span className="text-xs md:text-lg font-semibold text-gray-700">
                         {aspect_label}
                       </span>
                     </div>
                   </div>
                   {/* Preset buttons and slider */}
-                  <div className="w-full max-w-md flex flex-col items-center gap-4 relative">
+                  <div className="w-full max-w-xs md:max-w-md flex flex-col items-center gap-2 md:gap-4 relative">
                     {/* Reset button in upper right */}
                     <button
                       type="button"
-                      className="btn btn-outline btn-xs text-gray-600 hover:text-orange-500 absolute top-0 right-0 mt-2 mr-2 z-10"
+                      className="btn btn-outline btn-xs text-gray-600 hover:text-orange-500 absolute top-0 right-0 mt-1 md:mt-2 mr-1 md:mr-2 z-10"
                       onClick={reset_aspect_index}
                       aria-label="Reset image size"
                     >
                       Reset
                     </button>
                     {/* Preset buttons */}
-                    <div className="flex justify-center gap-3 mb-2 w-full">
+                    <div className="flex justify-center gap-2 md:gap-3 mb-1 md:mb-2 w-full">
                       {BUTTON_PRESETS.map((preset) => (
                         <button
                           key={preset.index}
                           type="button"
-                          className={`btn btn-sm rounded-full text-sm font-medium transition-all duration-150 ${
+                          className={`btn btn-xs md:btn-sm rounded-full text-xs md:text-sm font-medium transition-all duration-150 ${
                             aspect_index === preset.index
                               ? "bg-orange-500 text-white"
                               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -569,15 +569,15 @@ export default function Image_generator() {
               {/* Divider */}
               <div className="border-b border-gray-200 w-full"></div>
               {/* Bottom row: Model and More Options */}
-              <div className="flex flex-col md:flex-row gap-8">
+              <div className="flex flex-col md:flex-row gap-4 md:gap-8">
                 {/* Model */}
-                <div className="flex-1 bg-base-50 rounded-xl border border-base-200 shadow-sm p-6 flex flex-col gap-4">
-                  <div className="font-semibold text-black text-lg mb-2">
+                <div className="flex-1 bg-base-50 rounded-xl border border-base-200 shadow-sm p-4 md:p-6 flex flex-col gap-2 md:gap-4">
+                  <div className="font-semibold text-black text-base md:text-lg mb-1 md:mb-2">
                     Model
                   </div>
                   <div className="w-full">
                     <select
-                      className="select select-bordered w-full text-black font-medium bg-white border-base-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition"
+                      className="select select-bordered w-full text-black font-medium bg-white border-base-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition text-sm md:text-base"
                       value={model_id}
                       onChange={(e) => set_model_id(e.target.value)}
                       disabled={is_loading}
@@ -591,18 +591,27 @@ export default function Image_generator() {
                     </select>
                   </div>
                 </div>
+                {/* SANA Advanced Options - Collapsible on mobile */}
                 {model_id === "fal-ai/sana" && (
-                  <div className="flex-1 bg-base-50 rounded-xl border border-primary/30 shadow p-6 flex flex-col gap-4 mt-4">
-                    <div className="text-lg font-bold text-primary mb-2 flex items-center gap-2">
-                      SANA Advanced Options
-                      <span className="tooltip tooltip-bottom" data-tip="These options are specific to the SANA model.">
-                        <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                  <div className="flex-1 bg-base-50 rounded-xl border border-primary/30 shadow p-4 md:p-6 flex flex-col gap-2 md:gap-4 mt-2 md:mt-4">
+                    {/* Collapsible header */}
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => set_show_settings((s) => window.innerWidth < 768 ? !s : s)}>
+                      <div className="text-base md:text-lg font-bold text-primary flex items-center gap-2">
+                        SANA Advanced Options
+                        <span className="tooltip tooltip-bottom" data-tip="These options are specific to the SANA model.">
+                          <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
+                        </span>
+                      </div>
+                      {/* Collapse/expand icon for mobile */}
+                      <span className="md:hidden ml-2">
+                        <svg className={`w-5 h-5 transition-transform duration-200 ${show_settings ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Collapsible content: show on desktop, toggle on mobile */}
+                    <div className={`grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 transition-all duration-300 ${window.innerWidth < 768 && !show_settings ? 'hidden' : ''}`}>
                       {/* Inference Steps */}
                       <div className="flex flex-col gap-1">
-                        <label htmlFor="num_inference_steps" className="font-medium text-gray-700 flex items-center gap-1">
+                        <label htmlFor="num_inference_steps" className="font-medium text-gray-700 flex items-center gap-1 text-xs md:text-base">
                           Inference Steps
                           <span className="tooltip tooltip-bottom" data-tip="Number of denoising steps (1-50). Higher = more detail, slower.">
                             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
@@ -611,16 +620,16 @@ export default function Image_generator() {
                         <input
                           id="num_inference_steps"
                           type="number"
-                          min={1}
-                          max={50}
+                          min="1"
+                          max="50"
                           value={num_inference_steps}
                           onChange={e => set_num_inference_steps(Number(e.target.value))}
-                          className="input input-bordered w-full"
+                          className="input input-bordered w-full text-xs md:text-base"
                         />
                       </div>
                       {/* Guidance Scale (CFG) */}
                       <div className="flex flex-col gap-1">
-                        <label htmlFor="guidance_scale" className="font-medium text-gray-700 flex items-center gap-1">
+                        <label htmlFor="guidance_scale" className="font-medium text-gray-700 flex items-center gap-1 text-xs md:text-base">
                           CFG (Guidance Scale)
                           <span className="tooltip tooltip-bottom" data-tip="How closely the image matches your prompt (1-20, default 5). Higher = more literal.">
                             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
@@ -629,17 +638,17 @@ export default function Image_generator() {
                         <input
                           id="guidance_scale"
                           type="number"
-                          min={1}
-                          max={20}
-                          step={0.1}
+                          min="1"
+                          max="20"
+                          step="0.1"
                           value={guidance_scale}
                           onChange={e => set_guidance_scale(Number(e.target.value))}
-                          className="input input-bordered w-full"
+                          className="input input-bordered w-full text-xs md:text-base"
                         />
                       </div>
                       {/* Seed */}
                       <div className="flex flex-col gap-1">
-                        <label htmlFor="seed" className="font-medium text-gray-700 flex items-center gap-1">
+                        <label htmlFor="seed" className="font-medium text-gray-700 flex items-center gap-1 text-xs md:text-base">
                           Seed
                           <span className="tooltip tooltip-bottom" data-tip="Set a number for repeatable results, or randomize for variety.">
                             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
@@ -651,7 +660,7 @@ export default function Image_generator() {
                             type="number"
                             value={seed}
                             onChange={e => set_seed(Number(e.target.value))}
-                            className="input input-bordered w-full"
+                            className="input input-bordered w-full text-xs md:text-base"
                           />
                           <button
                             type="button"
@@ -665,7 +674,7 @@ export default function Image_generator() {
                       </div>
                       {/* Style Name */}
                       <div className="flex flex-col gap-1">
-                        <label htmlFor="style_name" className="font-medium text-gray-700 flex items-center gap-1">
+                        <label htmlFor="style_name" className="font-medium text-gray-700 flex items-center gap-1 text-xs md:text-base">
                           Style
                           <span className="tooltip tooltip-bottom" data-tip="Choose a visual style for your image.">
                             <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"/></svg>
@@ -675,7 +684,7 @@ export default function Image_generator() {
                           id="style_name"
                           value={style_name}
                           onChange={e => set_style_name(e.target.value)}
-                          className="select select-bordered w-full"
+                          className="select select-bordered w-full text-xs md:text-base"
                         >
                           {SANA_STYLE_OPTIONS.map(opt => (
                             <option key={opt} value={opt}>{opt}</option>
