@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
         },
       ],
       client_reference_id: userId,
-      customer_email: user.email,
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/buy-tokens?success=1`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/buy-tokens?canceled=1`,
       metadata: { price_id },
