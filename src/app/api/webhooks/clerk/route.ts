@@ -75,7 +75,9 @@ export async function POST(req: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2023-10-16" });
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-04-30.basil",
+    });
 
     switch (evt.type) {
       case "user.created":
@@ -119,6 +121,9 @@ export async function POST(req: Request) {
             .from("users")
             .update({ stripe_customer_id })
             .eq("clerk_id", clerk_user_id);
+        }
+        if (!userData) {
+          throw new Error("User data is null");
         }
         // Initialize subscription for new user
         const { error: subError } = await supabase

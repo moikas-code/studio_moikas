@@ -41,7 +41,7 @@ export default function BuyTokensPage() {
         }
         setLoading(false);
       })
-      .catch((err) => {
+      .catch(() => {
         setError("Failed to load products.");
         setLoading(false);
       });
@@ -61,7 +61,7 @@ export default function BuyTokensPage() {
       } else {
         setError(data.error || "Failed to start checkout.");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to start checkout.");
     } finally {
       setPaying(null);
