@@ -102,6 +102,13 @@ export default async function RootLayout({
               >
                 Privacy Policy
               </a>
+              {" | "}
+              <a
+                href="/terms-of-service"
+                className="underline hover:text-primary"
+              >
+                Terms of Service
+              </a>
             </footer>
             <Analytics_wrapper />
             <Cookie_consent_banner />
