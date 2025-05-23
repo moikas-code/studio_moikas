@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
 
     // Parse and validate request body
     body = await req.json();
+    console.log('Received /api/generate body:', body);
     prompt = typeof body.prompt === "string" ? body.prompt : "";
     width = typeof body.width === "number" ? body.width : 1024;
     height = typeof body.height === "number" ? body.height : 1024;
@@ -333,6 +334,7 @@ export async function POST(req: NextRequest) {
                 : undefined,
           }
         : {};
+    console.log('SANA options for fal_client:', sana_options);
 
     // Generate the image
     const image = await generate_flux_image(

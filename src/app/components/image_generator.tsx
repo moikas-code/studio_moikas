@@ -192,23 +192,25 @@ export default function Image_generator() {
           used_model === "fal-ai/sana"
             ? extract_negative_prompt(used_prompt)
             : { prompt: used_prompt, negative_prompt: "" };
+        const payload = {
+          prompt: parsed_prompt,
+          model_id: used_model,
+          aspect_ratio: used_aspect_label,
+          width: used_width,
+          height: used_height,
+          enhancement_mp: used_enhance,
+          ...(used_model === "fal-ai/sana" && {
+            negative_prompt,
+            num_inference_steps,
+            seed,
+            style_name,
+          }),
+        };
+        console.log('Sending to /api/generate:', payload);
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: parsed_prompt,
-            model_id: used_model,
-            aspect_ratio: used_aspect_label,
-            width: used_width,
-            height: used_height,
-            enhancement_mp: used_enhance,
-            ...(used_model === "fal-ai/sana" && {
-              negative_prompt,
-              num_inference_steps,
-              seed,
-              style_name,
-            }),
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await response.json();
         if (!response.ok) {
