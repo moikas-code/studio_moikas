@@ -1,3 +1,4 @@
+import { Protect } from "@clerk/nextjs";
 import Image_generator from "../../components/image_generator";
 import React from "react";
 
@@ -7,8 +8,10 @@ import React from "react";
  */
 export default function Image_generator_page() {
   return (
-    <div className="w-full px-3 md:px-0">
-      <Image_generator />
-    </div>
+    <Protect feature={"all_freemium_features"} fallback={<div>Loading...</div>}>
+      <div className="w-full px-3 md:px-0">
+        <Image_generator />
+      </div>
+    </Protect>
   );
 } 
