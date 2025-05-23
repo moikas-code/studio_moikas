@@ -18,11 +18,22 @@ export async function generate_flux_image(
   const size = `${width}x${height}` as `${number}x${number}`;
   //build sana options
   const sana_options = {
-    ...(options.negative_prompt !== undefined && { negative_prompt: options.negative_prompt }),
-    ...(options.num_inference_steps !== undefined && { num_inference_steps: options.num_inference_steps }),
     ...(options.seed !== undefined && { seed: options.seed }),
-    ...(options.guidance_scale !== undefined && { guidance_scale: options.guidance_scale }),
-    ...(options.style_name !== undefined && { style_name: options.style_name }),
+    providerOptions: {
+      ...(options.negative_prompt !== undefined && {
+        negative_prompt: options.negative_prompt,
+      }),
+      ...(options.num_inference_steps !== undefined && {
+        num_inference_steps: options.num_inference_steps,
+      }),
+
+      ...(options.guidance_scale !== undefined && {
+        guidance_scale: options.guidance_scale,
+      }),
+      ...(options.style_name !== undefined && {
+        style_name: options.style_name,
+      }),
+    },
   };
   // Build payload
   const payload = {
