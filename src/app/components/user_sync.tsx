@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 
 import { useSupabaseClient } from "@/lib/supabase_client";
@@ -18,6 +18,8 @@ export default function User_sync({ plan }: User_sync_props) {
   const { user, isLoaded } = useUser();
 
   const supabase = useSupabaseClient();
+
+  const [stripeCleanupError, setStripeCleanupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded || !user || !supabase) return;
@@ -120,8 +122,42 @@ export default function User_sync({ plan }: User_sync_props) {
     };
 
     sync_user();
+
+    // Stripe customer cleanup logic
+    if (isLoaded && user && user.id && user.emailAddresses?.[0]?.emailAddress) {
+      fetch("/api/stripe/cleanup-customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerk_user_id: user.id,
+          email: user.emailAddresses[0].emailAddress,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            setStripeCleanupError("Account issue: " + data.error);
+            console.error("Stripe cleanup error:", data.error);
+          } else {
+            setStripeCleanupError(null);
+            console.log("Stripe cleanup result:", data);
+          }
+        })
+        .catch((err) => {
+          setStripeCleanupError("Network error during account check.");
+          console.error("Stripe cleanup fetch error:", err);
+        });
+    }
     // Only run when user or supabase client changes
   }, [user, isLoaded, supabase, plan]);
 
-  return null;
+  return (
+    <>
+      {stripeCleanupError && (
+        <div className="alert alert-error my-2">
+          {stripeCleanupError}
+        </div>
+      )}
+    </>
+  );
 }

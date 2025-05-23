@@ -60,12 +60,22 @@ export async function POST(req: NextRequest) {
   // Handle the event
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    // Prefer client_reference_id (should be Clerk user ID)
+    let user_id = session?.client_reference_id;
+    // If not present, look up by Stripe customer ID
+    if (!user_id && session.customer) {
+      const supabase = createClient(supabase_url, supabase_service_key);
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("id")
+        .eq("stripe_customer_id", session.customer)
+        .single();
+      user_id = userRow?.id;
+    }
     let price_id = session?.metadata?.price_id;
     if (!price_id) {
       price_id = await get_first_price_id_from_session(session);
     }
-    const user_id = session?.metadata?.user_id;
-
     // Fallback: retrieve by amount if price_id missing
     let tokens_to_add = 0;
     if (price_id && price_id_to_tokens[price_id]) {
@@ -75,12 +85,10 @@ export async function POST(req: NextRequest) {
       if (session.amount_total === 600) tokens_to_add = 1000;
       if (session.amount_total === 1600) tokens_to_add = 3000;
     }
-
     if (!user_id || !tokens_to_add) {
       log_event("stripe_webhook_missing_data", { user_id, tokens_to_add, price_id, session });
       return NextResponse.json({ error: "Missing user_id or tokens_to_add" }, { status: 400 });
     }
-
     // Update user's permanent tokens in Supabase
     const supabase = createClient(supabase_url, supabase_service_key);
     const { error } = await supabase.rpc('add_permanent_tokens', {
@@ -91,16 +99,7 @@ export async function POST(req: NextRequest) {
       log_event("supabase_token_update_failed", { user_id, tokens_to_add, error });
       return NextResponse.json({ error: "Supabase update failed" }, { status: 500 });
     }
-
-    // Log successful fulfillment
     log_event("token_fulfillment_success", { user_id, tokens_to_add, price_id, session_id: session.id });
-
-    // Placeholder: Send notification (e.g., email, Slack, etc.)
-    // await send_notification({ user_id, tokens_to_add, price_id, session_id: session.id });
-
-    // Placeholder: Hook for admin dashboard update (e.g., push to a queue, update a dashboard table)
-    // await update_admin_dashboard({ user_id, tokens_to_add, price_id, session_id: session.id });
-
     return NextResponse.json({ received: true });
   }
 
@@ -108,12 +107,3 @@ export async function POST(req: NextRequest) {
   log_event("stripe_webhook_unhandled_event", { event_type: event.type });
   return NextResponse.json({ received: true });
 }
-
-// Note: You must create a Supabase RPC (function) 'add_permanent_tokens' that increments the permanent_tokens field for the user.
-// Example SQL:
-// CREATE OR REPLACE FUNCTION add_permanent_tokens(user_id uuid, tokens_to_add integer)
-// RETURNS void AS $$
-// BEGIN
-//   UPDATE subscriptions SET permanent_tokens = COALESCE(permanent_tokens, 0) + tokens_to_add WHERE user_id = user_id;
-// END;
-// $$ LANGUAGE plpgsql; 

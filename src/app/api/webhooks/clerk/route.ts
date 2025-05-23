@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { track } from '@vercel/analytics/server';
+import Stripe from "stripe";
 
 export async function POST(req: Request) {
   try {
@@ -74,21 +75,51 @@ export async function POST(req: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2023-10-16" });
+
     switch (evt.type) {
       case "user.created":
         const now = new Date().toISOString();
-        // Upsert user in Supabase
-        const { data: userData, error } = await supabase
+        // Upsert user in Supabase and get userData
+        let { data: userData, error } = await supabase
           .from("users")
-          .upsert({ clerk_id: clerk_user_id, email, created_at: now }, { onConflict: "clerk_id" })
-          .select()
+          .select("id, stripe_customer_id")
+          .eq("clerk_id", clerk_user_id)
           .single();
-
+        if (!userData) {
+          const upsertResult = await supabase
+            .from("users")
+            .upsert({ clerk_id: clerk_user_id, email, created_at: now }, { onConflict: "clerk_id" })
+            .select()
+            .single();
+          userData = upsertResult.data;
+          error = upsertResult.error;
+        }
         if (error) {
           console.error("Error creating user:", error.message);
           throw new Error(`Failed to create user: ${error.message}`);
         }
-
+        // Check for existing Stripe customer
+        let stripe_customer_id = userData?.stripe_customer_id;
+        if (!stripe_customer_id) {
+          // Try to find by email in Stripe
+          const existingCustomers = await stripe.customers.list({ email, limit: 1 });
+          let customer;
+          if (existingCustomers.data.length > 0) {
+            customer = existingCustomers.data[0];
+          } else {
+            customer = await stripe.customers.create({
+              email,
+              metadata: { clerk_user_id },
+            });
+          }
+          stripe_customer_id = customer.id;
+          // Save to Supabase
+          await supabase
+            .from("users")
+            .update({ stripe_customer_id })
+            .eq("clerk_id", clerk_user_id);
+        }
         // Initialize subscription for new user
         const { error: subError } = await supabase
           .from("subscriptions")
@@ -99,13 +130,10 @@ export async function POST(req: Request) {
             renewable_tokens: 0,
             renewed_at: now,
           });
-
         if (subError) {
           console.error("Error creating subscription:", subError.message);
           throw new Error(`Failed to create subscription: ${subError.message}`);
         }
-
-        // console.log(`User created: ${clerk_user_id}`);
         await track('User Created', {
           event_type: 'user.created',
           timestamp: new Date().toISOString(),

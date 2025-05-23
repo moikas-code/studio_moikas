@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   let previous_permanent_tokens = 0;
   let previous_premium_generations_used = 0;
   let tokens_deducted = false;
-  let user: { id: string } | null = null;
+  let user: { id: string; stripe_customer_id?: string | null } | null = null;
   let supabase: SupabaseClient | null = null;
   // --- Move prompt and body variables here ---
   let prompt: string = "";
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
     // Fetch user and subscription data
     const { data: user_data, error: user_error } = await supabase
       .from("users")
-      .select("id")
+      .select("id, stripe_customer_id")
       .eq("clerk_id", userId)
       .single();
     user = user_data;
@@ -152,6 +152,9 @@ export async function POST(req: NextRequest) {
     if (user_error || !user) {
       console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    if (!user.stripe_customer_id) {
+      return NextResponse.json({ error: "Account issue: Stripe customer not linked. Please contact support." }, { status: 400 });
     }
 
     const { data: subscription, error: sub_error } = await supabase
