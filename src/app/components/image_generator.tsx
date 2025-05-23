@@ -386,7 +386,7 @@ export default function Image_generator() {
   }, [prompt_text]); // re-measure when prompt_text changes
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center justify-start bg-base-100 py-8 relative">
+    <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 py-8 relative">
       {/* Sticky input and settings menu container */}
       <div className="w-full flex flex-col items-center z-30 sticky top-0 bg-base-100 relative">
         {/* Prompt input */}
