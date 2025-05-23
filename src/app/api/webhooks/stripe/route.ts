@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
     }
     // Update user's permanent tokens in Supabase
     const supabase = createClient(supabase_url, supabase_service_key);
-    const { error } = await supabase.rpc('add_permanent_tokens', {
-      user_id,
-      tokens_to_add,
+    const { error } = await supabase.rpc("add_permanent_tokens", {
+      in_user_id: user_id, // must match parameter name
+      in_tokens_to_add: tokens_to_add,
     });
     if (error) {
       log_event("supabase_token_update_failed", { user_id, tokens_to_add, error });
