@@ -365,7 +365,7 @@ export default function ImageGenerationCreation({
     // Force supported background and text color for html2canvas compatibility
     <div
       ref={Creation_ref}
-      className="max-w-2xl mx-auto rounded-xl shadow p-4 md:p-6 border border-base-300 mt-8 bg-base-200 text-white"
+      className="max-w-2xl mx-auto rounded-xl shadow p-4 md:p-6 border border-base-300 mt-8 bg-base-200 text-base"
     >
       {/* Title row with redo/reuse buttons */}
       <div className="flex items-center justify-between mb-2">
