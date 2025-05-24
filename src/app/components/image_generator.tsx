@@ -468,7 +468,7 @@ export default function Image_generator() {
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 py-8 relative">
       {/* Sticky input and settings menu container */}
-      <div className="w-full flex flex-col items-center z-30 sticky top-0 bg-base-100 relative">
+      <div className="h-full w-full flex flex-col items-center z-30 sticky top-0 bg-base-100 relative">
         {/* Prompt input */}
         <div
           ref={prompt_input_ref}
