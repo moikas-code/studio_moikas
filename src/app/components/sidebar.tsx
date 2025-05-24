@@ -25,7 +25,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`hidden md:flex min-h-screen w-42 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col z-40 transition-transform duration-200  overflow-y-auto`}
+        className={`hidden md:flex min-h-screen w-45 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col z-40 transition-transform duration-200  overflow-y-auto`}
         aria-label="Sidebar navigation"
       >
         {/* Close button for mobile */}
@@ -70,7 +70,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
             Tools
           </p>
         </div>
-        <nav className="flex-1 p-4" aria-label="Main tools">
+        <nav className="flex flec-col p-4" aria-label="Main tools">
           <ul className="menu menu-lg rounded-box w-full">
             <li>
               <Link
@@ -89,7 +89,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
             Support
           </p>
         </div>
-        <nav className="flex-1 p-4" aria-label="Main tools">
+        <nav className="flex flex-col p-4" aria-label="Main tools">
           <ul className="menu menu-lg rounded-box w-full">
             <li>
               <a
