@@ -16,7 +16,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
     <>
       {/* Overlay for mobile */}
       <div
-        className={`fixed h-screen inset-0 bg-black bg-opacity-40 z-30 lg:hidden transition-opacity duration-200 ${
+        className={`fixed h-screen inset-0 bg-black bg-opacity-40 z-30 hidden transition-opacity duration-200 ${
           open
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -25,11 +25,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`h-screen w-64 max-w-full bg-base-200 border-r border-base-300 flex flex-col shadow-lg z-40 fixed lg:static transition-transform duration-200 ${
-          open ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 ${
-          open ? "md:flex" : "hidden md:flex"
-        } overflow-y-auto`}
+        className={`hidden md:flex h-screen w-42 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col shadow-lg z-40 fixed lg:static transition-transform duration-200  overflow-y-auto`}
         aria-label="Sidebar navigation"
       >
         {/* Close button for mobile */}
@@ -71,7 +67,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         </nav>
         <div className="p-6 border-b border-base-300">
           <p className="text-sm font-bold tracking-tight text-primary">
-            Create
+            Tools
           </p>
         </div>
         <nav className="flex-1 p-4" aria-label="Main tools">
@@ -82,7 +78,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 className="justify-start"
                 aria-label="Image Generator tool"
               >
-                <span className="text-base font-medium">Image Generator</span>
+                <span className="text-base font-medium">Create</span>
               </Link>
             </li>
             {/* Add more tool links here as needed */}

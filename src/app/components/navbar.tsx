@@ -20,45 +20,11 @@ export default function Navbar({
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
     <nav
-      className="navbar bg-base-100 shadow-md px-2 md:px-4"
+      className="navbar bg-base-100 shadow-md px-4 md:px-6"
       role="navigation"
       aria-label="Main navigation"
     >
       <div className="flex-1 flex items-center">
-        {/* Sidebar toggle button (always visible) */}
-        {on_sidebar_toggle && (
-          <button
-            className="btn btn-ghost btn-square mr-2"
-            aria-label={sidebar_open ? "Close sidebar" : "Open sidebar"}
-            onClick={on_sidebar_toggle}
-          >
-            {/* Hamburger icon */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-6 h-6"
-            >
-              {sidebar_open ? (
-                // X icon
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                // Hamburger icon
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h16.5"
-                />
-              )}
-            </svg>
-          </button>
-        )}
         <Link
           href="/"
           aria-label="Go to home page"

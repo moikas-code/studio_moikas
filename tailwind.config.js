@@ -10,39 +10,54 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        black: '#18181b',
-        purple: {
-          DEFAULT: '#7c3aed',
-          dark: '#5b21b6',
+        black: '#191a20',
+        white: '#ffffff',
+        jade: {
+          DEFAULT: '#00c48c',
+          dark: '#009e6d',
         },
-        green: {
-          DEFAULT: '#22c55e',
-          dark: '#166534',
-        },
-        gold: {
-          DEFAULT: '#ffd700',
-          dark: '#bfa600',
+        blackflame: {
+          DEFAULT: '#22223b',
+          light: '#2c2c44',
         },
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  plugins: [require('daisyui')],
+  plugins: [daisyui],
   daisyui: {
     themes: [
       {
-        alchemist: {
-          primary: '#7c3aed', // purple
-          secondary: '#ffd700', // gold
-          accent: '#22c55e', // green
-          neutral: '#18181b', // black
-          'base-100': '#18181b',
-          info: '#7c3aed',
-          success: '#22c55e',
+        web: {
+          primary: '#00c48c', // jade
+          secondary: '#22223b', // blackflame
+          accent: '#00c48c', // jade
+          neutral: '#191a20', // black
+          'base-100': '#191a20', // main background
+          'base-200': '#22223b', // card background
+          'base-300': '#2c2c44', // subtle contrast
+          info: '#00c48c',
+          success: '#00c48c',
           warning: '#ffd700',
-          error: '#b91c1c',
+          error: '#e53e3e',
+          '--rounded-box': '1rem',
+          '--rounded-btn': '0.5rem',
+          '--rounded-badge': '1.9rem',
+          '--animation-btn': '0.25s',
+          '--animation-input': '0.2s',
+          '--btn-text-case': 'none',
+          '--btn-focus-scale': '0.98',
+          '--border-btn': '1px',
+          '--tab-border': '1px',
+          '--tab-radius': '0.5rem',
         },
       },
     ],
+    darkTheme: "web",
+    base: true,
+    styled: true,
+    utils: true,
+    logs: false,
+    rtl: false,
+    prefix: "",
   },
 }; 

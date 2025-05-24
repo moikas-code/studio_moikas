@@ -347,16 +347,16 @@ export default function ImageGenerationCreation({
 
   if (error_message) {
     return (
-      <div className="max-w-xl mx-auto bg-red-50 border border-red-300 rounded-xl shadow p-6 mt-8">
-        <div className="text-xl font-bold text-red-700 mb-2">
+      <div className="max-w-xl mx-auto bg-error/10 border border-error rounded-xl shadow p-6 mt-8">
+        <div className="text-xl font-bold text-error mb-2">
           Generation Failed
         </div>
-        <div className="text-xs text-gray-500 mb-4">{timestamp}</div>
+        <div className="text-xs text-base mb-4">{timestamp}</div>
         <div className="mb-2">
           <span className="font-semibold">Prompt:</span>
           <span className="ml-2 italic">{prompt_text}</span>
         </div>
-        <div className="text-red-600 font-semibold mb-4">{error_message}</div>
+        <div className="text-error font-semibold mb-4">{error_message}</div>
       </div>
     );
   }
@@ -365,18 +365,14 @@ export default function ImageGenerationCreation({
     // Force supported background and text color for html2canvas compatibility
     <div
       ref={Creation_ref}
-      className="max-w-2xl mx-auto rounded-xl shadow p-4 md:p-6 border border-gray-200 mt-8 bg-white"
-      style={{
-        background: "#fff",
-        color: "#222",
-      }}
+      className="max-w-2xl mx-auto rounded-xl shadow p-4 md:p-6 border border-base-300 mt-8 bg-base-200 text-white"
     >
       {/* Title row with redo/reuse buttons */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex flex-col md:flex-row justify-between w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between">
             <div className="text-xl font-bold">Creation Certificate</div>
-            <div className="text-xs text-gray-500 mb-4 md:hidden">
+            <div className="text-xs text-base mb-4 md:hidden">
               {timestamp}
             </div>
           </div>
@@ -384,7 +380,7 @@ export default function ImageGenerationCreation({
             <div className="flex gap-2">
               {typeof onRedo === "function" && (
                 <button
-                  className="btn btn-xs btn-outline tooltip"
+                  className="btn btn-xs btn-secondary tooltip"
                   data-tip="Redo with same settings"
                   aria-label="Redo with same settings"
                   onClick={onRedo}
@@ -395,7 +391,7 @@ export default function ImageGenerationCreation({
               )}
               {typeof onReuse === "function" && (
                 <button
-                  className="btn btn-xs btn-outline tooltip"
+                  className="btn btn-xs btn-secondary tooltip"
                   data-tip="Reuse prompt and settings"
                   aria-label="Reuse prompt and settings"
                   onClick={onReuse}
@@ -408,7 +404,7 @@ export default function ImageGenerationCreation({
           )}
         </div>
       </div>
-      <div className="text-xs text-gray-500 mb-4 hidden md:block">
+      <div className="text-xs text-base mb-4 hidden md:block">
         {timestamp}
       </div>
       <div className="mb-2">
@@ -432,7 +428,7 @@ export default function ImageGenerationCreation({
               <Image
                 src={`data:image/png;base64,${img}`}
                 alt={alt_text}
-                className="rounded border object-cover"
+                className="rounded border object-cover border-base-300"
                 width={211} // 10% larger than 192
                 height={211}
                 unoptimized
@@ -458,11 +454,11 @@ export default function ImageGenerationCreation({
                           Download
                         </button>
                         {dropdown_open_idx === idx && (
-                          <div className="absolute left-0 right-0 mt-2 bg-white border border-base-200 rounded shadow-lg z-10 flex flex-col">
+                          <div className="absolute left-0 right-0 mt-2 bg-base-200 border border-base-300 rounded shadow-lg z-10 flex flex-col">
                             {all_options.map((opt) => (
                               <button
                                 key={opt.value}
-                                className="px-4 py-2 text-left hover:bg-base-200 w-full"
+                                className="px-4 py-2 text-left hover:bg-base-300 w-full"
                                 onClick={async () => {
                                   set_dropdown_open_idx(null);
                                   track("Creation Download", {
@@ -480,7 +476,7 @@ export default function ImageGenerationCreation({
                         )}
                       </div>
                       <button
-                        className="btn btn-xs btn-outline"
+                        className="btn btn-xs btn-secondary"
                         onClick={() => handle_share_image(img)}
                         aria-label="Share image"
                       >
@@ -509,7 +505,7 @@ export default function ImageGenerationCreation({
                         Download
                       </button>
                       <button
-                        className="btn btn-xs btn-outline"
+                        className="btn btn-xs btn-secondary"
                         onClick={() => handle_share_image(img)}
                         aria-label="Share image"
                       >
@@ -525,7 +521,7 @@ export default function ImageGenerationCreation({
       </div>
       <table className="w-full text-sm mb-4">
         <thead>
-          <tr className="border-b border-gray-300 dark:border-gray-700">
+          <tr className="border-b border-base-300">
             <th className="text-left">#</th>
             <th className="text-left">Model</th>
             <th className="text-left">Size</th>
@@ -536,7 +532,7 @@ export default function ImageGenerationCreation({
           {costs.images.map((cost, idx) => (
             <tr
               key={idx}
-              className="border-b border-gray-100 dark:border-gray-800"
+              className="border-b border-base-300"
             >
               <td>{idx + 1}</td>
               <td>{cost.model}</td>
@@ -554,27 +550,27 @@ export default function ImageGenerationCreation({
           </tr>
         </tbody>
         <tfoot>
-          <tr className="border-t border-gray-300 dark:border-gray-700 font-bold">
+          <tr className="border-t border-base-300 font-bold">
             <td colSpan={3}>Total</td>
             <td className="text-right">{costs.total_mp}</td>
           </tr>
         </tfoot>
       </table>
-      <div className="text-xs text-black-400 dark:text-black-300 mb-2">
+      <div className="text-xs text-base-400 mb-2">
         Plan: {plan}
       </div>
       <div className="flex gap-2">
         {!is_exporting && (
           <>
             <button
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-secondary"
               onClick={handle_share_Creation}
               aria-label="Share Creation"
             >
               Share
             </button>
             <button
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-secondary"
               onClick={handle_export_pdf}
               aria-label="Export as PDF"
             >
@@ -585,7 +581,7 @@ export default function ImageGenerationCreation({
         {/* Future: Transfer to Editor/Merch */}
       </div>
       <div className="w-full text-center mt-4">
-        <span className="text-xs text-gray-400 select-none">
+        <span className="text-xs text-base select-none">
           studio.moikas.com
         </span>
       </div>

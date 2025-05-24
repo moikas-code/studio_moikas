@@ -9,7 +9,7 @@ import React from "react";
 export default function Image_generator_page() {
   return (
     <Protect feature={"all_freemium_features"} fallback={<div>Loading...</div>}>
-      <div className="w-full px-3 md:px-0">
+      <div className="h-full w-full px-3 md:px-0">
         <Image_generator />
       </div>
     </Protect>
