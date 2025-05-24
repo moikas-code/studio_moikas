@@ -371,10 +371,10 @@ export default function ImageGenerationCreation({
       <div className="flex items-center justify-between mb-2">
         <div className="flex flex-col md:flex-row justify-between w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between">
-            <div className="text-xl font-bold">Creation Certificate</div>
-            <div className="text-xs text-base mb-4 md:hidden">
-              {timestamp}
+            <div className="text-xl font-bold text-base">
+              Creation Certificate
             </div>
+            <div className="text-xs text-base mb-4 md:hidden">{timestamp}</div>
           </div>
           {!is_exporting && (
             <div className="flex gap-2">
@@ -404,12 +404,10 @@ export default function ImageGenerationCreation({
           )}
         </div>
       </div>
-      <div className="text-xs text-base mb-4 hidden md:block">
-        {timestamp}
-      </div>
+      <div className="text-xs text-base mb-4 hidden md:block">{timestamp}</div>
       <div className="mb-2">
-        <span className="font-semibold">Prompt:</span>
-        <span className="ml-2 italic">{prompt_text}</span>
+        <span className="font-semibold text-base">Prompt:</span>
+        <span className="ml-2 italic text-base">{prompt_text}</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {overlaid_images.map((img, idx) => {
@@ -519,7 +517,7 @@ export default function ImageGenerationCreation({
           );
         })}
       </div>
-      <table className="w-full text-sm mb-4">
+      <table className="w-full text-sm text-base mb-4">
         <thead>
           <tr className="border-b border-base-300">
             <th className="text-left">#</th>
@@ -530,10 +528,7 @@ export default function ImageGenerationCreation({
         </thead>
         <tbody>
           {costs.images.map((cost, idx) => (
-            <tr
-              key={idx}
-              className="border-b border-base-300"
-            >
+            <tr key={idx} className="border-b border-base-300">
               <td>{idx + 1}</td>
               <td>{cost.model}</td>
               <td>
@@ -556,9 +551,7 @@ export default function ImageGenerationCreation({
           </tr>
         </tfoot>
       </table>
-      <div className="text-xs text-base-400 mb-2">
-        Plan: {plan}
-      </div>
+      <div className="text-xs text-base mb-2">Plan: {plan}</div>
       <div className="flex gap-2">
         {!is_exporting && (
           <>
@@ -581,9 +574,7 @@ export default function ImageGenerationCreation({
         {/* Future: Transfer to Editor/Merch */}
       </div>
       <div className="w-full text-center mt-4">
-        <span className="text-xs text-base select-none">
-          studio.moikas.com
-        </span>
+        <span className="text-xs text-base select-none">studio.moikas.com</span>
       </div>
     </div>
   );
