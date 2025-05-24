@@ -632,7 +632,7 @@ export default function Image_generator() {
                 Image Size
               </div>
               {/* Flex row for preview and controls */}
-              <div className="flex flex-col md:flex-row w-full items-center justify-center gap-3 md:gap-6">
+              <div className="flex flex-col w-full items-center justify-center gap-3 md:gap-6">
                 {/* Aspect ratio preview (placeholder) */}
                 <div className="flex flex-col items-center justify-center w-[90px] md:w-[120px] h-[90px] md:h-[120px]">
                   <div
