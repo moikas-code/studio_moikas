@@ -10,13 +10,7 @@ import { MpContext } from "../context/mp_context";
  * Displays app title and authentication buttons.
  * Uses snake_case for all identifiers.
  */
-export default function Navbar({
-  on_sidebar_toggle,
-  sidebar_open,
-}: {
-  on_sidebar_toggle?: () => void;
-  sidebar_open?: boolean;
-}) {
+export default function Navbar() {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   return (
     <nav

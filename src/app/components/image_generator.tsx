@@ -456,14 +456,14 @@ export default function Image_generator() {
 
   // Ref for the prompt input container
   const prompt_input_ref = useRef<HTMLDivElement>(null);
-  const [prompt_input_height, set_prompt_input_height] = useState(0);
+  // const [prompt_input_height, set_prompt_input_height] = useState(0);
 
-  // Measure the height of the prompt input container
-  useLayoutEffect(() => {
-    if (prompt_input_ref.current) {
-      set_prompt_input_height(prompt_input_ref.current.offsetHeight);
-    }
-  }, [prompt_text]); // re-measure when prompt_text changes
+  // // Measure the height of the prompt input container
+  // useLayoutEffect(() => {
+  //   if (prompt_input_ref.current) {
+  //     set_prompt_input_height(prompt_input_ref.current.offsetHeight);
+  //   }
+  // }, [prompt_text]); // re-measure when prompt_text changes
 
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 py-8 relative">
