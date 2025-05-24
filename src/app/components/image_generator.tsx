@@ -6,7 +6,6 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useLayoutEffect,
   useMemo,
 } from "react";
 import { MpContext } from "../context/mp_context";
@@ -109,7 +108,7 @@ export default function Image_generator() {
   const [is_enhancing, set_is_enhancing] = useState(false);
 
   // Ref for the textarea to auto-expand
-  const prompt_textarea_ref = useRef<HTMLTextAreaElement | null>(null);
+  const prompt_textarea_ref = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea on value or window resize
   useEffect(() => {
@@ -466,24 +465,24 @@ export default function Image_generator() {
   // }, [prompt_text]); // re-measure when prompt_text changes
 
   return (
-    <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 py-8 relative">
+    <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
       {/* Sticky input and settings menu container */}
       {/* Responsive input bar: top for desktop/tablet, fixed bottom for mobile */}
       <div className="w-full flex flex-col items-center z-30">
-        <div ref={prompt_input_ref} className="w-full flex justify-center">
+        <div ref={prompt_input_ref} className="w-full flex justify-center items-start">
           <div
-            className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:w-auto md:px-0 md:mx-auto md:mt-8"
+            className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:w-auto md:px-0  md:mt-8"
             style={{ pointerEvents: "auto" }}
           >
             <form
               onSubmit={handle_generate_image}
-              className="w-full max-w-xl mx-auto flex items-center bg-base-200 rounded-full border border-base-300 shadow-lg px-4 md:px-6 py-2.5 md:py-3 gap-2 md:gap-3 relative min-h-[56px]"
+              className="w-full max-w-xl mx-auto flex items-start bg-base-200 rounded border border-base-300 shadow-lg px-4 md:px-6 py-2.5 md:py-3 gap-2 md:gap-3 relative min-h-[56px]"
               style={{
                 boxShadow: "0 2px 16px 0 rgba(0,0,0,0.18)",
               }}
             >
               {/* Left camera icon */}
-              <span className="flex items-center text-jade pl-0.5">
+              <span className="flex items-center text-jade pl-0.5 pt-1">
                 <svg
                   className="w-6 h-6"
                   fill="none"
@@ -518,24 +517,32 @@ export default function Image_generator() {
                 </svg>
               </span>
               {/* Prompt input */}
-              <input
+              <textarea
                 id="prompt_text"
-                ref={prompt_textarea_ref as any}
-                className="flex-1 bg-transparent outline-none text-base placeholder:text-base-400 px-2 md:px-3 font-sans font-normal border-0 focus:ring-0 focus:outline-none min-w-0"
+                ref={prompt_textarea_ref}
+                className="flex-1 w-full min-h-[36px] bg-transparent outline-none text-base placeholder:text-base-400 px-2 md:px-3 font-sans font-normal border-0 focus:ring-0 focus:outline-none resize-none overflow-y-auto"
                 value={prompt_text}
-                onChange={(e) => set_prompt_text(e.target.value)}
+                onChange={e => {
+                  set_prompt_text(e.target.value);
+                  const textarea = prompt_textarea_ref.current;
+                  if (textarea) {
+                    textarea.style.height = 'auto';
+                    textarea.style.height = textarea.scrollHeight + 'px';
+                  }
+                }}
                 placeholder="What will you create?"
                 required
                 aria-required="true"
                 aria-label="Prompt for image generation"
-                type="text"
-                autoComplete="off"
-                spellCheck={true}
+                rows={1}
                 style={{
                   lineHeight: "1.6",
                   background: "none",
                   boxShadow: "none",
+                  overflow: "hidden"
                 }}
+                autoComplete="off"
+                spellCheck={true}
               />
               {/* Settings button */}
               <button
