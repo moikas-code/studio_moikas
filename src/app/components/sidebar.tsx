@@ -25,7 +25,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`hidden md:flex min-h-screen w-42 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col z-40 fixed lg:static transition-transform duration-200  overflow-y-auto`}
+        className={`hidden md:flex min-h-screen w-42 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col z-40 transition-transform duration-200  overflow-y-auto`}
         aria-label="Sidebar navigation"
       >
         {/* Close button for mobile */}

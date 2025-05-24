@@ -128,12 +128,6 @@ export default function Image_generator() {
     return () => window.removeEventListener("resize", handle_resize);
   }, [prompt_text]);
 
-  // Handler for textarea change with auto-resize
-  const handle_prompt_text_change = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    set_prompt_text(e.target.value);
-  };
 
   // Track enhancement usage
   const [enhancement_count, set_enhancement_count] = useState(0);
@@ -471,7 +465,7 @@ export default function Image_generator() {
       <div className="w-full flex flex-col items-center z-30">
         <div ref={prompt_input_ref} className="w-full flex justify-center items-start">
           <div
-            className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:w-auto md:px-0  md:mt-8"
+            className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:px-0  md:mt-8"
             style={{ pointerEvents: "auto" }}
           >
             <form
