@@ -759,7 +759,7 @@ export default function Image_generator() {
                       />
                       <button
                         type="button"
-                        className="btn btn-xs bg-base-800 border border-base-300 text-base-200 hover:bg-jade hover:text-base-100"
+                        className="btn btn-xs bg-base-800 border border-base-300 text-base hover:bg-jade hover:text-base-100"
                         onClick={() =>
                           set_seed(Math.floor(Math.random() * 1000000))
                         }
