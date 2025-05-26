@@ -19,6 +19,7 @@ export async function generate_flux_image(
     style_name?: string;
     image_size?: string;
     num_images?: number;
+    aspect_ratio?: string;
   } = {}
 ) {
   // Compose image_size if not provided
@@ -35,6 +36,7 @@ export async function generate_flux_image(
     ...(options.style_name !== undefined && { style_name: options.style_name }),
     image_size,
     ...(options.num_images !== undefined && { num_images: options.num_images }),
+    ...(options.aspect_ratio !== undefined && { aspect_ratio: options.aspect_ratio }),
   };
   const result = await fal.subscribe(model_id, {
     input,
