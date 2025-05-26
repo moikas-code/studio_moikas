@@ -308,6 +308,6 @@ function calculateGenerationCost(model: Model): number {
 }
 
 // Function to scale cost for multiple generations
-function calculateTotalCost(model: Model, generations: number): number {
-  return calculateGenerationCost(model) * generations;
-}
+// function calculateTotalCost(model: Model, generations: number): number {
+//   return calculateGenerationCost(model) * generations;
+// }
