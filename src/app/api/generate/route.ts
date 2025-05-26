@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     // Parse and validate request body
     body = await req.json();
-    console.log('Received /api/generate body:', body);
+    console.log("Received /api/generate body:", body);
     prompt = typeof body.prompt === "string" ? body.prompt : "";
     width = typeof body.width === "number" ? body.width : 1024;
     height = typeof body.height === "number" ? body.height : 1024;
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     const size_tokens = get_tokens_for_size(width, height);
-    const model_tokens = get_model_cost(plan, model_id);
+    const model_tokens = get_model_cost(model_id);
     const required_tokens = size_tokens * model_tokens;
 
     // Caching: hash the request params and use a namespaced key
@@ -155,7 +155,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     if (!user.stripe_customer_id) {
-      return NextResponse.json({ error: "Account issue: Stripe customer not linked. Please contact support." }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            "Account issue: Stripe customer not linked. Please contact support.",
+        },
+        { status: 400 }
+      );
     }
 
     const { data: subscription, error: sub_error } = await supabase
@@ -192,8 +198,7 @@ export async function POST(req: NextRequest) {
       if (model_id && !FREE_MODEL_IDS.includes(model_id)) {
         return NextResponse.json(
           {
-            error:
-              `Free users can only use: ${FREE_MODEL_IDS.join(", ")}`,
+            error: `Free users can only use: ${FREE_MODEL_IDS.join(", ")}`,
           },
           { status: 403 }
         );
@@ -205,8 +210,9 @@ export async function POST(req: NextRequest) {
       if (!STANDARD_MODEL_IDS.includes(selected_model_id)) {
         return NextResponse.json(
           {
-            error:
-              `Standard users can only use: ${STANDARD_MODEL_IDS.join(", ")}`,
+            error: `Standard users can only use: ${STANDARD_MODEL_IDS.join(
+              ", "
+            )}`,
           },
           { status: 403 }
         );
@@ -324,17 +330,12 @@ export async function POST(req: NextRequest) {
               typeof body.num_inference_steps === "number"
                 ? body.num_inference_steps
                 : undefined,
-            seed:
-              typeof body.seed === "number"
-                ? body.seed
-                : undefined,
+            seed: typeof body.seed === "number" ? body.seed : undefined,
             style_name:
-              typeof body.style_name === "string"
-                ? body.style_name
-                : undefined,
+              typeof body.style_name === "string" ? body.style_name : undefined,
           }
         : {};
-    console.log('SANA options for fal_client:', sana_options);
+    console.log("SANA options for fal_client:", sana_options);
 
     // Generate the image
     const result = await generate_flux_image(

@@ -388,7 +388,7 @@ export default function Image_generator() {
         images: [
           {
             model:
-              MODEL_OPTIONS.find((m) => m.value === model_id)?.label ||
+              MODEL_OPTIONS.find((m) => m.value === model_id)?.name ||
               model_id,
             width: preview_width,
             height: preview_height,
@@ -405,7 +405,7 @@ export default function Image_generator() {
       enhancement_mp,
       images: image_base64.map(() => ({
         model:
-          MODEL_OPTIONS.find((m) => m.value === model_id)?.label || model_id,
+          MODEL_OPTIONS.find((m) => m.value === model_id)?.name || model_id,
         width: preview_width,
         height: preview_height,
         mp: get_tokens_for_size(preview_width, preview_height),
@@ -814,7 +814,7 @@ export default function Image_generator() {
                         value={model.value}
                         className="bg-base-900 text-base"
                       >
-                        {model.label}
+                        {model.name}
                       </option>
                     ))}
                   </select>
@@ -840,7 +840,7 @@ export default function Image_generator() {
                       value={model.value}
                       className="bg-base-900 text-base"
                     >
-                      {model.label}
+                      {model.name}
                     </option>
                   ))}
                 </select>

@@ -18,9 +18,9 @@ const stripe = new Stripe(stripe_secret_key, {
 const price_id_to_tokens: Record<string, number> = {
   // Example: 'price_1RRgF7QJcKXoJgq7QczD4a0N': 250,
   // Fill in with your actual Stripe price IDs and token amounts
-  prod_SMOj2uZ9YSSDIB: 250,
-  prod_SMOkzIx2sykhIT: 1000,
-  prod_SMOmkz8PBtRM0l: 3000,
+  prod_SMOj2uZ9YSSDIB: 2048,
+  prod_SMOkzIx2sykhIT: 6144,
+  prod_SMOmkz8PBtRM0l: 16384,
 };
 
 async function get_first_price_id_from_session(session: Stripe.Checkout.Session): Promise<string | undefined> {
@@ -111,9 +111,9 @@ export async function POST(req: NextRequest) {
     if (price_id && price_id_to_tokens[price_id]) {
       tokens_to_add = price_id_to_tokens[price_id];
     } else if (session?.amount_total) {
-      if (session.amount_total === 200) tokens_to_add = 250;
-      if (session.amount_total === 600) tokens_to_add = 1000;
-      if (session.amount_total === 1600) tokens_to_add = 3000;
+      if (session.amount_total === 2000) tokens_to_add = 2048;
+      if (session.amount_total === 6000) tokens_to_add = 6144;
+      if (session.amount_total === 16000) tokens_to_add = 16384;
     }
     if (!tokens_to_add) {
       log_event("stripe_webhook_missing_tokens_to_add", { user_id, tokens_to_add, price_id, session });

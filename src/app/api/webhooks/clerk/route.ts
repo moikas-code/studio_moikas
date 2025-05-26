@@ -131,8 +131,8 @@ export async function POST(req: Request) {
           .insert({
             user_id: userData.id,
             plan: "free",
-            permanent_tokens: 100,
-            renewable_tokens: 0,
+            permanent_tokens: 0,
+            renewable_tokens: 125,
             renewed_at: now,
           });
         if (subError) {
@@ -175,9 +175,11 @@ export async function POST(req: Request) {
           // Update subscription plan in Supabase
           const update_fields: { plan: string; renewed_at: string; renewable_tokens?: number; permanent_tokens?: number } = { plan, renewed_at: new Date().toISOString() };
           if (plan === "standard") {
-            update_fields.renewable_tokens = 4000;
+            // Standard plan is 20k tokens
+            // add to existing renewable tokens
+            update_fields.renewable_tokens = 20480;
           } else {
-            update_fields.permanent_tokens = 100;
+            update_fields.renewable_tokens = 125;
           }
           const { error: sub_update_error } = await supabase
             .from("subscriptions")

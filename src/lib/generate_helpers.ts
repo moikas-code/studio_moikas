@@ -21,33 +21,41 @@ export function calculate_required_tokens(
  * Get the token limit for a given plan.
  */
 export function get_plan_limit(plan: string): number {
-  if (plan === "standard") return 4000;
-  return 100; // default to free
+  if (plan === "standard") return 20000;
+  return 125; // default to free
 }
 
 const FREE_MODELS = [
   {
     value: "fal-ai/sana",
-    label: "SANA Base",
-    cost: 1,
+    name: "SANA Base",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.001,
     plans: ["free", "standard"],
   },
   {
     value: "fal-ai/sana/sprint",
-    label: "SANA Fast",
-    cost: 1,
+    name: "SANA Fast",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.0025,
     plans: ["free", "standard"],
   },
   {
     value: "fal-ai/flux/schnell",
-    label: "FLUX.1 [schnell]",
-    cost: 1,
+    name: "FLUX.1 [schnell]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.003,
     plans: ["free", "standard"],
   },
   {
     value: "fal-ai/luma-photon/flash",
-    label: "Luma Photon Flash",
-    cost: 1,
+    name: "Luma Photon Flash",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.005,
     plans: ["free", "standard"],
   },
 ];
@@ -60,38 +68,44 @@ export const MODEL_OPTIONS = [
   ...FREE_MODELS,
   {
     value: "fal-ai/aura-flow",
-    label: "AURA-Flow",
-    cost: 5,
+    name: "AURA-Flow",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.01,
     plans: ["standard"],
   },
   {
     value: "fal-ai/flux/dev",
-    label: "FLUX.1 [dev]",
-    cost: 8,
+    name: "FLUX.1 [dev]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.025,
     plans: ["standard"],
   },
   {
     value: "fal-ai/flux-pro",
-    label: "FLUX.1 [pro]",
-    cost: 17,
+    name: "FLUX.1 [pro]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.05,
     plans: ["standard"],
   },
 ];
 
 // Export standard model IDs for use elsewhere
-export const STANDARD_MODEL_IDS = MODEL_OPTIONS.filter((m) => m.plans.includes("standard")).map((m) => m.value);
+export const STANDARD_MODEL_IDS = MODEL_OPTIONS.filter((m) =>
+  m.plans.includes("standard")
+).map((m) => m.value);
 
-export function get_model_cost(plan: string, model_id: string): number {
+/**
+ * Get the cost of a model
+ */
+export function get_model_cost(model_id: string): number {
   const model = MODEL_OPTIONS.find((m) => m.value === model_id);
+  // If model not found, return 1 token
   if (!model) return 1;
-  if (
-    plan === "free" &&
-    !["fal-ai/flux/schnell", "fal-ai/aura-flow", "fal-ai/sana/sprint"].includes(
-      model.value
-    )
-  )
-    return 1;
-  return model.cost;
+
+  return calculateGenerationCost(model);
 }
 
 /**
@@ -216,7 +230,10 @@ export function get_tokens_for_size(width: number, height: number) {
 }
 
 // Helper to add overlay text to image (bottom right corner)
-export async function add_overlay_to_image(base64: string, overlay_text = "studio.moikas.com"): Promise<string> {
+export async function add_overlay_to_image(
+  base64: string,
+  overlay_text = "studio.moikas.com"
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => {
@@ -237,7 +254,7 @@ export async function add_overlay_to_image(base64: string, overlay_text = "studi
       // Draw background for text for better visibility
       const text_width = ctx.measureText(overlay_text).width;
       const padding = 8;
-      const margin = 12;
+      const margin = 10;
       ctx.fillRect(
         canvas.width - text_width - 2 * padding - margin,
         canvas.height - font_size - padding - margin,
@@ -251,7 +268,9 @@ export async function add_overlay_to_image(base64: string, overlay_text = "studi
         canvas.width - margin - padding,
         canvas.height - margin - padding
       );
-      resolve(canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, ""));
+      resolve(
+        canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "")
+      );
     };
     img.onerror = reject;
     img.src = `data:image/png;base64,${base64}`;
@@ -262,7 +281,33 @@ export async function add_overlay_to_image(base64: string, overlay_text = "studi
  * Logs events and errors for auditing and debugging.
  * Extend this to log to external services (e.g., Sentry, Logtail, Datadog) as needed.
  */
-export function log_event(event_type: string, details: Record<string, unknown>) {
+export function log_event(
+  event_type: string,
+  details: Record<string, unknown>
+) {
   // eslint-disable-next-line no-console
   console.log(`[${new Date().toISOString()}] [${event_type}]`, details);
+}
+
+// Define types for clarity and type safety
+interface Model {
+  name: string;
+  manaPoints: number; // MP required per generation
+  costPerMP: number; // Cost per MP in dollars (default $0.001)
+  customCost?: number; // Optional: Override with a fixed cost per generation
+}
+
+// Function to calculate the cost of a generation
+function calculateGenerationCost(model: Model): number {
+  if (model.customCost !== undefined) {
+    // Use custom cost if specified
+    return model.customCost ;
+  }
+  // Calculate cost based on MP and cost per MP
+  return model.manaPoints * model.costPerMP;
+}
+
+// Function to scale cost for multiple generations
+function calculateTotalCost(model: Model, generations: number): number {
+  return calculateGenerationCost(model) * generations;
 }
