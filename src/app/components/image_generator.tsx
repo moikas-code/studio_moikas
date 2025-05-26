@@ -815,7 +815,7 @@ export default function Image_generator() {
                         value={model.value}
                         className="bg-base-900 text-base"
                       >
-                        {model.name} {calculateGenerationMP(model)} MP
+                        {model.name} ({calculateGenerationMP(model)} MP)
                       </option>
                     ))}
                   </select>
@@ -841,7 +841,7 @@ export default function Image_generator() {
                       value={model.value}
                       className="bg-base-900 text-base"
                     >
-                      {model.name} {calculateGenerationMP(model)} MP
+                      {model.name} ({calculateGenerationMP(model)} MP)
                     </option>
                   ))}
                 </select>
