@@ -16,6 +16,19 @@ const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
+const rations = [
+      { label: "1:2", ratio: 0.5 },
+      { label: "9:16", ratio: 9 / 16 },
+      { label: "2:3", ratio: 2 / 3 },
+      { label: "3:4", ratio: 3 / 4 },
+      { label: "5:6", ratio: 5 / 6 },
+      { label: "1:1", ratio: 1 },
+      { label: "6:5", ratio: 6 / 5 },
+      { label: "4:3", ratio: 4 / 3 },
+      { label: "3:2", ratio: 3 / 2 },
+      { label: "16:9", ratio: 16 / 9 },
+      { label: "2:1", ratio: 2 },
+    ]
 
 // Redis key schema:
 // imggen:{user_id}:{model_id}:{hash} => { image_base64: string, created_at: string, ... }
@@ -314,11 +327,13 @@ export async function POST(req: NextRequest) {
               typeof body.negative_prompt === "string"
                 ? body.negative_prompt
                 : undefined,
-            file_size: width * height * 3, // 3 bytes per pixel
+            aspect_ratio: rations.find(
+              (r) => r.ratio === width / height
+            )?.label,
             seed: typeof body.seed === "number" ? body.seed : undefined,
           }
         : {};
-    
+
     const _options = {
       ...sana_options,
       ...imagen4_options,
