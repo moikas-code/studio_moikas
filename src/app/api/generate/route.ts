@@ -18,13 +18,11 @@ const redis = new Redis({
 });
 const rations = [
   { label: "9:16", ratio: 9 / 16 },
-  { label: "2:3", ratio: 2 / 3 },
   { label: "3:4", ratio: 3 / 4 },
   { label: "5:6", ratio: 5 / 6 },
   { label: "1:1", ratio: 1 },
   { label: "6:5", ratio: 6 / 5 },
   { label: "4:3", ratio: 4 / 3 },
-  { label: "3:2", ratio: 3 / 2 },
   { label: "16:9", ratio: 16 / 9 },
 ];
 
@@ -331,6 +329,12 @@ export async function POST(req: NextRequest) {
                 : rations.find((r) => r.ratio === width / height)?.label ==
                   "2:1"
                 ? "16:9"
+                : rations.find((r) => r.ratio === width / height)?.label ==
+                  "3:2"
+                ? "4:3"
+                : rations.find((r) => r.ratio === width / height)?.label ==
+                  "2:3"
+                ? "3:4"
                 : rations.find((r) => r.ratio === width / height)?.label, // if 2/1 or 1/2, use 16:9 or 9:16, otherwise use the closest ratio
             seed: typeof body.seed === "number" ? body.seed : undefined,
           }
