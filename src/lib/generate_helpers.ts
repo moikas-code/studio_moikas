@@ -21,7 +21,7 @@ export function calculate_required_tokens(
  * Get the token limit for a given plan.
  */
 export function get_plan_limit(plan: string): number {
-  if (plan === "standard") return 20000;
+  if (plan === "standard") return 20480;
   return 125; // default to free
 }
 
@@ -85,6 +85,14 @@ export const MODEL_OPTIONS = [
   {
     value: "fal-ai/flux-pro",
     name: "FLUX.1 [pro]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.05,
+    plans: ["standard"],
+  },
+  {
+    value: "fal-ai/imagen4/preview",
+    name: "Imagen 4 [preview]",
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.05,
@@ -313,7 +321,7 @@ interface Model {
 //   return calculateGenerationCost(model) * generations;
 // }
 // Renamed to clarify it returns MP, not $
-function calculateGenerationMP(model: Model): number {
+export function calculateGenerationMP(model: Model): number {
   if (model.customCost !== undefined) {
     // Convert customCost ($) to MP (integer)
     return Math.round(model.customCost / model.costPerMP); // e.g., 0.003 / 0.001 = 3

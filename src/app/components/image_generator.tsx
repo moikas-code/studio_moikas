@@ -13,6 +13,7 @@ import {
   get_tokens_for_size,
   MODEL_OPTIONS,
   add_overlay_to_image,
+  calculateGenerationMP,
 } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
@@ -814,7 +815,7 @@ export default function Image_generator() {
                         value={model.value}
                         className="bg-base-900 text-base"
                       >
-                        {model.name}
+                        {model.name} {calculateGenerationMP(model)} MP
                       </option>
                     ))}
                   </select>
@@ -840,7 +841,7 @@ export default function Image_generator() {
                       value={model.value}
                       className="bg-base-900 text-base"
                     >
-                      {model.name}
+                      {model.name} {calculateGenerationMP(model)} MP
                     </option>
                   ))}
                 </select>
