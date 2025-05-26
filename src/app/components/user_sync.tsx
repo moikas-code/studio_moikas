@@ -45,8 +45,8 @@ export default function User_sync({ plan }: User_sync_props) {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
-        const renewable_tokens = plan === "standard" ? 4000 : plan === "free" ? 125 : 0;
-        const permanent_tokens = plan === "free" ? 0 : 100;
+        const renewable_tokens = plan === "standard" ? 20480 : plan === "free" ? 125 : 0;
+        const permanent_tokens = plan === "free" ? 100 : 0;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -86,8 +86,8 @@ export default function User_sync({ plan }: User_sync_props) {
 
         // If subscription does not exist, create it
         if (!subscription) {
-          const renewable_tokens = plan === "standard" ? 4000 : plan === "free" ? 125 : 0;
-          const permanent_tokens = plan === "free" ? 0 : 100;
+          const renewable_tokens = plan === "standard" ? 20480 : plan === "free" ? 125 : 0;
+          const permanent_tokens = plan === "free" ? 100 : 0;
           const { error: insert_error } = await supabase
             .from("subscriptions")
             .insert({
@@ -104,7 +104,7 @@ export default function User_sync({ plan }: User_sync_props) {
           // If plan changed, update subscription
           const update_fields: { plan: string; renewable_tokens?: number; permanent_tokens?: number; renewed_at?: string } = { plan };
           if (plan === "standard") {
-            update_fields.renewable_tokens = 4000;
+            update_fields.renewable_tokens = 20480;
             update_fields.renewed_at = new Date().toISOString();
           } else if (plan === "free") {
             update_fields.renewable_tokens = 125;
