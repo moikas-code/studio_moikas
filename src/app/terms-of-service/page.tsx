@@ -3,7 +3,7 @@ import React from "react";
 
 export default function Terms_of_service_page() {
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4">
+    <div className="max-w-2xl h-full mx-auto py-12 px-4">
       <h1 className="text-2xl font-bold mb-4">Terms of Service</h1>
       <p className="mb-4">
         Welcome to Studio Moikas. By using our services, you agree to these Terms of Service (&quot;Terms&quot;). Please read them carefully. These Terms may be updated or changed at any time at our sole discretion. Continued use of Studio Moikas after changes constitutes acceptance of the new Terms.
