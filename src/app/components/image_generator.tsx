@@ -26,7 +26,7 @@ import ImageGenerationReceipt from "./ImageGenerationReceipt";
  */
 
 // Custom hook for window size
-function use_window_size() {
+function useWindowHook() {
   const [window_size, set_window_size] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1200,
     height: typeof window !== 'undefined' ? window.innerHeight : 800,
@@ -180,7 +180,7 @@ export default function Image_generator() {
   const [style_name, set_style_name] = useState("(No style)");
   const [guidance_scale, set_guidance_scale] = useState(5);
 
-  const window_size = use_window_size();
+  const window_size = useWindowHook();
   const is_small_screen = window_size.width < 768; // Tailwind 'sm' breakpoint
   const prompt_placeholder = is_small_screen ? "Create..." : "What will you create?";
 

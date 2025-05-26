@@ -8,7 +8,6 @@ import { MpProvider } from "./context/mp_context";
 import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
 import Cookie_consent_banner from "./components/cookie_consent_banner";
-import Analytics_opt_out_toggle from "./components/analytics_opt_out_toggle";
 import User_sync from "./components/user_sync";
 import { auth } from "@clerk/nextjs/server";
 
