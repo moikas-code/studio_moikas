@@ -72,7 +72,7 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.01,
-    plans: ["standard"],
+    plans: ["free", "standard"],
   },
   {
     value: "fal-ai/flux/dev",
@@ -80,7 +80,7 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.025,
-    plans: ["standard"],
+    plans: ["free", "standard"],
   },
   {
     value: "fal-ai/flux-pro",
@@ -88,7 +88,7 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.05,
-    plans: ["standard"],
+    plans: ["free", "standard"],
   },
   {
     value: "fal-ai/imagen4/preview",
@@ -96,7 +96,7 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.05,
-    plans: ["standard"],
+    plans: ["free", "standard"],
   },
 ];
 

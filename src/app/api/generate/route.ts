@@ -189,35 +189,8 @@ export async function POST(req: NextRequest) {
     previous_premium_generations_used =
       subscription.premium_generations_used ?? 0;
 
-    // Restrict model access by plan
     selected_model_id = model_id;
-    if (plan === "free") {
-      if (!selected_model_id || !FREE_MODEL_IDS.includes(selected_model_id)) {
-        selected_model_id = FREE_MODEL_IDS[0];
-      }
-      if (model_id && !FREE_MODEL_IDS.includes(model_id)) {
-        return NextResponse.json(
-          {
-            error: `Free users can only use: ${FREE_MODEL_IDS.join(", ")}`,
-          },
-          { status: 403 }
-        );
-      }
-    } else if (plan === "standard") {
-      if (!selected_model_id) {
-        selected_model_id = "fal-ai/flux/dev";
-      }
-      if (!STANDARD_MODEL_IDS.includes(selected_model_id)) {
-        return NextResponse.json(
-          {
-            error: `Standard users can only use: ${STANDARD_MODEL_IDS.join(
-              ", "
-            )}`,
-          },
-          { status: 403 }
-        );
-      }
-    } else {
+    if (!selected_model_id) {
       // fallback: only allow schnell
       selected_model_id = "fal-ai/flux/schnell";
     }
@@ -320,7 +293,7 @@ export async function POST(req: NextRequest) {
 
     // Prepare sana options if model is fal-ai/sana
     const sana_options =
-      model_id === "fal-ai/sana"
+      model_id === "fal-ai/sana" || model_id === "fal-ai/sana/sprint"
         ? {
             negative_prompt:
               typeof body.negative_prompt === "string"
