@@ -17,18 +17,16 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 const rations = [
-      { label: "1:2", ratio: 0.5 },
-      { label: "9:16", ratio: 9 / 16 },
-      { label: "2:3", ratio: 2 / 3 },
-      { label: "3:4", ratio: 3 / 4 },
-      { label: "5:6", ratio: 5 / 6 },
-      { label: "1:1", ratio: 1 },
-      { label: "6:5", ratio: 6 / 5 },
-      { label: "4:3", ratio: 4 / 3 },
-      { label: "3:2", ratio: 3 / 2 },
-      { label: "16:9", ratio: 16 / 9 },
-      { label: "2:1", ratio: 2 },
-    ]
+  { label: "9:16", ratio: 9 / 16 },
+  { label: "2:3", ratio: 2 / 3 },
+  { label: "3:4", ratio: 3 / 4 },
+  { label: "5:6", ratio: 5 / 6 },
+  { label: "1:1", ratio: 1 },
+  { label: "6:5", ratio: 6 / 5 },
+  { label: "4:3", ratio: 4 / 3 },
+  { label: "3:2", ratio: 3 / 2 },
+  { label: "16:9", ratio: 16 / 9 },
+];
 
 // Redis key schema:
 // imggen:{user_id}:{model_id}:{hash} => { image_base64: string, created_at: string, ... }
@@ -327,9 +325,13 @@ export async function POST(req: NextRequest) {
               typeof body.negative_prompt === "string"
                 ? body.negative_prompt
                 : undefined,
-            aspect_ratio: rations.find(
-              (r) => r.ratio === width / height
-            )?.label,
+            aspect_ratio:
+              rations.find((r) => r.ratio === width / height)?.label == " 1:2"
+                ? "16:9"
+                : rations.find((r) => r.ratio === width / height)?.label ==
+                  "2:1"
+                ? "9:16"
+                : rations.find((r) => r.ratio === width / height)?.label, // if 2/1 or 1/2, use 16:9 or 9:16, otherwise use the closest ratio
             seed: typeof body.seed === "number" ? body.seed : undefined,
           }
         : {};
