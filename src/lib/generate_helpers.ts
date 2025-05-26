@@ -105,7 +105,7 @@ export function get_model_cost(model_id: string): number {
   // If model not found, return 1 token
   if (!model) return 1;
 
-  return calculateGenerationCost(model);
+  return calculateGenerationMP(model);
 }
 
 /**
@@ -298,16 +298,26 @@ interface Model {
 }
 
 // Function to calculate the cost of a generation
-function calculateGenerationCost(model: Model): number {
-  if (model.customCost !== undefined) {
-    // Use custom cost if specified
-    return model.customCost ;
-  }
-  // Calculate cost based on MP and cost per MP
-  return model.manaPoints * model.costPerMP;
-}
+// function calculateGenerationCost(model: Model): number {
+//   if (model.customCost !== undefined) {
+//     // Use custom cost if specified
+//     // return 
+//     return model.customCost ;
+//   }
+//   // Calculate cost based on MP and cost per MP
+//   return model.manaPoints * model.costPerMP;
+// }
 
 // Function to scale cost for multiple generations
 // function calculateTotalCost(model: Model, generations: number): number {
 //   return calculateGenerationCost(model) * generations;
 // }
+// Renamed to clarify it returns MP, not $
+function calculateGenerationMP(model: Model): number {
+  if (model.customCost !== undefined) {
+    // Convert customCost ($) to MP (integer)
+    return Math.round(model.customCost / model.costPerMP); // e.g., 0.003 / 0.001 = 3
+  }
+  // Return MP directly for non-custom cost
+  return model.manaPoints;
+}
