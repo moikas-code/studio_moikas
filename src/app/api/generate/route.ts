@@ -326,11 +326,11 @@ export async function POST(req: NextRequest) {
                 ? body.negative_prompt
                 : undefined,
             aspect_ratio:
-              rations.find((r) => r.ratio === width / height)?.label == " 1:2"
-                ? "16:9"
+              rations.find((r) => r.ratio === width / height)?.label == "1:2"
+                ? "9:16"
                 : rations.find((r) => r.ratio === width / height)?.label ==
                   "2:1"
-                ? "9:16"
+                ? "16:9"
                 : rations.find((r) => r.ratio === width / height)?.label, // if 2/1 or 1/2, use 16:9 or 9:16, otherwise use the closest ratio
             seed: typeof body.seed === "number" ? body.seed : undefined,
           }
