@@ -1,4 +1,3 @@
-import { Protect } from "@clerk/nextjs";
 import Image_generator from "../../components/image_generator";
 import React from "react";
 
