@@ -9,8 +9,6 @@ import {
   generate_imggen_cache_key,
   get_model_cost,
   get_tokens_for_size,
-  FREE_MODEL_IDS,
-  STANDARD_MODEL_IDS,
 } from "@/lib/generate_helpers";
 import { SupabaseClient } from "@supabase/supabase-js";
 
