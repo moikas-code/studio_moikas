@@ -471,7 +471,7 @@ export default function Image_generator() {
           >
             <form
               onSubmit={handle_generate_image}
-              className="w-full max-w-xl mx-auto flex items-start bg-base-200 rounded border border-base-300 shadow-lg px-4 md:px-6 py-2.5 md:py-3 gap-2 md:gap-3 relative min-h-[56px]"
+              className="w-full max-w-2xl mx-auto flex items-start bg-base-200 rounded border border-base-300 shadow-lg px-4 md:px-6 py-2.5 md:py-3 gap-2 md:gap-3 relative min-h-[56px]"
               style={{
                 boxShadow: "0 2px 16px 0 rgba(0,0,0,0.18)",
               }}

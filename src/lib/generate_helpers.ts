@@ -305,21 +305,6 @@ interface Model {
   customCost?: number; // Optional: Override with a fixed cost per generation
 }
 
-// Function to calculate the cost of a generation
-// function calculateGenerationCost(model: Model): number {
-//   if (model.customCost !== undefined) {
-//     // Use custom cost if specified
-//     // return
-//     return model.customCost ;
-//   }
-//   // Calculate cost based on MP and cost per MP
-//   return model.manaPoints * model.costPerMP;
-// }
-
-// Function to scale cost for multiple generations
-// function calculateTotalCost(model: Model, generations: number): number {
-//   return calculateGenerationCost(model) * generations;
-// }
 // Renamed to clarify it returns MP, not $
 export function calculateGenerationMP(model: Model): number {
   if (model.customCost !== undefined) {
