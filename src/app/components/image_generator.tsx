@@ -181,7 +181,7 @@ export default function Image_generator() {
   const [guidance_scale, set_guidance_scale] = useState(5);
 
   const window_size = use_window_size();
-  const is_small_screen = window_size.width < 640; // Tailwind 'sm' breakpoint
+  const is_small_screen = window_size.width < 768; // Tailwind 'sm' breakpoint
   const prompt_placeholder = is_small_screen ? "Create..." : "What will you create?";
 
   // Helper to parse negative prompt from --no or --n
@@ -400,8 +400,8 @@ export default function Image_generator() {
 
   // Placeholder style for aspect ratio preview
   const placeholder_style = {
-    width: `${preview_width / 8}px`, // Scale down for UI (e.g., 1024 -> 128px)
-    height: `${preview_height / 8}px`,
+    width: `${preview_width / (is_small_screen ? 16 : 8)}px`, // Scale down for UI (e.g., 1024 -> 128px)
+    height: `${preview_height / (is_small_screen ? 16 : 8)}px`,
     transition: "all 0.3s ease",
   };
 
@@ -490,7 +490,10 @@ export default function Image_generator() {
       {/* Sticky input and settings menu container */}
       {/* Responsive input bar: top for desktop/tablet, fixed bottom for mobile */}
       <div className="w-full flex flex-col items-center z-30">
-        <div ref={prompt_input_ref} className="w-full flex justify-center items-start">
+        <div
+          ref={prompt_input_ref}
+          className="w-full flex justify-center items-start"
+        >
           <div
             className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:px-0  md:mt-8"
             style={{ pointerEvents: "auto" }}
@@ -543,12 +546,12 @@ export default function Image_generator() {
                 ref={prompt_textarea_ref}
                 className="flex-1 w-full min-h-[36px] bg-transparent outline-none text-base placeholder:text-base-400 px-2 md:px-3 font-sans font-normal border-0 focus:ring-0 focus:outline-none resize-none overflow-y-auto"
                 value={prompt_text}
-                onChange={e => {
+                onChange={(e) => {
                   set_prompt_text(e.target.value);
                   const textarea = prompt_textarea_ref.current;
                   if (textarea) {
-                    textarea.style.height = 'auto';
-                    textarea.style.height = textarea.scrollHeight + 'px';
+                    textarea.style.height = "auto";
+                    textarea.style.height = textarea.scrollHeight + "px";
                   }
                 }}
                 placeholder={prompt_placeholder}
@@ -560,7 +563,7 @@ export default function Image_generator() {
                   lineHeight: "1.6",
                   background: "none",
                   boxShadow: "none",
-                  overflow: "hidden"
+                  overflow: "hidden",
                 }}
                 autoComplete="off"
                 spellCheck={true}
@@ -630,7 +633,7 @@ export default function Image_generator() {
       {show_settings && (
         <form
           onSubmit={handle_generate_image}
-          className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 options-card-animated mt-6 relative"
+          className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 options-card-animated relative bg-base-200 rounded-2xl border border-base-300 shadow-md p-1"
         >
           {/* Close button for mobile */}
           <button
@@ -656,15 +659,15 @@ export default function Image_generator() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Image Size */}
             <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4">
-              <div className="text-lg font-semibold text-base mb-2 text-center">
+              <div className="hidden md:block text-sm md:text-lg font-semibold text-base md:mb-2 text-center">
                 Image Size
               </div>
               {/* Flex row for preview and controls */}
-              <div className="flex flex-col w-full items-center justify-center gap-3 md:gap-6">
+              <div className="flex flex-col w-full items-center justify-center gap-3 md:gap-6 relative">
                 {/* Aspect ratio preview (placeholder) */}
                 <div className="flex flex-col items-center justify-center w-[90px] md:w-[120px] h-[90px] md:h-[120px]">
                   <div
-                    className="border border-base-300 rounded-md flex items-center justify-center bg-base-800 w-[32px] h-[32px] flex-shrink-0 mx-1 md:mx-4 my-1 md:my-2 p-1 md:p-3"
+                    className="border border-base rounded-md flex items-center justify-center bg-base-800 w-[32px] h-[32px] flex-shrink-0 mx-1 md:mx-4 my-1 md:my-2 p-1 md:p-3"
                     style={{ ...placeholder_style }}
                   >
                     <span className="text-base md:text-lg font-semibold text-base">
@@ -673,16 +676,16 @@ export default function Image_generator() {
                   </div>
                 </div>
                 {/* Preset buttons and slider */}
+                {/* Reset button in upper right */}
+                <button
+                  type="button"
+                  className="btn btn-xs text-sm text-base border border-base-300 hover:text-jade hover:border-jade absolute top-0 p-2 left-0 mt-1 mr-1 z-10 bg-base-800 absolute"
+                  onClick={reset_aspect_index}
+                  aria-label="Reset image size"
+                >
+                  Reset
+                </button>
                 <div className="w-full max-w-xs md:max-w-md flex flex-col items-center gap-2 relative">
-                  {/* Reset button in upper right */}
-                  <button
-                    type="button"
-                    className="btn btn-xs text-sm text-base border border-base-300 hover:text-jade hover:border-jade absolute top-0 p-2 right-0 mt-1 mr-1 z-10 bg-base-800"
-                    onClick={reset_aspect_index}
-                    aria-label="Reset image size"
-                  >
-                    Reset
-                  </button>
                   {/* Preset buttons */}
                   <div className="flex justify-center gap-2 mb-2 w-full">
                     {BUTTON_PRESETS.map((preset) => (
@@ -721,11 +724,11 @@ export default function Image_generator() {
             {/* SANA Advanced Options (right column) - only show if model_id includes 'sana' */}
             {model_id.includes("sana") ? (
               <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4">
-                <div className="text-lg font-semibold text-base mb-2 text-center">
-                  SANA Advanced Options
+                <div className="hidden md:block text-sm md:text-lg font-semibold text-base md:mb-2 text-center">
+                  Advanced Options
                 </div>
                 {/* SANA Advanced Options - keep all controls, just restyle */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {/* Inference Steps */}
                   <div className="flex flex-col gap-1">
                     <label
@@ -749,10 +752,11 @@ export default function Image_generator() {
                   {/* Guidance Scale (CFG) */}
                   <div className="flex flex-col gap-1">
                     <label
+                      title="Guidance Scale (CFG)"
                       htmlFor="guidance_scale"
                       className="font-medium text-base text-xs mb-1"
                     >
-                      CFG (Guidance Scale)
+                      CFG
                     </label>
                     <input
                       id="guidance_scale"
@@ -767,34 +771,7 @@ export default function Image_generator() {
                       className="input input-bordered w-full text-xs py-1 px-2 bg-base-800 border border-base-300 text-base"
                     />
                   </div>
-                  {/* Seed */}
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor="seed"
-                      className="font-medium text-base text-xs mb-1"
-                    >
-                      Seed
-                    </label>
-                    <div className="flex gap-2 items-center">
-                      <input
-                        id="seed"
-                        type="number"
-                        value={seed}
-                        onChange={(e) => set_seed(Number(e.target.value))}
-                        className="input input-bordered w-full text-xs py-1 px-2 bg-base-800 border border-base-300 text-base"
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-xs bg-base-800 border border-base-300 text-base hover:bg-jade hover:text-base-100"
-                        onClick={() =>
-                          set_seed(Math.floor(Math.random() * 1000000))
-                        }
-                        tabIndex={0}
-                      >
-                        Randomize
-                      </button>
-                    </div>
-                  </div>
+
                   {/* Style Name */}
                   <div className="flex flex-col gap-1">
                     <label
@@ -820,11 +797,39 @@ export default function Image_generator() {
                       ))}
                     </select>
                   </div>
+                  {/* Seed */}
+                  <div className="flex flex-col gap-1">
+                    <label
+                      htmlFor="seed"
+                      className="font-medium text-base text-xs mb-1"
+                    >
+                      Seed
+                    </label>
+                    <div className="flex flex-col gap-2 items-center">
+                      <input
+                        id="seed"
+                        type="number"
+                        value={seed}
+                        onChange={(e) => set_seed(Number(e.target.value))}
+                        className="input input-bordered w-full text-xs py-1 px-2 bg-base-800 border border-base-300 text-base"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-xs text-xs bg-base-800 border border-base-300 text-base hover:bg-jade hover:text-base-100"
+                        onClick={() =>
+                          set_seed(Math.floor(Math.random() * 1000000))
+                        }
+                        tabIndex={0}
+                      >
+                        Randomize
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4 mt-2">
-                <div className="text-lg font-semibold text-base mb-2">
+              <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-row md:flex-col gap-4 md:mt-2">
+                <div className="text-xs md:text-lg font-semibold text-base mb-2">
                   Model
                 </div>
                 <div className="w-full">
@@ -851,8 +856,8 @@ export default function Image_generator() {
           </div>
           {/* Model row below, full width */}
           {model_id.includes("sana") && (
-            <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-col gap-4 mt-2">
-              <div className="text-lg font-semibold text-base mb-2">Model</div>
+            <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-row md:flex-col gap-4 md:mt-2">
+                <div className="text-xs md:text-lg font-semibold text-base mb-2">Model</div>
               <div className="w-full">
                 <select
                   className="select select-bordered w-full text-base font-medium bg-base-800 border border-base-300 focus:border-jade focus:ring-2 focus:ring-jade-focus transition text-sm"
