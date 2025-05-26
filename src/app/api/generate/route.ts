@@ -306,6 +306,23 @@ export async function POST(req: NextRequest) {
               typeof body.style_name === "string" ? body.style_name : undefined,
           }
         : {};
+    // Prepare optons for imagen4
+    const imagen4_options =
+      model_id === "fal-ai/imagen4/preview"
+        ? {
+            negative_prompt:
+              typeof body.negative_prompt === "string"
+                ? body.negative_prompt
+                : undefined,
+            file_size: width * height * 3, // 3 bytes per pixel
+            seed: typeof body.seed === "number" ? body.seed : undefined,
+          }
+        : {};
+    
+    const _options = {
+      ...sana_options,
+      ...imagen4_options,
+    };
     console.log("SANA options for fal_client:", sana_options);
 
     // Generate the image
@@ -314,7 +331,7 @@ export async function POST(req: NextRequest) {
       width,
       height,
       selected_model_id,
-      sana_options
+      _options
     );
     // Extract image URL and convert to base64
     const image_url = result.data?.images?.[0]?.url;
