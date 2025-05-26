@@ -29,14 +29,21 @@ export async function generate_flux_image(
   };
   const input: Record<string, unknown> = {
     prompt,
-    ...(options.negative_prompt !== undefined && { negative_prompt: options.negative_prompt }),
-    ...(options.num_inference_steps !== undefined && { num_inference_steps: options.num_inference_steps }),
+    ...(options.negative_prompt !== undefined && {
+      negative_prompt: options.negative_prompt,
+    }),
+    ...(options.num_inference_steps !== undefined && {
+      num_inference_steps: options.num_inference_steps,
+    }),
     ...(options.seed !== undefined && { seed: options.seed }),
-    ...(options.guidance_scale !== undefined && { guidance_scale: options.guidance_scale }),
+    ...(options.guidance_scale !== undefined && {
+      guidance_scale: options.guidance_scale,
+    }),
     ...(options.style_name !== undefined && { style_name: options.style_name }),
-    image_size,
     ...(options.num_images !== undefined && { num_images: options.num_images }),
-    ...(options.aspect_ratio !== undefined && { aspect_ratio: options.aspect_ratio }),
+    ...(options.aspect_ratio !== undefined
+      ? { aspect_ratio: options.aspect_ratio }
+      : { image_size }),
   };
   const result = await fal.subscribe(model_id, {
     input,
