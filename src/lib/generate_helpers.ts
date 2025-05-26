@@ -309,7 +309,7 @@ interface Model {
 // function calculateGenerationCost(model: Model): number {
 //   if (model.customCost !== undefined) {
 //     // Use custom cost if specified
-//     // return 
+//     // return
 //     return model.customCost ;
 //   }
 //   // Calculate cost based on MP and cost per MP
@@ -324,7 +324,7 @@ interface Model {
 export function calculateGenerationMP(model: Model): number {
   if (model.customCost !== undefined) {
     // Convert customCost ($) to MP (integer)
-    return Math.round(model.customCost / model.costPerMP); // e.g., 0.003 / 0.001 = 3
+    return Math.ceil(Math.round((model.customCost / model.costPerMP) * 1.6)); // e.g., (0.003 / 0.001) * 1.6 = 4.8, rounded up to 5
   }
   // Return MP directly for non-custom cost
   return model.manaPoints;
