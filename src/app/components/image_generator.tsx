@@ -644,11 +644,11 @@ export default function Image_generator() {
           onSubmit={handle_generate_image}
           className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-50 options-card-animated bg-base-200 rounded-2xl border border-base-300 shadow-md p-1"
           style={{
-            position: 'absolute',
+            position: "absolute",
             left: 0,
             right: 0,
             top: window_size.width < 768 ? 72 : 42 + prompt_input_height,
-            margin: '0 auto'
+            margin: "0 auto",
           }}
         >
           {/* Close button for mobile */}
@@ -873,7 +873,9 @@ export default function Image_generator() {
           {/* Model row below, full width */}
           {model_id.includes("sana") && (
             <div className="bg-base-200 rounded-2xl border border-base-300 shadow-md p-6 flex flex-row md:flex-col gap-4 md:mt-2">
-                <div className="text-xs md:text-lg font-semibold text-base mb-2">Model</div>
+              <div className="text-xs md:text-lg font-semibold text-base mb-2">
+                Model
+              </div>
               <div className="w-full">
                 <select
                   className="select select-bordered w-full text-base font-medium bg-base-800 border border-base-300 focus:border-jade focus:ring-2 focus:ring-jade-focus transition text-sm"
@@ -907,10 +909,12 @@ export default function Image_generator() {
           mana_points_used={mana_points_used}
           plan={plan || ""}
           model_id={generated_model_id || model_id}
-          num_inference_steps={generated_num_inference_steps || num_inference_steps}
+          num_inference_steps={
+            generated_num_inference_steps || num_inference_steps
+          }
           guidance_scale={generated_guidance_scale || guidance_scale}
           style_name={generated_style_name || style_name}
-          enhancement_count={enhancement_count}
+          enhancement_count={enhancement_count || backend_cost || 0}
           onRedo={handle_redo}
           onReuse={handle_reuse}
         />
