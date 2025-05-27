@@ -280,7 +280,7 @@ export default function Image_grid({
                 <div className="relative w-full">
                   <button
                     className="btn btn-sm btn-secondary w-full"
-                    onClick={() => handle_copy_image(image_base64[0], 0)}
+                    onClick={() => handle_copy_image(image_base64[0])}
                     aria-label="Copy image to clipboard"
                   >
                     Copy
@@ -342,7 +342,7 @@ export default function Image_grid({
                     </div>
                     <button
                       className="btn btn-xs btn-secondary w-full"
-                      onClick={() => handle_copy_image(img, idx)}
+                      onClick={() => handle_copy_image(img)}
                       aria-label="Copy image to clipboard"
                     >
                       Copy
