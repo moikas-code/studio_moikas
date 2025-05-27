@@ -26,7 +26,7 @@ export default function Home() {
         </p>
         <div className="flex flex-col md:flex-row gap-4 mt-4">
           <SignedIn>
-            <Link href="/tools/image-generator">
+            <Link href="/tools/create">
               <button
                 className="btn btn-primary btn-lg text-lg px-8 py-3 shadow-lg animate-bounce focus:outline-none focus:ring-2 focus:ring-primary"
                 onClick={() => track("Landing-HERO-Start_Creating-Click")}
@@ -117,7 +117,7 @@ export default function Home() {
       {/* Call to Action Section */}
       <section className="w-full flex flex-col items-center justify-center py-8 mt-4">
         <SignedIn>
-          <Link href="/tools/image-generator">
+          <Link href="/tools/create">
             <button
               className="btn btn-secondary btn-lg text-lg px-8 py-3 shadow-md focus:outline-none focus:ring-2 focus:ring-secondary"
               onClick={() => track("Landing-CTA-Start_Creating_Now-Click")}

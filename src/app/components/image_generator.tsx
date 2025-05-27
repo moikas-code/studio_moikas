@@ -19,6 +19,7 @@ import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
 import ImageGenerationReceipt from "./ImageGenerationReceipt";
+import Image_grid from "./image_grid";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -285,6 +286,10 @@ export default function Image_generator() {
         set_prompt_description(used_prompt ?? "");
         set_mana_points_used(data.mp_used ?? null);
         set_backend_cost(data.enhancement_mp ?? null);
+        set_generated_model_id(data.model_id || used_model);
+        set_generated_num_inference_steps(data.num_inference_steps || num_inference_steps);
+        set_generated_guidance_scale(data.guidance_scale || guidance_scale);
+        set_generated_style_name(data.style_name || style_name);
         await refresh_mp();
         // Reset prompt and enhancement count after generation
         set_prompt_text("");
@@ -484,6 +489,11 @@ export default function Image_generator() {
   //     set_prompt_input_height(prompt_input_ref.current.offsetHeight);
   //   }
   // }, [prompt_text]); // re-measure when prompt_text changes
+
+  const [generated_model_id, set_generated_model_id] = useState<string>("");
+  const [generated_num_inference_steps, set_generated_num_inference_steps] = useState<number>(num_inference_steps);
+  const [generated_guidance_scale, set_generated_guidance_scale] = useState<number>(guidance_scale);
+  const [generated_style_name, set_generated_style_name] = useState<string>(style_name);
 
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
@@ -883,25 +893,18 @@ export default function Image_generator() {
       )}
       {/* Error message (always below menu/input) */}
       <Error_display error_message={error_message} />
-      {/* Generation Receipt (show after generation or error) */}
-      {(image_base64.length > 0 || error_message) && (
-        <ImageGenerationReceipt
+      {/* Generation Grid (show after generation) */}
+      {image_base64.length > 0 && (
+        <Image_grid
+          image_base64={image_base64}
           prompt_text={prompt_description || ""}
-          images={image_base64}
-          costs={get_costs()}
+          mana_points_used={mana_points_used}
           plan={plan || ""}
-          timestamp={new Date().toLocaleString()}
-          error_message={error_message}
-          onDownload={(img, idx) => {
-            const a = document.createElement("a");
-            a.href = `data:image/png;base64,${img}`;
-            a.download = `generated_image_${idx + 1}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          }}
-          onRedo={image_base64.length > 0 ? handle_redo : undefined}
-          onReuse={image_base64.length > 0 ? handle_reuse : undefined}
+          model_id={generated_model_id || model_id}
+          num_inference_steps={generated_num_inference_steps || num_inference_steps}
+          guidance_scale={generated_guidance_scale || guidance_scale}
+          style_name={generated_style_name || style_name}
+          enhancement_count={enhancement_count}
         />
       )}
       {/* Add this style block for the animation */}

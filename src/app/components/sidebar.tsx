@@ -74,7 +74,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
           <ul className="menu menu-lg rounded-box w-full">
             <li>
               <Link
-                href="/tools/image-generator"
+                href="/tools/create"
                 className="justify-start"
                 aria-label="Image Generator tool"
               >

@@ -67,11 +67,11 @@ export const FREE_MODEL_IDS = FREE_MODELS.map((m) => m.value);
 export const MODEL_OPTIONS = [
   ...FREE_MODELS,
   {
-    value: "fal-ai/aura-flow",
-    name: "AURA-Flow",
+    value: "fal-ai/recraft/v3/text-to-image",
+    name: "Recraft v3",
     manaPoints: 1,
     costPerMP: 0.001,
-    customCost: 0.01,
+    customCost: 0.04,
     plans: ["free", "standard"],
   },
   {
@@ -83,11 +83,11 @@ export const MODEL_OPTIONS = [
     plans: ["free", "standard"],
   },
   {
-    value: "fal-ai/flux-pro",
-    name: "FLUX.1 [pro]",
+    value: "fal-ai/flux-pro/v1.1-ultra",
+    name: "FLUX.1.1 Ultra",
     manaPoints: 1,
     costPerMP: 0.001,
-    customCost: 0.05,
+    customCost: 0.06,
     plans: ["free", "standard"],
   },
   {
