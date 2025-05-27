@@ -649,8 +649,7 @@ export default function Image_generator() {
             left: 0,
             right: 0,
             top: window_size.width < 768 ? 72 : 42 + prompt_input_height,
-            margin: '0 auto',
-            maxWidth: '100vw',
+            margin: '0 auto'
           }}
         >
           {/* Close button for mobile */}
