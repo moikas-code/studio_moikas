@@ -481,14 +481,14 @@ export default function Image_generator() {
 
   // Ref for the prompt input container
   const prompt_input_ref = useRef<HTMLDivElement>(null);
-  // const [prompt_input_height, set_prompt_input_height] = useState(0);
+  const [prompt_input_height, set_prompt_input_height] = useState(0);
 
-  // // Measure the height of the prompt input container
-  // useLayoutEffect(() => {
-  //   if (prompt_input_ref.current) {
-  //     set_prompt_input_height(prompt_input_ref.current.offsetHeight);
-  //   }
-  // }, [prompt_text]); // re-measure when prompt_text changes
+  // Measure the height of the prompt input container
+  useEffect(() => {
+    if (prompt_input_ref.current) {
+      set_prompt_input_height(prompt_input_ref.current.offsetHeight);
+    }
+  }, [prompt_text, window_size.width]);
 
   const [generated_model_id, set_generated_model_id] = useState<string>("");
   const [generated_num_inference_steps, set_generated_num_inference_steps] = useState<number>(num_inference_steps);
@@ -643,7 +643,15 @@ export default function Image_generator() {
       {show_settings && (
         <form
           onSubmit={handle_generate_image}
-          className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-30 options-card-animated relative bg-base-200 rounded-2xl border border-base-300 shadow-md p-1"
+          className="w-full max-w-5xl mx-auto flex flex-col gap-6 z-50 options-card-animated bg-base-200 rounded-2xl border border-base-300 shadow-md p-1"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: window_size.width < 768 ? 72 : 42 + prompt_input_height,
+            margin: '0 auto',
+            maxWidth: '100vw',
+          }}
         >
           {/* Close button for mobile */}
           <button
