@@ -1,4 +1,5 @@
 import { ChatXAI } from "@langchain/xai";
+
 import {
   HumanMessage,
   SystemMessage,
@@ -32,7 +33,7 @@ export async function invoke_xai_agent_with_tools({
   // Instantiate the xAI model with API key and any additional options
   const model = new ChatXAI({
     apiKey: process.env.XAI_API_KEY,
-    model: "grok-3-mini",
+    model: "grok-3-mini-latest",
     ...model_options,
   });
   const _messages = [system_message, ...(messages || []), prompt];
