@@ -429,24 +429,24 @@ export default function Image_generator() {
   //       total_mp: enhancement_mp + (mana_points_used || 0),
   //     };
   //   }
-    // fallback to local calculation if backend_cost is not set
-    // Only include enhancement_mp if it was used
-    const enhancement_mp = enhancement_count > 0 ? enhancement_count : 0;
-    return {
-      enhancement_mp,
-      images: image_base64.map(() => ({
-        model:
-          MODEL_OPTIONS.find((m) => m.value === model_id)?.name || model_id,
-        width: preview_width,
-        height: preview_height,
-        mp: get_tokens_for_size(preview_width, preview_height),
-      })),
-      total_mp:
-        enhancement_mp +
-        image_base64.length *
-          get_tokens_for_size(preview_width, preview_height),
-    };
-  };
+  //   // fallback to local calculation if backend_cost is not set
+  //   // Only include enhancement_mp if it was used
+  //   const enhancement_mp = enhancement_count > 0 ? enhancement_count : 0;
+  //   return {
+  //     enhancement_mp,
+  //     images: image_base64.map(() => ({
+  //       model:
+  //         MODEL_OPTIONS.find((m) => m.value === model_id)?.name || model_id,
+  //       width: preview_width,
+  //       height: preview_height,
+  //       mp: get_tokens_for_size(preview_width, preview_height),
+  //     })),
+  //     total_mp:
+  //       enhancement_mp +
+  //       image_base64.length *
+  //         get_tokens_for_size(preview_width, preview_height),
+  //   };
+  // };
 
   // Keyboard shortcuts
   useEffect(() => {
