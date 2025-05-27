@@ -18,7 +18,6 @@ import {
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
-import ImageGenerationReceipt from "./ImageGenerationReceipt";
 import Image_grid from "./image_grid";
 
 /**
@@ -411,25 +410,25 @@ export default function Image_generator() {
   };
 
   // Cost breakdown for receipt (from backend)
-  const get_costs = () => {
-    if (backend_cost) {
-      // Only include enhancement_mp if it was used
-      const enhancement_mp = backend_cost > 0 ? backend_cost : 0;
-      return {
-        enhancement_mp,
-        images: [
-          {
-            model:
-              MODEL_OPTIONS.find((m) => m.value === model_id)?.name ||
-              model_id,
-            width: preview_width,
-            height: preview_height,
-            mp: mana_points_used ?? 0,
-          },
-        ],
-        total_mp: enhancement_mp + (mana_points_used || 0),
-      };
-    }
+  // const get_costs = () => {
+  //   if (backend_cost) {
+  //     // Only include enhancement_mp if it was used
+  //     const enhancement_mp = backend_cost > 0 ? backend_cost : 0;
+  //     return {
+  //       enhancement_mp,
+  //       images: [
+  //         {
+  //           model:
+  //             MODEL_OPTIONS.find((m) => m.value === model_id)?.name ||
+  //             model_id,
+  //           width: preview_width,
+  //           height: preview_height,
+  //           mp: mana_points_used ?? 0,
+  //         },
+  //       ],
+  //       total_mp: enhancement_mp + (mana_points_used || 0),
+  //     };
+  //   }
     // fallback to local calculation if backend_cost is not set
     // Only include enhancement_mp if it was used
     const enhancement_mp = enhancement_count > 0 ? enhancement_count : 0;
@@ -912,6 +911,8 @@ export default function Image_generator() {
           guidance_scale={generated_guidance_scale || guidance_scale}
           style_name={generated_style_name || style_name}
           enhancement_count={enhancement_count}
+          onRedo={handle_redo}
+          onReuse={handle_reuse}
         />
       )}
       {/* Add this style block for the animation */}

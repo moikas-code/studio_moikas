@@ -13,6 +13,8 @@ interface Image_grid_props {
   guidance_scale?: number;
   style_name?: string;
   enhancement_count?: number;
+  onRedo?: () => void;
+  onReuse?: () => void;
 }
 
 export default function Image_grid({
@@ -25,6 +27,8 @@ export default function Image_grid({
   guidance_scale,
   style_name,
   enhancement_count,
+  onRedo,
+  onReuse,
 }: Image_grid_props) {
   const [toast_message, set_toast_message] = useState<string | null>(null);
   const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(
@@ -131,7 +135,7 @@ export default function Image_grid({
   }
 
   // Helper to copy image to clipboard
-  async function handle_copy_image(base64: string, idx: number) {
+  async function handle_copy_image(base64: string) {
     try {
       const res = await fetch(`data:image/png;base64,${base64}`);
       const blob = await res.blob();
@@ -352,6 +356,31 @@ export default function Image_grid({
       </div>
       {/* Info panel (right) */}
       <div className="w-full md:w-64 flex flex-col justify-start items-end px-6 pt-4 pb-4 bg-base-900 border-t md:border-t-0 md:border-l border-base-800 min-h-[200px] md:min-h-0">
+        {/* Redo/Reuse buttons */}
+        {(onRedo || onReuse) && (
+          <div className="flex gap-2 mb-2">
+            {onRedo && (
+              <button
+                className="btn btn-xs btn-secondary"
+                onClick={onRedo}
+                aria-label="Redo with same settings"
+                type="button"
+              >
+                Redo
+              </button>
+            )}
+            {onReuse && (
+              <button
+                className="btn btn-xs btn-secondary"
+                onClick={onReuse}
+                aria-label="Reuse prompt and settings"
+                type="button"
+              >
+                Reuse
+              </button>
+            )}
+          </div>
+        )}
         {/* Cost and prompt info */}
         <div className="flex flex-col items-end gap-2 w-full">
           <div className="flex items-center gap-2 w-full justify-end">
