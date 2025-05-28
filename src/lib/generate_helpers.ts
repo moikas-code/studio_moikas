@@ -254,10 +254,10 @@ export async function add_overlay_to_image(
 
       // Set overlay style
       const font_size = Math.max(18, Math.floor(img.height * 0.04));
-      ctx.font = `bold ${font_size}px sans-serif`;
+      ctx.font = `bold ${font_size}px monospace`;
       ctx.textBaseline = "bottom";
       ctx.textAlign = "right";
-      ctx.globalAlpha = 0.8;
+      ctx.globalAlpha = 0.5;
       ctx.fillStyle = "#000";
       // Draw background for text for better visibility
       const text_width = ctx.measureText(overlay_text).width;
