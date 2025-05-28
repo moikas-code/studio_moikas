@@ -61,8 +61,8 @@ export default function Home() {
       </section>
 
       {/* Animated Demo Section */}
-      <section className="w-full min-h-[600px] md:min-h-[400px] flex flex-col items-center justify-center py-4 mt-4">
-        <div className="w-full max-w-xl h-full flex flex-col md:flex-row items-center justify-between gap-4 py-4">
+      <section className="w-full min-h-[600px] md:min-h-[400px] flex flex-col items-center justify-start md:justify-center py-4 mt-4">
+        <div className="w-full max-w-xl h-full flex flex-col-reverse md:flex-row items-center justify-between gap-4 py-4">
           {/* Simple animation: prompt to image */}
           <div className="-translate-y-1/2 flex flex-col items-center">
             <div className="bg-white dark:bg-base-200 border border-base-300 rounded-xl px-6 py-3 shadow-md text-lg font-mono animate-pulse">
