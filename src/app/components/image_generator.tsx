@@ -503,7 +503,7 @@ export default function Image_generator() {
                 id="prompt_text"
                 ref={prompt_textarea_ref}
                 className="flex-1 w-full min-h-[36px] bg-transparent outline-none text-base placeholder:text-base-400 px-2 md:px-3 font-sans font-normal border-0 focus:ring-0 focus:outline-none resize-none overflow-y-auto"
-                value={prompt_text}
+                value={is_loading ? "Building..." : prompt_text}
                 onChange={(e) => {
                   set_prompt_text(e.target.value);
                   const textarea = prompt_textarea_ref.current;
@@ -535,6 +535,7 @@ export default function Image_generator() {
                 }}
                 autoComplete="off"
                 spellCheck={true}
+                disabled={is_loading}
               />
               {/* Settings button */}
               <button
@@ -580,6 +581,13 @@ export default function Image_generator() {
           </div>
         </div>
       </div>
+      {/* Loading indicator and message */}
+      {is_loading && (
+        <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">
+          <span className="loading loading-spinner loading-lg text-jade mb-2" aria-label="Generating image" role="status"></span>
+          <span className="text-base font-semibold text-jade">AI is creating your image...</span>
+        </div>
+      )}
       {/* Main options card (settings) */}
       {show_settings && (
         <form
