@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   let plan = "free";
-  let rate;
+  
   // Fetch plan from Supabase
   const supabase = createClient(supabase_url, supabase_service_key);
   const { data: user } = await supabase
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       .single();
     if (subscription && subscription.plan) plan = subscription.plan;
   }
-  rate = await check_rate_limit(
+  const rate = await check_rate_limit(
     redis,
     userId,
     plan === "standard" ? 60 : 10,
