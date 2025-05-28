@@ -175,7 +175,7 @@ export default function Image_generator() {
     "Neonpunk",
     "3D Model",
   ];
-  const [num_inference_steps, set_num_inference_steps] = useState(18);
+  const [num_inference_steps, set_num_inference_steps] = useState(50);
   const [seed, set_seed] = useState(() => Math.floor(Math.random() * 1000000));
   const [style_name, set_style_name] = useState("(No style)");
   const [guidance_scale, set_guidance_scale] = useState(5);
