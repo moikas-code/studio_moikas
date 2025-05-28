@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
+import { Redis } from "@upstash/redis";
+import { check_rate_limit } from "@/lib/generate_helpers";
 
 const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
 const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,24 +13,67 @@ const stripe = new Stripe(stripe_secret_key, {
   apiVersion: "2025-04-30.basil",
 });
 
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
 export async function POST(req: NextRequest) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { userId } = await auth();
+  let plan = "free";
+  let rate;
+  if (userId) {
+    // Fetch plan from Supabase
+    const supabase = createClient(supabase_url, supabase_service_key);
+    const { data: user } = await supabase
+      .from("users")
+      .select("id")
+      .eq("clerk_id", userId)
+      .single();
+    if (user && user.id) {
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("plan")
+        .eq("user_id", user.id)
+        .single();
+      if (subscription && subscription.plan) plan = subscription.plan;
     }
+    rate = await check_rate_limit(
+      redis,
+      userId,
+      plan === "standard" ? 60 : 10,
+      60
+    );
+  } else {
+    // Fallback to IP-based limiting
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    rate = await check_rate_limit(redis, ip, 10, 60);
+  }
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again soon." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": rate.remaining.toString(),
+          "X-RateLimit-Reset": rate.reset.toString(),
+        },
+      }
+    );
+  }
+  try {
     const { price_id } = await req.json();
     if (!price_id) {
       return NextResponse.json({ error: "Missing price_id" }, { status: 400 });
     }
     // Fetch user from Supabase
     const supabase = createClient(supabase_url, supabase_service_key);
-    const { data: user, error: user_error } = await supabase
+    const { data: user } = await supabase
       .from("users")
       .select("id, stripe_customer_id, email")
       .eq("clerk_id", userId)
       .single();
-    if (user_error || !user) {
+    if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     if (!user.stripe_customer_id) {
@@ -38,7 +83,7 @@ export async function POST(req: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-      customer: user.stripe_customer_id,
+      customer: user.stripe_customer_id || undefined,
       line_items: [
         {
           price: price_id,

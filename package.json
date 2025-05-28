@@ -46,21 +46,22 @@
     "react-dom": "^19.1.0",
     "sharp": "^0.34.2",
     "stripe": "^18.1.1",
-    "svix": "^1.66.0"
+    "svix": "^1.66.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@tailwindcss/postcss": "^4.1.7",
-    "@types/node": "^20.17.51",
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^20.17.52",
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
     "autoprefixer": "^10.4.21",
-    "daisyui": "^5.0.38",
+    "daisyui": "^5.0.40",
     "eslint": "^9.27.0",
     "eslint-config-next": "15.3.2",
     "postcss": "^8.5.3",
     "supabase": "^2.23.4",
-    "tailwindcss": "^4.1.7",
+    "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3"
   }
 }

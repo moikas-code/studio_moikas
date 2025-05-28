@@ -1,12 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { Redis } from "@upstash/redis";
+import { check_rate_limit } from "@/lib/generate_helpers";
 
 const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
 const stripe = new Stripe(stripe_secret_key, {
   apiVersion: "2025-04-30.basil",
 });
 
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
 export async function POST(req: NextRequest) {
+  // IP-based rate limiting
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+  const rate = await check_rate_limit(redis, ip, 10, 60);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again soon." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": rate.remaining.toString(),
+          "X-RateLimit-Reset": rate.reset.toString(),
+        },
+      }
+    );
+  }
   try {
     const { product_ids } = await req.json();
     if (!Array.isArray(product_ids) || product_ids.length === 0) {

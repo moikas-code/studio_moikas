@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { Redis } from "@upstash/redis";
+import { check_rate_limit } from "@/lib/generate_helpers";
+import { auth } from "@clerk/nextjs/server";
 
 const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
 const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -10,7 +13,52 @@ const stripe = new Stripe(stripe_secret_key, {
   apiVersion: "2025-04-30.basil",
 });
 
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
 export async function POST(req: NextRequest) {
+  // Require authentication
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  let plan = "free";
+  let rate;
+  // Fetch plan from Supabase
+  const supabase = createClient(supabase_url, supabase_service_key);
+  const { data: user } = await supabase
+    .from("users")
+    .select("id")
+    .eq("clerk_id", userId)
+    .single();
+  if (user && user.id) {
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("user_id", user.id)
+      .single();
+    if (subscription && subscription.plan) plan = subscription.plan;
+  }
+  rate = await check_rate_limit(
+    redis,
+    userId,
+    plan === "standard" ? 60 : 10,
+    60
+  );
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again soon." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Remaining": rate.remaining.toString(),
+          "X-RateLimit-Reset": rate.reset.toString(),
+        },
+      }
+    );
+  }
   try {
     const { clerk_user_id, email } = await req.json();
     if (!clerk_user_id || !email) {
