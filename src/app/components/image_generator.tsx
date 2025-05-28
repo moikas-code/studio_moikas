@@ -10,14 +10,13 @@ import React, {
 } from "react";
 import { MpContext } from "../context/mp_context";
 import {
-  get_tokens_for_size,
   MODEL_OPTIONS,
   add_overlay_to_image,
   calculateGenerationMP,
 } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
-import { Brush, ChefHat, SendHorizontal, Sparkles } from "lucide-react";
+import { ChefHat, Sparkles } from "lucide-react";
 import Image_grid from "./image_grid";
 
 /**
@@ -61,7 +60,7 @@ export default function Image_generator() {
   const [is_loading, set_is_loading] = useState(false);
   const [error_message, set_error_message] = useState<string | null>(null);
 
-  const { refresh_mp, plan, mp_tokens: mana_points } = useContext(MpContext);
+  const { refresh_mp, plan } = useContext(MpContext);
 
   // State for model selection
   const [model_id, set_model_id] = useState<string>("fal-ai/sana");
@@ -113,11 +112,6 @@ export default function Image_generator() {
   function reset_aspect_index() {
     set_aspect_index(5);
   }
-
-  // Get current dimensions and tokens based on aspect ratio
-  const slider_width = preview_width;
-  const slider_height = preview_height;
-  const size_tokens_slider = get_tokens_for_size(slider_width, slider_height);
 
   // Filter models based on plan
   const available_models = MODEL_OPTIONS.filter((m) =>
@@ -409,56 +403,11 @@ export default function Image_generator() {
     transition: "all 0.3s ease",
   };
 
-  // Cost breakdown for receipt (from backend)
-  // const get_costs = () => {
-  //   if (backend_cost) {
-  //     // Only include enhancement_mp if it was used
-  //     const enhancement_mp = backend_cost > 0 ? backend_cost : 0;
-  //     return {
-  //       enhancement_mp,
-  //       images: [
-  //         {
-  //           model:
-  //             MODEL_OPTIONS.find((m) => m.value === model_id)?.name ||
-  //             model_id,
-  //           width: preview_width,
-  //           height: preview_height,
-  //           mp: mana_points_used ?? 0,
-  //         },
-  //       ],
-  //       total_mp: enhancement_mp + (mana_points_used || 0),
-  //     };
-  //   }
-  //   // fallback to local calculation if backend_cost is not set
-  //   // Only include enhancement_mp if it was used
-  //   const enhancement_mp = enhancement_count > 0 ? enhancement_count : 0;
-  //   return {
-  //     enhancement_mp,
-  //     images: image_base64.map(() => ({
-  //       model:
-  //         MODEL_OPTIONS.find((m) => m.value === model_id)?.name || model_id,
-  //       width: preview_width,
-  //       height: preview_height,
-  //       mp: get_tokens_for_size(preview_width, preview_height),
-  //     })),
-  //     total_mp:
-  //       enhancement_mp +
-  //       image_base64.length *
-  //         get_tokens_for_size(preview_width, preview_height),
-  //   };
-  // };
-
   // Keyboard shortcuts
   useEffect(() => {
     function handle_keydown(e: KeyboardEvent) {
-      if (e.ctrlKey && e.key === "Enter") {
-        e.preventDefault();
-        if (!is_loading && prompt_text.trim()) {
-          handle_generate_image(
-            new Event("submit") as unknown as React.FormEvent
-          );
-        }
-      } else if (e.ctrlKey && (e.key === "r" || e.key === "R")) {
+      // Remove Ctrl+Enter for submit, keep other shortcuts
+      if (e.ctrlKey && (e.key === "r" || e.key === "R")) {
         e.preventDefault();
         set_prompt_text("");
       } else if (e.ctrlKey && (e.key === "e" || e.key === "E")) {
@@ -563,6 +512,16 @@ export default function Image_generator() {
                     textarea.style.height = textarea.scrollHeight + "px";
                   }
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!is_loading && prompt_text.trim()) {
+                      handle_generate_image(
+                        new Event("submit") as unknown as React.FormEvent
+                      );
+                    }
+                  }
+                }}
                 placeholder={prompt_placeholder}
                 required
                 aria-required="true"
@@ -615,23 +574,6 @@ export default function Image_generator() {
                   <ChefHat className="w-6 h-6" />
                 ) : (
                   <Sparkles className="w-6 h-6" />
-                )}
-              </button>
-              {/* Submit button */}
-              <button
-                type="submit"
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-jade text-base hover:bg-jade-focus transition focus:outline-none focus:ring-2 focus:ring-jade cursor-pointer"
-                disabled={
-                  is_loading ||
-                  (typeof mana_points === "number" &&
-                    mana_points < size_tokens_slider)
-                }
-                aria-busy={is_loading}
-              >
-                {is_loading ? (
-                  <Brush className="w-6 h-6" />
-                ) : (
-                  <SendHorizontal className="w-6 h-6" />
                 )}
               </button>
             </form>
