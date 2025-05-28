@@ -46,8 +46,7 @@ export async function POST(req: NextRequest) {
     );
   } else {
     // Fallback to IP-based limiting
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    rate = await check_rate_limit(redis, ip, 10, 60);
+          return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!rate.allowed) {
     return NextResponse.json(
@@ -68,12 +67,12 @@ export async function POST(req: NextRequest) {
     }
     // Fetch user from Supabase
     const supabase = createClient(supabase_url, supabase_service_key);
-    const { data: user } = await supabase
+    const { data: user, error: user_error } = await supabase
       .from("users")
       .select("id, stripe_customer_id, email")
       .eq("clerk_id", userId)
       .single();
-    if (!user) {
+    if (user_error || !user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     if (!user.stripe_customer_id) {
@@ -81,8 +80,9 @@ export async function POST(req: NextRequest) {
     }
     // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
       mode: "payment",
-      ...(user.stripe_customer_id ? { customer: user.stripe_customer_id } : {}),
+      customer: user.stripe_customer_id || undefined,
       line_items: [
         {
           price: price_id,
@@ -90,8 +90,12 @@ export async function POST(req: NextRequest) {
         },
       ],
       client_reference_id: userId,
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/buy-tokens?success=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/buy-tokens?canceled=1`,
+      success_url: `${
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+      }/buy-tokens?success=1`,
+      cancel_url: `${
+        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+      }/buy-tokens?canceled=1`,
       metadata: { price_id },
     });
     return NextResponse.json({ url: session.url });
