@@ -84,9 +84,9 @@ export default function Video_effects_page() {
     set_loading(true);
     set_error("");
     set_video_url("");
-    // Black 1x1 PNG data URL
+    // Public black PNG URL
     const black_placeholder =
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=";
+      "https://via.placeholder.com/512x512/000000/000000.png";
     let final_image_url = image_url;
     try {
       if (image_source === "upload" && image_file) {
