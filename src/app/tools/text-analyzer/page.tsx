@@ -138,7 +138,7 @@ export default function Text_analyzer_page() {
           className="btn btn-primary w-full text-lg mt-2"
           disabled={loading || out_of_tokens}
         >
-          {loading ? "Processing..." : "✨ Generate"}
+          {loading ? "Processing..." : "✨ Generate (25 MP)"}
         </button>
       </form>
       {error && <div className="text-error mt-4 text-center">{error}</div>}
