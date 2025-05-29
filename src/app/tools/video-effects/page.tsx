@@ -84,6 +84,9 @@ export default function Video_effects_page() {
     set_loading(true);
     set_error("");
     set_video_url("");
+    // Black 1x1 PNG data URL
+    const black_placeholder =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=";
     let final_image_url = image_url;
     try {
       if (image_source === "upload" && image_file) {
@@ -96,6 +99,10 @@ export default function Video_effects_page() {
         const upload_data = await upload_res.json();
         if (!upload_res.ok) throw new Error(upload_data.error || "Image upload failed");
         final_image_url = upload_data.url;
+      }
+      // If model requires image and no image provided, use black placeholder
+      if (selected_model?.is_image_to_video && !final_image_url) {
+        final_image_url = black_placeholder;
       }
       // Parse prompt for negative prompt
       let main_prompt = prompt;
