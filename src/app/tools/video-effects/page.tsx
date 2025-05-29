@@ -26,6 +26,7 @@ export default function Video_effects_page() {
   const [model_id, set_model_id] = useState(VIDEO_MODELS[0].value);
   const selected_model = VIDEO_MODELS.find(m => m.value === model_id);
   const [video_duration, set_video_duration] = useState(5);
+  const [enhancing, set_enhancing] = useState(false);
 
   useEffect(() => {
     set_window_width(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -81,6 +82,28 @@ export default function Video_effects_page() {
       set_error(err instanceof Error ? err.message : String(err));
     } finally {
       set_loading(false);
+    }
+  }
+
+  async function handle_enhance_prompt() {
+    if (!prompt.trim()) return;
+    set_enhancing(true);
+    try {
+      const res = await fetch("/api/enhance-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      if (res.ok && data.enhanced_prompt) {
+        set_prompt(data.enhanced_prompt);
+      } else {
+        set_error(data.error || "Failed to enhance prompt");
+      }
+    } catch (err) {
+      set_error(err instanceof Error ? err.message : String(err));
+    } finally {
+      set_enhancing(false);
     }
   }
 
@@ -146,6 +169,15 @@ export default function Video_effects_page() {
                     textarea.style.height = textarea.scrollHeight + "px";
                   }
                 }}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    // Only submit if not loading/enhancing and prompt is not empty
+                    if (!loading && !enhancing && prompt.trim()) {
+                      handle_generate(e as unknown as React.FormEvent);
+                    }
+                  }
+                }}
                 placeholder={"Describe your video..."}
                 required
                 aria-required="true"
@@ -154,8 +186,19 @@ export default function Video_effects_page() {
                 style={{ lineHeight: "1.6", background: "none", boxShadow: "none", overflow: "hidden" }}
                 autoComplete="off"
                 spellCheck={true}
-                disabled={loading}
+                disabled={loading || enhancing}
               />
+              {/* Enhance Prompt button */}
+              <button
+                type="button"
+                className="btn btn-outline btn-sm ml-2 flex-shrink-0"
+                style={{ minWidth: 110 }}
+                onClick={handle_enhance_prompt}
+                disabled={enhancing || loading || !prompt.trim()}
+                aria-label="Enhance prompt"
+              >
+                {enhancing ? "Enhancing..." : "Enhance Prompt"}
+              </button>
               {/* Settings button */}
               <button
                 type="button"
