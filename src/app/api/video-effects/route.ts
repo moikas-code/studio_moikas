@@ -15,6 +15,11 @@ import fetch from "node-fetch";
 // Node.js 20+ has global File; if not, install 'undici' and import File from it.
 // import { File } from "undici";
 
+interface FalQueueUpdate {
+  status: string;
+  logs?: { message: string }[];
+}
+
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
@@ -41,7 +46,11 @@ function generate_video_job_cache_key(
 }
 
 // Helper to upload a buffer as a File to FAL.AI
-async function upload_buffer_to_fal(buffer: Buffer, filename: string, mime_type: string) {
+async function upload_buffer_to_fal(
+  buffer: Buffer,
+  filename: string,
+  mime_type: string
+) {
   const file = new File([buffer], filename, { type: mime_type });
   return await fal.storage.upload(file);
 }
@@ -63,7 +72,8 @@ export async function POST(req: NextRequest) {
   let user_id_for_refund: string | null = null;
   try {
     const { userId } = await auth();
-    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!userId)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const {
@@ -75,12 +85,22 @@ export async function POST(req: NextRequest) {
       duration = 5,
       image_file_base64 = "", // Optionally support base64-encoded file
     } = body;
-    if (!prompt || !SUPPORTED_ASPECTS[aspect as keyof typeof SUPPORTED_ASPECTS] || !model_id) {
-      return NextResponse.json({ error: "Missing or invalid input." }, { status: 400 });
+    if (
+      !prompt ||
+      !SUPPORTED_ASPECTS[aspect as keyof typeof SUPPORTED_ASPECTS] ||
+      !model_id
+    ) {
+      return NextResponse.json(
+        { error: "Missing or invalid input." },
+        { status: 400 }
+      );
     }
     const selected_model = VIDEO_MODELS.find((m) => m.value === model_id);
     if (!selected_model) {
-      return NextResponse.json({ error: "Invalid model selected." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid model selected." },
+        { status: 400 }
+      );
     }
 
     // Generate cache key and check Redis for existing job
@@ -155,9 +175,12 @@ export async function POST(req: NextRequest) {
         error: error instanceof Error ? error.message : "Insufficient tokens",
         timestamp: new Date().toISOString(),
       });
-      return NextResponse.json({
-        error: error instanceof Error ? error.message : "Insufficient tokens",
-      }, { status: 402 });
+      return NextResponse.json(
+        {
+          error: error instanceof Error ? error.message : "Insufficient tokens",
+        },
+        { status: 402 }
+      );
     }
 
     // --- Robust image handling for FAL.AI ---
@@ -166,10 +189,14 @@ export async function POST(req: NextRequest) {
       if (image_file_base64) {
         // 1. User uploaded a file (base64-encoded)
         const buffer = Buffer.from(image_file_base64, "base64");
-        final_image_url = await upload_buffer_to_fal(buffer, "user_upload.png", "image/png");
+        final_image_url = await upload_buffer_to_fal(
+          buffer,
+          "user_upload.png",
+          "image/png"
+        );
       } else if (image_url && image_url.startsWith("http")) {
         // 2. User provided a URL (use directly, or optionally upload to FAL.AI for reliability)
-         final_image_url = await upload_remote_image_to_fal(image_url);
+        final_image_url = await upload_remote_image_to_fal(image_url);
         // final_image_url = image_url;
       } else {
         // 3. No image: use black PNG placeholder, upload to FAL.AI
@@ -177,7 +204,11 @@ export async function POST(req: NextRequest) {
           "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=",
           "base64"
         );
-        final_image_url = await upload_buffer_to_fal(black_png_buffer, "black.png", "image/png");
+        final_image_url = await upload_buffer_to_fal(
+          black_png_buffer,
+          "black.png",
+          "image/png"
+        );
       }
     }
 
@@ -188,11 +219,18 @@ export async function POST(req: NextRequest) {
         input: {
           prompt,
           negative_prompt,
-          ...(selected_model.is_image_to_video && { image_url: final_image_url }),
+          ...(selected_model.is_image_to_video && {
+            image_url: final_image_url,
+          }),
           aspect_ratio: aspect,
           duration,
         },
-        logs: false,
+        logs: true,
+        onQueueUpdate: (update: FalQueueUpdate) => {
+          if (update.status === "IN_PROGRESS" && update.logs) {
+            update.logs.map((log) => log.message).forEach(console.log);
+          }
+        },
       });
       // Type-safe extraction of job_id
       if (
@@ -223,7 +261,10 @@ export async function POST(req: NextRequest) {
         error: err instanceof Error ? err.message : String(err),
         timestamp: new Date().toISOString(),
       });
-      return NextResponse.json({ error: "Failed to start video job" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to start video job" },
+        { status: 500 }
+      );
     }
     // Store job in Supabase
     try {
@@ -257,7 +298,10 @@ export async function POST(req: NextRequest) {
         error: err instanceof Error ? err.message : String(err),
         timestamp: new Date().toISOString(),
       });
-      return NextResponse.json({ error: "Failed to record video job" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to record video job" },
+        { status: 500 }
+      );
     }
     // Cache the job metadata
     const cache_value = JSON.stringify({
