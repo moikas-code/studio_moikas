@@ -11,6 +11,7 @@ import { track } from "@vercel/analytics/server";
 import { fal } from "@fal-ai/client";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
+import fetch from "node-fetch";
 // Node.js 20+ has global File; if not, install 'undici' and import File from it.
 // import { File } from "undici";
 
@@ -45,8 +46,14 @@ async function upload_buffer_to_fal(buffer: Buffer, filename: string, mime_type:
   return await fal.storage.upload(file);
 }
 
-// If you want to always upload remote URLs to FAL.AI, uncomment and use this helper:
-// async function upload_remote_image_to_fal(url: string) { ... }
+// Helper to fetch a remote image and upload to FAL.AI
+async function upload_remote_image_to_fal(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch remote image: ${url}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const content_type = res.headers.get("content-type") || "image/png";
+  return await upload_buffer_to_fal(buffer, "remote_image.png", content_type);
+}
 
 export async function POST(req: NextRequest) {
   // --- Refund mechanism variables ---
@@ -162,8 +169,8 @@ export async function POST(req: NextRequest) {
         final_image_url = await upload_buffer_to_fal(buffer, "user_upload.png", "image/png");
       } else if (image_url && image_url.startsWith("http")) {
         // 2. User provided a URL (use directly, or optionally upload to FAL.AI for reliability)
-        // Optionally: final_image_url = await upload_remote_image_to_fal(image_url);
-        final_image_url = image_url;
+         final_image_url = await upload_remote_image_to_fal(image_url);
+        // final_image_url = image_url;
       } else {
         // 3. No image: use black PNG placeholder, upload to FAL.AI
         const black_png_buffer = Buffer.from(
