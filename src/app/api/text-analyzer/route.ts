@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       model_options: { model: "grok-3-mini-latest" },
     });
     return NextResponse.json({ result });
-  } catch (err) {
+  } catch  {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 } 
