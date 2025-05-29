@@ -40,11 +40,11 @@ export async function POST(req: NextRequest) {
     }
     const body = await req.json();
     const {
-      prompt,
+      prompt="",
       negative_prompt = "",
-      image_url,
-      aspect,
-      model_id,
+      image_url="",
+      aspect="16:9",
+      model_id="fal-ai/kling-video/v2.1/master/text-to-video",
       duration = 5,
     } = body;
     if (
