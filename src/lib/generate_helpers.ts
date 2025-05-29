@@ -102,8 +102,24 @@ export const MODEL_OPTIONS = [
 
 export const VIDEO_MODELS = [
   {
+    value: "fal-ai/kling-video/v2.1/standard/image-to-video",
+    name: "Kling Video v2.1 [image]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.05,
+    is_image_to_video: true,
+  },
+  {
+    value: "fal-ai/kling-video/v2.1/pro/image-to-video",
+    name: "Kling Video v2.1 Pro [image]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.09,
+    is_image_to_video: true,
+  },
+  {
     value: "fal-ai/kling-video/v2.1/master/text-to-video",
-    name: "Kling Video v2.1",
+    name: "Kling Video v2.1 Premium",
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.28,
@@ -112,7 +128,7 @@ export const VIDEO_MODELS = [
   },
   {
     value: "fal-ai/kling-video/v2.1/master/image-to-video",
-    name: "Kling Video v2.1 [image]",
+    name: "Kling Video v2.1 Premium [image]",
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.28,
