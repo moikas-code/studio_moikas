@@ -10,13 +10,7 @@ import { track } from "@vercel/analytics/server";
 import { fal } from "@fal-ai/client";
 import { v4 as uuidv4 } from "uuid";
 import fetch from "node-fetch";
-// Node.js 20+ has global File; if not, install 'undici' and import File from it.
-// import { File } from "undici";
 
-interface FalQueueUpdate {
-  status: string;
-  logs?: { message: string }[];
-}
 
 const SUPPORTED_ASPECTS = {
   "16:9": { width: 1280, height: 720 },

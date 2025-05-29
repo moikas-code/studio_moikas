@@ -222,6 +222,14 @@ export const VIDEO_MODELS = [
     is_image_to_video: false,
   },
   {
+    value: "fal-ai/kling-video/v1.6/pro/text-to-video",
+    name: "Kling Video v1.6 Pro",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.09,
+    is_image_to_video: false,
+  },
+  {
     value: "fal-ai/kling-video/v2.1/standard/image-to-video",
     name: "Kling Video v2.1 [image]",
     manaPoints: 1,
