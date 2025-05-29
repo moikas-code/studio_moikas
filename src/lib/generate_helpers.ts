@@ -210,7 +210,7 @@ export const VIDEO_MODELS = [
     name: "VEO2 Pro",
     manaPoints: 1,
     costPerMP: 0.001,
-    customCost: 0.09,
+    customCost: 0.9,
     is_image_to_video: false,
   },
   {
