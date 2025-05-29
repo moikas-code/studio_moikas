@@ -232,7 +232,7 @@ function FeedbackMenu({ open, on_close }: { open: boolean; on_close: () => void 
         </button>
         <div className="px-8 pt-8 pb-6">
           <h2 className="text-xl font-semibold mb-1">Leave Feedback</h2>
-          <p className="text-base text-base-500 mb-4">We'd love to hear what went well or how we can improve the product experience.</p>
+          <p className="text-base text-base-500 mb-4">We&apos;d love to hear what went well or how we can improve the product experience.</p>
           {submitted ? (
             <div className="text-success font-semibold text-center py-6">Thank you for your feedback!</div>
           ) : (
