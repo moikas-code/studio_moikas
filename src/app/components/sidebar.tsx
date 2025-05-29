@@ -84,6 +84,17 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
               </Link>
             </li>
             {/* Add more tool links here as needed */}
+            <li>
+              <Link
+                href="/tools/text-analyzer"
+                className="justify-start"
+                aria-label="Image Generator tool"
+              >
+                <span className="text-base font-medium text-md">
+                  Text Analyzer
+                </span>
+              </Link>
+            </li>
           </ul>
         </nav>
         <div className="p-6 border-b border-base-300">

@@ -26,6 +26,12 @@ export default function Tools_home_page() {
         <div className="alert alert-info bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200">
           <span>Use the sidebar to access available tools like the Image Generator.</span>
         </div>
+        <a
+          href="/tools/text-analyzer"
+          className="btn btn-outline btn-primary w-full mt-2"
+        >
+          Text Analyzer (Scripts, Descriptions, Tweets, Bios, Summaries, Quizzes)
+        </a>
       </div>
     </div>
     </Protect>
