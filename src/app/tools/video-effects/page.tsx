@@ -23,8 +23,8 @@ export default function Video_effects_page() {
   const prompt_input_ref = useRef<HTMLDivElement>(null);
   const [prompt_input_height, set_prompt_input_height] = useState(0);
   const [window_width, set_window_width] = useState(1200);
-  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS);
-  const [model_id, set_model_id] = useState(sorted_video_models[0].value);
+  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS).filter(m => !m.is_image_to_video);
+  const [model_id, set_model_id] = useState(sorted_video_models[0]?.value || "");
   const selected_model = sorted_video_models.find(m => m.value === model_id);
   const [video_duration, set_video_duration] = useState(5);
   const [enhancing, set_enhancing] = useState(false);
