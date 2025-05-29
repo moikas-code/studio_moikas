@@ -12,9 +12,7 @@ export async function POST(req: NextRequest) {
     if (!file || typeof file === "string" || !("arrayBuffer" in file)) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
-    fal.config({
-      credentials: process.env.FAL_API_KEY,
-    });
+
 
     // file is already a File in Next.js API routes
     const url = await fal.storage.upload(file as File);
