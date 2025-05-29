@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useContext } from "react";
 import { MpContext } from "../../components/../context/mp_context";
+import jsPDF from "jspdf";
 
 const FEATURES = [
   { value: "script", label: "Generate Script" },
@@ -68,9 +69,44 @@ export default function Text_analyzer_page() {
     }
   };
 
+  // Download handlers
+  const handle_download_text = () => {
+    if (!result) return;
+    const blob = new Blob([result], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "text-analyzer-result.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handle_download_md = () => {
+    if (!result) return;
+    const blob = new Blob([result], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "text-analyzer-result.md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handle_download_pdf = () => {
+    if (!result) return;
+    const doc = new jsPDF();
+    const lines = doc.splitTextToSize(result, 180);
+    doc.text(lines, 10, 10);
+    doc.save("text-analyzer-result.pdf");
+  };
+
   return (
     <div className="max-w-xl mx-auto py-10 px-4">
-      <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content. Instantly.</h1>
+      <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content. Today.</h1>
       <p className="text-lg text-center mb-8 text-gray-600 dark:text-gray-300">
         Generate scripts, product descriptions, video descriptions, tweets, bios, summaries, outlines, and quizzes from any PDF, website, or topic. Our AI helps you create and learn effectively.
       </p>
@@ -144,7 +180,18 @@ export default function Text_analyzer_page() {
       {error && <div className="text-error mt-4 text-center">{error}</div>}
       {result && (
         <div className="mt-6 p-4 bg-base-100 border border-base-300 rounded">
-          <h2 className="font-semibold mb-2">Result</h2>
+          {/* <h2 className="font-semibold mb-2">Result</h2> */}
+          <div className="flex flex-row gap-2 mb-4">
+            <button className="btn btn-outline btn-sm" onClick={handle_download_pdf}>
+              Download as PDF
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={handle_download_text}>
+              Download as Text
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={handle_download_md}>
+              Download as Markdown
+            </button>
+          </div>
           <pre className="whitespace-pre-wrap text-sm">{result}</pre>
         </div>
       )}
