@@ -95,6 +95,15 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 </span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="/tools/video-effects"
+                className="justify-start"
+                aria-label="Video Generator tool"
+              >
+                <span className="text-base font-medium text-md">Video Generator</span>
+              </Link>
+            </li>
           </ul>
         </nav>
         <div className="p-6 border-b border-base-300">
