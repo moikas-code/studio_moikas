@@ -100,6 +100,27 @@ export const MODEL_OPTIONS = [
   },
 ];
 
+export const VIDEO_MODELS = [
+  {
+    value: "fal-ai/kling-video/v2.1/master/text-to-video",
+    name: "Kling Video v2.1",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.28,
+    is_image_to_video: false,
+    plans: ["free", "standard"],
+  },
+  {
+    value: "fal-ai/kling-video/v2.1/master/image-to-video",
+    name: "Kling Video v2.1 [image]",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.28,
+    is_image_to_video: true,
+    plans: ["free", "standard"],
+  },
+];
+
 // Export standard model IDs for use elsewhere
 export const STANDARD_MODEL_IDS = MODEL_OPTIONS.filter((m) =>
   m.plans.includes("standard")
@@ -298,11 +319,14 @@ export function log_event(
 }
 
 // Define types for clarity and type safety
-interface Model {
+export interface Model {
   name: string;
   manaPoints: number; // MP required per generation
   costPerMP: number; // Cost per MP in dollars (default $0.001)
   customCost?: number; // Optional: Override with a fixed cost per generation
+  value: string;
+  plans?: string[];
+  is_image_to_video?: boolean;
 }
 
 // Renamed to clarify it returns MP, not $
