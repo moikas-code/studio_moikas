@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     } = body;
     if (
       !prompt ||
-      !image_url ||
+      
       !SUPPORTED_ASPECTS[aspect as keyof typeof SUPPORTED_ASPECTS] ||
       !model_id
     ) {
