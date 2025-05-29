@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { VIDEO_MODELS } from "@/lib/generate_helpers";
+import { VIDEO_MODELS, sort_models_by_cost } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import CostDisplay from "./CostDisplay";
+import { saveJobState, loadJobState, clearJobState } from "./jobStorage";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9" },
@@ -23,10 +24,13 @@ export default function Video_effects_page() {
   const prompt_input_ref = useRef<HTMLDivElement>(null);
   const [prompt_input_height, set_prompt_input_height] = useState(0);
   const [window_width, set_window_width] = useState(1200);
-  const [model_id, set_model_id] = useState(VIDEO_MODELS[0].value);
-  const selected_model = VIDEO_MODELS.find(m => m.value === model_id);
+  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS);
+  const [model_id, set_model_id] = useState(sorted_video_models[0].value);
+  const selected_model = sorted_video_models.find(m => m.value === model_id);
   const [video_duration, set_video_duration] = useState(5);
   const [enhancing, set_enhancing] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobVideoUrl, setJobVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     set_window_width(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -42,6 +46,30 @@ export default function Video_effects_page() {
       set_prompt_input_height(prompt_input_ref.current.offsetHeight);
     }
   }, [prompt, window_width]);
+
+  useEffect(() => {
+    const saved = loadJobState();
+    if (saved) {
+      setJobId(saved.jobId);
+      setJobVideoUrl(saved.jobVideoUrl);
+      // Optionally restore form state here
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!jobId) return;
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/video-effects/status?job_id=${jobId}`);
+      const data = await res.json();
+      setJobVideoUrl(data.video_url || null);
+      saveJobState({ jobId, jobVideoUrl: data.video_url });
+      if (data.status === "done" || data.status === "error") {
+        clearInterval(interval);
+        if (data.status === "done") clearJobState();
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [jobId]);
 
   async function handle_generate(e: React.FormEvent) {
     e.preventDefault();
@@ -76,8 +104,9 @@ export default function Video_effects_page() {
         body: JSON.stringify({ prompt: main_prompt, negative_prompt, image_url: final_image_url, aspect, model_id, duration: video_duration }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate video");
-      set_video_url(data.video_url);
+      setJobId(data.job_id);
+      setJobVideoUrl(null);
+      saveJobState({ jobId: data.job_id, jobVideoUrl: null });
     } catch (err: unknown) {
       set_error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -124,7 +153,7 @@ export default function Video_effects_page() {
   // Placeholder for aspect ratio preview
   const aspect_label = ASPECT_OPTIONS.find(a => a.value === aspect)?.label || aspect;
   const preview_width = aspect === "16:9" ? 112 : 63;
-  const preview_height = aspect === "16:9" ? 63 : 112;
+  const preview_height = aspect === "9:16" ? 63 : 112;
   const placeholder_style = {
     width: `${preview_width}px`,
     height: `${preview_height}px`,
@@ -264,7 +293,7 @@ export default function Video_effects_page() {
                 onChange={e => set_model_id(e.target.value)}
                 aria-label="Select model"
               >
-                {VIDEO_MODELS.map(model => (
+                {sorted_video_models.map(model => (
                   <option key={model.value} value={model.value}>{model.name}</option>
                 ))}
               </select>
@@ -380,11 +409,11 @@ export default function Video_effects_page() {
       {/* Error message (always below menu/input) */}
       {error && <div className="alert alert-error mt-4">{error}</div>}
       {/* Result display */}
-      {video_url && (
+      {jobVideoUrl && (
         <div className="w-full max-w-2xl mx-auto mt-8 bg-base-900 rounded-xl border border-base-300 shadow-lg p-0 flex flex-col items-center">
-          <video src={video_url} controls className="w-full max-w-md rounded shadow m-4" />
+          <video src={jobVideoUrl} controls className="w-full max-w-md rounded shadow m-4" />
           <div className="flex gap-2 mb-4">
-            <a href={video_url} download className="btn btn-success">Download Video</a>
+            <a href={jobVideoUrl} download className="btn btn-success">Download Video</a>
             <button className="btn btn-outline" onClick={handle_copy}>Copy Link</button>
           </div>
         </div>

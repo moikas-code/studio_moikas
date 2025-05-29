@@ -32,6 +32,12 @@ const FREE_MODELS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.001,
+    is_image_to_image: false,
+    is_size_configurable: true,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -40,6 +46,12 @@ const FREE_MODELS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.0025,
+    is_image_to_image: false,
+    is_size_configurable: true,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -48,6 +60,12 @@ const FREE_MODELS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.003,
+    is_image_to_image: false,
+    is_size_configurable: true,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 0,
+    max_steps: 0,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -56,6 +74,12 @@ const FREE_MODELS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.005,
+    is_image_to_image: false,
+    is_size_configurable: true,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 0,
+    max_steps: 0,
+    max_images: 4,
     plans: ["free", "standard"],
   },
 ];
@@ -72,6 +96,12 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.04,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -80,6 +110,12 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.025,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -88,6 +124,12 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.06,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
   {
@@ -96,11 +138,81 @@ export const MODEL_OPTIONS = [
     manaPoints: 1,
     costPerMP: 0.001,
     customCost: 0.05,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
+    plans: ["free", "standard"],
+  },
+  {
+    value: "fal-ai/flux-pro/kontext/text-to-image",
+    name: "FLUX.1.1 Pro Kontext",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.04,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: [
+      "1:1",
+      "16:9",
+      "9:16",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "21:9",
+      "9:21",
+    ],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
+    plans: ["free", "standard"],
+  },
+  {
+    value: "fal-ai/flux-pro/kontext/max/text-to-image",
+    name: "FLUX.1.1 Pro Kontext Max",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.08,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: [
+      "1:1",
+      "16:9",
+      "9:16",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "21:9",
+      "9:21",
+    ],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
     plans: ["free", "standard"],
   },
 ];
 
 export const VIDEO_MODELS = [
+  {
+    value: "fal-ai/veo2",
+    name: "VEO2",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.5,
+    is_image_to_video: false,
+  },
+  {
+    value: "fal-ai/veo2/pro",
+    name: "VEO2 Pro",
+    manaPoints: 1,
+    costPerMP: 0.001,
+    customCost: 0.09,
+    is_image_to_video: false,
+  },
   {
     value: "fal-ai/kling-video/v2.1/standard/image-to-video",
     name: "Kling Video v2.1 [image]",
@@ -353,4 +465,15 @@ export function calculateGenerationMP(model: Model): number {
   }
   // Return MP directly for non-custom cost
   return model.manaPoints;
+}
+
+/**
+ * Sort models by custom cost (ascending). Fallback to costPerMP if customCost is undefined.
+ */
+export function sort_models_by_cost(models: Model[]): Model[] {
+  return models.slice().sort((a, b) => {
+    const cost_a = a.customCost !== undefined ? a.customCost : a.costPerMP;
+    const cost_b = b.customCost !== undefined ? b.customCost : b.costPerMP;
+    return cost_a - cost_b;
+  });
 }
