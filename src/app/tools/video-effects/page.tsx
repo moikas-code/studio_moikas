@@ -28,6 +28,9 @@ export default function Video_effects_page() {
   const selected_model = sorted_video_models.find(m => m.value === model_id);
   const [video_duration, set_video_duration] = useState(5);
   const [enhancing, set_enhancing] = useState(false);
+  const [job_id, set_job_id] = useState<string | null>(null);
+  // Derived state: job in progress
+  const job_in_progress = !!job_id && !video_url;
 
   useEffect(() => {
     set_window_width(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -39,6 +42,28 @@ export default function Video_effects_page() {
   }, []);
 
   useEffect(() => {
+    if (!job_id) return;
+    set_error("");
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/video-effects/status?job_id=${job_id}`);
+        const data = await res.json();
+        if (data.status === "done" && data.video_url) {
+          set_video_url(data.video_url);
+          clearInterval(interval);
+        } else if (data.status === "error") {
+          set_error("Video generation failed.");
+          clearInterval(interval);
+        }
+      } catch {
+        set_error("Failed to check job status.");
+        clearInterval(interval);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [job_id]);
+
+  useEffect(() => {
     if (prompt_input_ref.current) {
       set_prompt_input_height(prompt_input_ref.current.offsetHeight);
     }
@@ -46,9 +71,11 @@ export default function Video_effects_page() {
 
   async function handle_generate(e: React.FormEvent) {
     e.preventDefault();
+    if (job_in_progress) return; // Prevent new submission if job in progress
     set_loading(true);
     set_error("");
     set_video_url("");
+    set_job_id(null);
     // Public black PNG URL
     const black_placeholder = "https://placehold.co/600x400/000000/000";
     let final_image_url = image_url;
@@ -82,20 +109,19 @@ export default function Video_effects_page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: main_prompt, negative_prompt, image_url: final_image_url, aspect, model_id, duration: video_duration }),
       });
+      const text = await res.text();
       let data;
       try {
-        data = await res.json();
+        data = JSON.parse(text);
       } catch {
-        // If parsing fails, fallback to text
-        const text = await res.text();
         set_error(text || "Unknown error occurred");
         set_loading(false);
         return;
       }
-      if (res.ok && data.video_url) {
-        set_video_url(data.video_url);
+      if (res.ok && data.job_id) {
+        set_job_id(data.job_id);
       } else {
-        set_error(data.error || "Failed to generate video");
+        set_error(data.error || "Failed to start video job");
       }
     } catch (err: unknown) {
       set_error(err instanceof Error ? err.message : String(err));
@@ -206,8 +232,8 @@ export default function Video_effects_page() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    // Only submit if not loading/enhancing and prompt is not empty
-                    if (!loading && !enhancing && prompt.trim()) {
+                    // Only submit if not loading/enhancing and prompt is not empty and no job in progress
+                    if (!loading && !enhancing && prompt.trim() && !job_in_progress) {
                       handle_generate(e as unknown as React.FormEvent);
                     }
                   }
@@ -225,7 +251,7 @@ export default function Video_effects_page() {
                 }}
                 autoComplete="off"
                 spellCheck={true}
-                disabled={loading || enhancing}
+                disabled={loading || enhancing || job_in_progress}
               />
               {/* Enhance Prompt button */}
               <button
@@ -233,7 +259,7 @@ export default function Video_effects_page() {
                 className="btn btn-outline btn-sm ml-2 flex-shrink-0"
                 style={{ minWidth: 110 }}
                 onClick={handle_enhance_prompt}
-                disabled={enhancing || loading || !prompt.trim()}
+                disabled={enhancing || loading || !prompt.trim() || job_in_progress}
                 aria-label="Enhance prompt"
               >
                 {enhancing ? "Enhancing..." : "Enhance Prompt"}
@@ -263,6 +289,17 @@ export default function Video_effects_page() {
           </div>
         </div>
       </div>
+      {/* Progress bar and message when job in progress */}
+      {job_in_progress && (
+        <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">
+          <div className="w-full max-w-md h-2 bg-base-300 rounded-full overflow-hidden mb-2">
+            <div className="h-full bg-jade animate-pulse" style={{ width: '100%' }}></div>
+          </div>
+          <span className="text-base font-semibold text-jade">
+            Your video is being generated. Please wait for it to finish before starting a new one.
+          </span>
+        </div>
+      )}
       {/* Loading indicator and message */}
       {loading && (
         <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">

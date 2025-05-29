@@ -151,10 +151,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Start FAL.AI job and wait for result (no need to store job_id for polling)
-    let fal_result;
+    // Submit FAL.AI job and return job_id immediately
+    let job_id: string;
     try {
-      fal_result = await fal.subscribe(model_id, {
+      const falRes = await fal.queue.submit(model_id, {
         input: {
           prompt,
           ...(negative_prompt.length > 0 && { negative_prompt }),
@@ -164,13 +164,8 @@ export async function POST(req: NextRequest) {
           aspect_ratio: aspect,
           duration: duration.toString(),
         },
-        logs: true,
-        onQueueUpdate: (update: FalQueueUpdate) => {
-          if (update.status === "IN_PROGRESS" && update.logs) {
-            update.logs.map((log) => log.message).forEach(console.log);
-          }
-        },
       });
+      job_id = falRes.request_id;
     } catch (err) {
       // --- Refund tokens if job creation fails ---
       if (tokens_deducted && user_id_for_refund) {
@@ -199,8 +194,8 @@ export async function POST(req: NextRequest) {
       await supabase.from("video_jobs").insert({
         id: uuidv4(),
         user_id: user_row.id,
-        job_id: fal_result?.requestId || uuidv4(),
-        status: "done",
+        job_id,
+        status: "pending",
         prompt,
         negative_prompt,
         model_id,
@@ -236,15 +231,11 @@ export async function POST(req: NextRequest) {
       model_id,
       aspect,
       duration,
-      job_id: fal_result?.requestId,
+      job_id,
       timestamp: new Date().toISOString(),
     });
-    // Return the video result directly to the client
-    return NextResponse.json({
-      video_url: fal_result?.data?.video?.url || null,
-      status: "done",
-      job_id: fal_result?.requestId || null,
-    });
+    // Return only the job_id and pending status
+    return NextResponse.json({ job_id, status: "pending" });
   } catch (err) {
     // --- Refund tokens if any other error occurs after deduction ---
     if (tokens_deducted && user_id_for_refund) {
