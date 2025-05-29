@@ -11,6 +11,8 @@ import { track } from "@vercel/analytics/server";
 import { fal } from "@fal-ai/client";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
+// Node.js 20+ has global File; if not, install 'undici' and import File from it.
+// import { File } from "undici";
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -37,6 +39,15 @@ function generate_video_job_cache_key(
   return `videojob:${user_id}:${model_id}:${hash}`;
 }
 
+// Helper to upload a buffer as a File to FAL.AI
+async function upload_buffer_to_fal(buffer: Buffer, filename: string, mime_type: string) {
+  const file = new File([buffer], filename, { type: mime_type });
+  return await fal.storage.upload(file);
+}
+
+// If you want to always upload remote URLs to FAL.AI, uncomment and use this helper:
+// async function upload_remote_image_to_fal(url: string) { ... }
+
 export async function POST(req: NextRequest) {
   // --- Refund mechanism variables ---
   let previous_renewable_tokens = 0;
@@ -55,6 +66,7 @@ export async function POST(req: NextRequest) {
       aspect = "16:9",
       model_id = "fal-ai/kling-video/v2.1/master/text-to-video",
       duration = 5,
+      image_file_base64 = "", // Optionally support base64-encoded file
     } = body;
     if (!prompt || !SUPPORTED_ASPECTS[aspect as keyof typeof SUPPORTED_ASPECTS] || !model_id) {
       return NextResponse.json({ error: "Missing or invalid input." }, { status: 400 });
@@ -140,6 +152,28 @@ export async function POST(req: NextRequest) {
         error: error instanceof Error ? error.message : "Insufficient tokens",
       }, { status: 402 });
     }
+
+    // --- Robust image handling for FAL.AI ---
+    let final_image_url = image_url;
+    if (selected_model.is_image_to_video) {
+      if (image_file_base64) {
+        // 1. User uploaded a file (base64-encoded)
+        const buffer = Buffer.from(image_file_base64, "base64");
+        final_image_url = await upload_buffer_to_fal(buffer, "user_upload.png", "image/png");
+      } else if (image_url && image_url.startsWith("http")) {
+        // 2. User provided a URL (use directly, or optionally upload to FAL.AI for reliability)
+        // Optionally: final_image_url = await upload_remote_image_to_fal(image_url);
+        final_image_url = image_url;
+      } else {
+        // 3. No image: use black PNG placeholder, upload to FAL.AI
+        const black_png_buffer = Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=",
+          "base64"
+        );
+        final_image_url = await upload_buffer_to_fal(black_png_buffer, "black.png", "image/png");
+      }
+    }
+
     // Start FAL.AI job (async, don't wait for result)
     let job_id: string;
     try {
@@ -147,7 +181,7 @@ export async function POST(req: NextRequest) {
         input: {
           prompt,
           negative_prompt,
-          ...(selected_model.is_image_to_video && { image_url }),
+          ...(selected_model.is_image_to_video && { image_url: final_image_url }),
           aspect_ratio: aspect,
           duration,
         },
@@ -226,7 +260,7 @@ export async function POST(req: NextRequest) {
       aspect,
       duration,
       prompt,
-      image_url,
+      image_url: final_image_url,
       created_at: new Date().toISOString(),
     });
     try {
