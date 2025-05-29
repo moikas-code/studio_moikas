@@ -49,9 +49,17 @@ export default function Video_effects_page() {
 
   useEffect(() => {
     const saved = loadJobState();
-    if (saved) {
-      setJobId(saved.jobId);
-      setJobVideoUrl(saved.jobVideoUrl);
+    if (
+      saved &&
+      typeof saved === "object" &&
+      saved !== null &&
+      "jobId" in saved &&
+      typeof (saved as Record<string, unknown>).jobId === "string"
+    ) {
+      setJobId((saved as Record<string, string>).jobId);
+      if ("jobVideoUrl" in saved && typeof (saved as Record<string, unknown>).jobVideoUrl === "string") {
+        setJobVideoUrl((saved as Record<string, string>).jobVideoUrl);
+      }
       // Optionally restore form state here
     }
   }, []);
