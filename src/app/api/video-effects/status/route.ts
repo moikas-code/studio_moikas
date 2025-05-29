@@ -30,10 +30,12 @@ export async function GET(req: NextRequest) {
       }
     );
     if (!falStatusRes.ok) {
-      console.error("FAL.AI status fetch failed", await falStatusRes.text());
+      const text = await falStatusRes.text();
+      console.error("FAL.AI status fetch failed", text);
       return NextResponse.json({ status: "processing" });
     }
     const falStatus = await falStatusRes.json();
+    console.log("FAL.AI status:", falStatus);
 
     if (falStatus.status === "COMPLETED") {
       // Get the result (video URL)
@@ -47,20 +49,28 @@ export async function GET(req: NextRequest) {
         }
       );
       if (!resultRes.ok) {
-        console.error("FAL.AI result fetch failed", await resultRes.text());
-        return NextResponse.json({ status: "error" });
+        const text = await resultRes.text();
+        console.error("FAL.AI result fetch failed", text);
+        return NextResponse.json({ status: "processing" });
       }
       const result = await resultRes.json();
+      console.log("FAL.AI result:", result);
+      // Try all possible locations for the video URL
       let video_url = null;
       if (result.response?.video?.url) {
         video_url = result.response.video.url;
       } else if (result.response?.videos?.[0]?.url) {
         video_url = result.response.videos[0].url;
+      } else if (result.response?.output?.video?.url) {
+        video_url = result.response.output.video.url;
+      } else if (result.response?.output?.videos?.[0]?.url) {
+        video_url = result.response.output.videos[0].url;
       }
       if (video_url) {
         return NextResponse.json({ status: "done", video_url });
       } else {
-        return NextResponse.json({ status: "error" });
+        // If completed but no video yet, keep polling
+        return NextResponse.json({ status: "processing" });
       }
     } else if (falStatus.status === "FAILED") {
       return NextResponse.json({ status: "error" });
