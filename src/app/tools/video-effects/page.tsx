@@ -82,7 +82,16 @@ export default function Video_effects_page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: main_prompt, negative_prompt, image_url: final_image_url, aspect, model_id, duration: video_duration }),
       });
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        // If parsing fails, fallback to text
+        const text = await res.text();
+        set_error(text || "Unknown error occurred");
+        set_loading(false);
+        return;
+      }
       if (res.ok && data.video_url) {
         set_video_url(data.video_url);
       } else {
