@@ -85,8 +85,7 @@ export default function Video_effects_page() {
     set_error("");
     set_video_url("");
     // Public black PNG URL
-    const black_placeholder =
-      "https://via.placeholder.com/512x512/000000/000000.png";
+    const black_placeholder = "https://placehold.co/600x400/000000/000";
     let final_image_url = image_url;
     try {
       if (image_source === "upload" && image_file) {
