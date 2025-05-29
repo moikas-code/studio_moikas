@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { VIDEO_MODELS, calculateGenerationMP } from "@/lib/generate_helpers";
+import { VIDEO_MODELS } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import CostDisplay from "./CostDisplay";
 
