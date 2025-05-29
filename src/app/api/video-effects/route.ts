@@ -218,12 +218,12 @@ export async function POST(req: NextRequest) {
       const fal_job = await fal.subscribe(model_id, {
         input: {
           prompt,
-          negative_prompt,
+          ...(negative_prompt.length > 0 && { negative_prompt }),
           ...(selected_model.is_image_to_video && {
             image_url: final_image_url,
           }),
           aspect_ratio: aspect,
-          duration,
+          duration: duration.toString(),
         },
         logs: true,
         onQueueUpdate: (update: FalQueueUpdate) => {
@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
           }
         },
       });
+      console.log("fal_job", fal_job);
       // Type-safe extraction of job_id
       if (
         fal_job &&
