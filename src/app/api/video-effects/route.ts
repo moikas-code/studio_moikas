@@ -74,7 +74,9 @@ export async function POST(req: NextRequest) {
     const { userId } = await auth();
     if (!userId)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+    fal.config({
+      credentials: process.env.FAL_API_KEY,
+    });
     const body = await req.json();
     const {
       prompt = "",
