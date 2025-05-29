@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { MpContext } from "../../components/../context/mp_context";
 
 const FEATURES = [
   { value: "script", label: "Generate Script" },
@@ -19,6 +20,8 @@ export default function Text_analyzer_page() {
   const [loading, set_loading] = useState(false);
   const [error, set_error] = useState("");
   const [link_or_topic, set_link_or_topic] = useState("");
+  const [out_of_tokens, set_out_of_tokens] = useState(false);
+  const { mp_tokens, is_loading_tokens, token_error, refresh_mp } = useContext(MpContext);
 
   const handle_file_change = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -31,6 +34,7 @@ export default function Text_analyzer_page() {
     set_loading(true);
     set_error("");
     set_result("");
+    set_out_of_tokens(false);
     if (!file && !link_or_topic) {
       set_error("Please select a file or enter a topic/link.");
       set_loading(false);
@@ -46,8 +50,14 @@ export default function Text_analyzer_page() {
         body: form_data,
       });
       const data = await res.json();
+      await refresh_mp();
       if (!res.ok) {
-        set_error(data.error || "Error processing file.");
+        if (res.status === 402) {
+          set_error("You have run out of tokens. Please buy more to continue using this feature.");
+          set_out_of_tokens(true);
+        } else {
+          set_error(data.error || "Error processing file.");
+        }
       } else {
         set_result(data.result);
       }
@@ -60,10 +70,24 @@ export default function Text_analyzer_page() {
 
   return (
     <div className="max-w-xl mx-auto py-10 px-4">
-      <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content.</h1>
+      <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content. Instantly.</h1>
       <p className="text-lg text-center mb-8 text-gray-600 dark:text-gray-300">
         Generate scripts, product descriptions, video descriptions, tweets, bios, summaries, outlines, and quizzes from any PDF, website, or topic. Our AI helps you create and learn effectively.
       </p>
+      <div className="mb-4 text-center">
+        {is_loading_tokens ? (
+          <span className="loading loading-spinner loading-xs" aria-label="Loading MP" role="status"></span>
+        ) : token_error ? (
+          <span className="text-error">MP: --</span>
+        ) : (
+          <span className="font-mono text-lg">Tokens Remaining: {mp_tokens}</span>
+        )}
+      </div>
+      {out_of_tokens && (
+        <div className="alert alert-error mb-4 text-center">
+          You have run out of tokens. <a href="/buy-tokens" className="underline text-primary">Buy more tokens</a> to continue using this feature.
+        </div>
+      )}
       <form onSubmit={handle_submit} className="flex flex-col gap-4 items-center">
         <div className="w-full bg-gradient-to-br from-gray-50 to-blue-50 dark:from-base-200 dark:to-blue-900/10 border border-dashed border-blue-300 rounded-xl p-6 flex flex-col items-center mb-2">
           <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
@@ -112,7 +136,7 @@ export default function Text_analyzer_page() {
         <button
           type="submit"
           className="btn btn-primary w-full text-lg mt-2"
-          disabled={loading}
+          disabled={loading || out_of_tokens}
         >
           {loading ? "Processing..." : "✨ Generate"}
         </button>
