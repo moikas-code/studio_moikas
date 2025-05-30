@@ -2,8 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { VIDEO_MODELS, sort_models_by_cost } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
-import CostDisplay from "./CostDisplay";
-import { saveJobState, loadJobState, clearJobState } from "./jobStorage";
+import CostDisplay from "../../components/CostDisplay";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9" },
@@ -48,18 +47,24 @@ export default function Video_effects_page() {
 
   useEffect(() => {
     // On mount, restore job state if present
-    const saved = loadJobState() as { job_id?: string } | null;
-    if (saved && saved.job_id && !job_id && !video_url) {
-      set_job_id(saved.job_id);
+    const saved = localStorage.getItem("jobState");
+    let parsed: { job_id?: string } | null = null;
+    try {
+      parsed = saved ? JSON.parse(saved) : null;
+    } catch {
+      parsed = null;
+    }
+    if (parsed && parsed.job_id && !job_id && !video_url) {
+      set_job_id(parsed.job_id);
     }
   }, []);
 
   useEffect(() => {
     // Persist job_id if job in progress
     if (job_in_progress && job_id) {
-      saveJobState({ job_id });
+      localStorage.setItem("jobState", JSON.stringify({ job_id }));
     } else if (!job_in_progress) {
-      clearJobState();
+      localStorage.removeItem("jobState");
     }
   }, [job_in_progress, job_id]);
 
@@ -73,16 +78,16 @@ export default function Video_effects_page() {
         if (data.status === "done" && data.video_url) {
           set_video_url(data.video_url);
           clearInterval(interval);
-          clearJobState();
+          localStorage.removeItem("jobState");
         } else if (data.status === "error") {
           set_error(data.error || "Video generation failed.");
           clearInterval(interval);
-          clearJobState();
+          localStorage.removeItem("jobState");
         }
       } catch {
         set_error("Failed to check job status.");
         clearInterval(interval);
-        clearJobState();
+        localStorage.removeItem("jobState");
       }
     }, 4000);
     return () => clearInterval(interval);
@@ -94,12 +99,30 @@ export default function Video_effects_page() {
     }
   }, [prompt, window_width]);
 
+  // Restore video_url from localStorage on mount
+  useEffect(() => {
+    const savedVideoUrl = localStorage.getItem("videoUrl");
+    if (savedVideoUrl && !video_url) {
+      set_video_url(savedVideoUrl);
+    }
+  }, []);
+
+  // Persist video_url to localStorage when it changes
+  useEffect(() => {
+    if (video_url) {
+      localStorage.setItem("videoUrl", video_url);
+    } else {
+      localStorage.removeItem("videoUrl");
+    }
+  }, [video_url]);
+
   async function handle_generate(e: React.FormEvent) {
     e.preventDefault();
     if (job_in_progress) return; // Prevent new submission if job in progress
     set_loading(true);
     set_error("");
     set_video_url("");
+    localStorage.removeItem("videoUrl");
     set_job_id(null);
     // Public black PNG URL
     const black_placeholder = "https://placehold.co/600x400/000000/000";
@@ -153,7 +176,7 @@ export default function Video_effects_page() {
       }
       if (res.ok && data.job_id) {
         set_job_id(data.job_id);
-        saveJobState({ job_id: data.job_id });
+        localStorage.setItem("jobState", JSON.stringify({ job_id: data.job_id }));
       } else {
         set_error(data.error || "Failed to start video job");
       }
