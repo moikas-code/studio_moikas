@@ -19,6 +19,7 @@ import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { ChefHat, Sparkles } from "lucide-react";
 import Image_grid from "./image_grid";
+import Token_count_display from "./TokenCountDisplay";
 
 /**
  * ImageGenerator component allows users to enter a prompt and generate an image using the fal.ai API.
@@ -447,6 +448,9 @@ export default function Image_generator() {
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
       {/* Sticky input and settings menu container */}
+      <div className="w-full max-w-2xl mx-auto mb-2 flex justify-end">
+        <Token_count_display />
+      </div>
       {/* Responsive input bar: top for desktop/tablet, fixed bottom for mobile */}
       <div className="w-full flex flex-col items-center z-30">
         <div
@@ -585,8 +589,14 @@ export default function Image_generator() {
       {/* Loading indicator and message */}
       {is_loading && (
         <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">
-          <span className="loading loading-spinner loading-lg text-jade mb-2" aria-label="Generating image" role="status"></span>
-          <span className="text-base font-semibold text-jade">AI is creating your image...</span>
+          <span
+            className="loading loading-spinner loading-lg text-jade mb-2"
+            aria-label="Generating image"
+            role="status"
+          ></span>
+          <span className="text-base font-semibold text-jade">
+            AI is creating your image...
+          </span>
         </div>
       )}
       {/* Main options card (settings) */}
