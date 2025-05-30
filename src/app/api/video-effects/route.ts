@@ -20,7 +20,7 @@ const SUPPORTED_ASPECTS = {
 async function upload_buffer_to_fal(
   buffer: Buffer,
   filename: string,
-  mime_type: string,
+  mime_type: string
 ) {
   const file = new File([buffer], filename, { type: mime_type });
   return await fal.storage.upload(file);
@@ -63,14 +63,14 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Missing or invalid input." },
-        { status: 400 },
+        { status: 400 }
       );
     }
     const selected_model = VIDEO_MODELS.find((m) => m.value === model_id);
     if (!selected_model) {
       return NextResponse.json(
         { error: "Invalid model selected." },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         {
           error: error instanceof Error ? error.message : "Insufficient tokens",
         },
-        { status: 402 },
+        { status: 402 }
       );
     }
 
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
         final_image_url = await upload_buffer_to_fal(
           buffer,
           "user_upload.png",
-          "image/png",
+          "image/png"
         );
       } else if (image_url && image_url.startsWith("http")) {
         // 2. User provided a URL (use directly, or optionally upload to FAL.AI for reliability)
@@ -134,12 +134,12 @@ export async function POST(req: NextRequest) {
         // 3. No image: use black PNG placeholder, upload to FAL.AI
         const black_png_buffer = Buffer.from(
           "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=",
-          "base64",
+          "base64"
         );
         final_image_url = await upload_buffer_to_fal(
           black_png_buffer,
           "black.png",
-          "image/png",
+          "image/png"
         );
       }
     }
@@ -152,8 +152,8 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_APP_URL || "https://studio.moikas.com";
       const webhook_url = `${base_url}/api/video-effects/webhook`;
       // Use the queue endpoint with fal_webhook as a query param
-      const endpoint_with_webhook = `${model_id}?fal_webhook=${encodeURIComponent(webhook_url)}`;
-      const falRes = await fal.queue.submit(endpoint_with_webhook, {
+
+      const falRes = await fal.queue.submit(model_id, {
         input: {
           prompt,
           ...(negative_prompt.length > 0 && { negative_prompt }),
@@ -163,6 +163,7 @@ export async function POST(req: NextRequest) {
           aspect_ratio: aspect,
           duration: duration.toString(),
         },
+        webhookUrl: webhook_url,
       });
       job_id = falRes.request_id;
     } catch (err) {
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Failed to start video job" },
-        { status: 500 },
+        { status: 500 }
       );
     }
 
@@ -222,7 +223,7 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json(
         { error: "Failed to record video job" },
-        { status: 500 },
+        { status: 500 }
       );
     }
     await track("Video Job Created", {
