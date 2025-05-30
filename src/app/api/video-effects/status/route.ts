@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       const s = status as unknown as Record<string, unknown>;
       return NextResponse.json({ status: "error", error: (s.error as string) || "Unknown error" });
     } else {
-      return NextResponse.json({ status: "processing" });
+      return NextResponse.json({ status: status.status });
     }
   } catch (err) {
     console.error("Status route error:", err);
