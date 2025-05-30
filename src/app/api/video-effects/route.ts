@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
       // Construct webhook URL
       const base_url =
         process.env.NEXT_PUBLIC_APP_URL || "https://studio.moikas.com";
-      const webhook_url = `${base_url}/api/video-effects/webhook`;
+      const webhook_url = `${base_url}/api/webhooks/fal-ai`;
       // Use the queue endpoint with fal_webhook as a query param
 
       const falRes = await fal.queue.submit(model_id, {
