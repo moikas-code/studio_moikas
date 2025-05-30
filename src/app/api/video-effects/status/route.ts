@@ -30,15 +30,21 @@ export async function GET(req: NextRequest) {
     if (status.status === "COMPLETED") {
       // Try all possible locations for the video URL
       let video_url = null;
-      const s = status as unknown as Record<string, unknown>;
-      if ((s.video as { url?: string } | undefined)?.url) {
-        video_url = (s.video as { url?: string }).url;
-      } else if ((s.videos as Array<{ url?: string }> | undefined)?.[0]?.url) {
-        video_url = (s.videos as Array<{ url?: string }>)[0].url;
-      } else if ((s.output as { video?: { url?: string }; videos?: Array<{ url?: string }> } | undefined)?.video?.url) {
-        video_url = (s.output as { video?: { url?: string } }).video?.url;
-      } else if ((s.output as { videos?: Array<{ url?: string }> } | undefined)?.videos?.[0]?.url) {
-        video_url = (s.output as { videos?: Array<{ url?: string }> }).videos?.[0]?.url;
+      const result = await fal.queue.result(
+        job.model_id as string,
+        {
+          requestId: job_id,
+        }
+      );
+      console.log(result.data);
+      if ((result.data.video as { url?: string } | undefined)?.url) {
+        video_url = (result.data.video as { url?: string }).url;
+      } else if ((result.data.videos as Array<{ url?: string }> | undefined)?.[0]?.url) {
+        video_url = (result.data.videos as Array<{ url?: string }>)[0].url;
+      } else if ((result.data.output as { video?: { url?: string }; videos?: Array<{ url?: string }> } | undefined)?.video?.url) {
+        video_url = (result.data.output as { video?: { url?: string } }).video?.url;
+      } else if ((result.data.output as { videos?: Array<{ url?: string }> } | undefined)?.videos?.[0]?.url) {
+        video_url = (result.data.output as { videos?: Array<{ url?: string }> }).videos?.[0]?.url;
       }
       if (video_url) {
         await supabase.from("video_jobs").update({
