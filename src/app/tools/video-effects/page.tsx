@@ -1,9 +1,9 @@
 "use client";
-import React, { useState, useRef, useEffect, useContext } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { VIDEO_MODELS, sort_models_by_cost } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import CostDisplay from "../../components/CostDisplay";
-import { MpContext } from "@/app/context/mp_context";
+import Token_count_display from "@/app/components/TokenCountDisplay";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9" },
@@ -36,7 +36,6 @@ export default function Video_effects_page() {
   const [job_id, set_job_id] = useState<string | null>(null);
   // Derived state: job in progress
   const job_in_progress = !!job_id && !video_url;
-  const mp_ctx = useContext(MpContext);
 
   useEffect(() => {
     set_window_width(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -240,17 +239,7 @@ export default function Video_effects_page() {
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
       {/* Token count display */}
       <div className="w-full max-w-2xl mx-auto mb-2 flex justify-end">
-        <div style={{ fontFamily: 'monospace', fontSize: 16, background: '#f5f5f5', borderRadius: 6, padding: '4px 12px', border: '1px solid #e0e0e0' }}>
-          {mp_ctx.is_loading_tokens ? (
-            <span>Loading tokens...</span>
-          ) : mp_ctx.token_error ? (
-            <span style={{ color: 'red' }}>{mp_ctx.token_error}</span>
-          ) : (
-            <>
-              Tokens: <b>{mp_ctx.renewable_tokens ?? 0}</b> renewable, <b>{mp_ctx.permanent_tokens ?? 0}</b> permanent (total: <b>{mp_ctx.mp_tokens ?? 0}</b>)
-            </>
-          )}
-        </div>
+        <Token_count_display />
       </div>
       {/* Main input bar */}
       <div className="w-full flex flex-col items-center z-30">
