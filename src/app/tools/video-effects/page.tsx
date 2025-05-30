@@ -52,7 +52,7 @@ export default function Video_effects_page() {
           set_video_url(data.video_url);
           clearInterval(interval);
         } else if (data.status === "error") {
-          set_error("Video generation failed.");
+          set_error(data.error || "Video generation failed.");
           clearInterval(interval);
         }
       } catch {

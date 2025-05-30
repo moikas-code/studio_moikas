@@ -148,7 +148,12 @@ export async function POST(req: NextRequest) {
     // Submit FAL.AI job and return job_id immediately
     let job_id: string;
     try {
-      const falRes = await fal.queue.submit(model_id, {
+      // Construct webhook URL
+      const base_url = process.env.NEXT_PUBLIC_APP_URL || "https://studio.moikas.com";
+      const webhook_url = `${base_url}/api/video-effects/webhook`;
+      // Use the queue endpoint with fal_webhook as a query param
+      const endpoint_with_webhook = `${model_id}?fal_webhook=${encodeURIComponent(webhook_url)}`;
+      const falRes = await fal.queue.submit(endpoint_with_webhook, {
         input: {
           prompt,
           ...(negative_prompt.length > 0 && { negative_prompt }),
