@@ -1,3 +1,4 @@
+"use client";
 import React, { useContext } from "react";
 import { MpContext } from "@/app/context/mp_context";
 
