@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { VIDEO_MODELS, sort_models_by_cost } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import CostDisplay from "./CostDisplay";
+import { saveJobState, loadJobState, clearJobState } from "./jobStorage";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9" },
@@ -23,9 +24,13 @@ export default function Video_effects_page() {
   const prompt_input_ref = useRef<HTMLDivElement>(null);
   const [prompt_input_height, set_prompt_input_height] = useState(0);
   const [window_width, set_window_width] = useState(1200);
-  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS).filter(m => !m.is_image_to_video);
-  const [model_id, set_model_id] = useState(sorted_video_models[0]?.value || "");
-  const selected_model = sorted_video_models.find(m => m.value === model_id);
+  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS).filter(
+    (m) => !m.is_image_to_video,
+  );
+  const [model_id, set_model_id] = useState(
+    sorted_video_models[0]?.value || "",
+  );
+  const selected_model = sorted_video_models.find((m) => m.value === model_id);
   const [video_duration, set_video_duration] = useState(5);
   const [enhancing, set_enhancing] = useState(false);
   const [job_id, set_job_id] = useState<string | null>(null);
@@ -42,6 +47,23 @@ export default function Video_effects_page() {
   }, []);
 
   useEffect(() => {
+    // On mount, restore job state if present
+    const saved = loadJobState() as { job_id?: string } | null;
+    if (saved && saved.job_id && !job_id && !video_url) {
+      set_job_id(saved.job_id);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Persist job_id if job in progress
+    if (job_in_progress && job_id) {
+      saveJobState({ job_id });
+    } else if (!job_in_progress) {
+      clearJobState();
+    }
+  }, [job_in_progress, job_id]);
+
+  useEffect(() => {
     if (!job_id) return;
     set_error("");
     const interval = setInterval(async () => {
@@ -51,13 +73,16 @@ export default function Video_effects_page() {
         if (data.status === "done" && data.video_url) {
           set_video_url(data.video_url);
           clearInterval(interval);
+          clearJobState();
         } else if (data.status === "error") {
           set_error(data.error || "Video generation failed.");
           clearInterval(interval);
+          clearJobState();
         }
       } catch {
         set_error("Failed to check job status.");
         clearInterval(interval);
+        clearJobState();
       }
     }, 4000);
     return () => clearInterval(interval);
@@ -88,7 +113,8 @@ export default function Video_effects_page() {
           body: form_data,
         });
         const upload_data = await upload_res.json();
-        if (!upload_res.ok) throw new Error(upload_data.error || "Image upload failed");
+        if (!upload_res.ok)
+          throw new Error(upload_data.error || "Image upload failed");
         final_image_url = upload_data.url;
       }
       // If model requires image and no image provided, use black placeholder
@@ -107,7 +133,14 @@ export default function Video_effects_page() {
       const res = await fetch("/api/video-effects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: main_prompt, negative_prompt, image_url: final_image_url, aspect, model_id, duration: video_duration }),
+        body: JSON.stringify({
+          prompt: main_prompt,
+          negative_prompt,
+          image_url: final_image_url,
+          aspect,
+          model_id,
+          duration: video_duration,
+        }),
       });
       const text = await res.text();
       let data;
@@ -120,6 +153,7 @@ export default function Video_effects_page() {
       }
       if (res.ok && data.job_id) {
         set_job_id(data.job_id);
+        saveJobState({ job_id: data.job_id });
       } else {
         set_error(data.error || "Failed to start video job");
       }
@@ -167,7 +201,8 @@ export default function Video_effects_page() {
   }
 
   // Placeholder for aspect ratio preview
-  const aspect_label = ASPECT_OPTIONS.find(a => a.value === aspect)?.label || aspect;
+  const aspect_label =
+    ASPECT_OPTIONS.find((a) => a.value === aspect)?.label || aspect;
   const preview_width = aspect === "16:9" ? 112 : 63;
   const preview_height = aspect === "9:16" ? 63 : 112;
   const placeholder_style = {
@@ -233,7 +268,12 @@ export default function Video_effects_page() {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     // Only submit if not loading/enhancing and prompt is not empty and no job in progress
-                    if (!loading && !enhancing && prompt.trim() && !job_in_progress) {
+                    if (
+                      !loading &&
+                      !enhancing &&
+                      prompt.trim() &&
+                      !job_in_progress
+                    ) {
                       handle_generate(e as unknown as React.FormEvent);
                     }
                   }
@@ -259,7 +299,9 @@ export default function Video_effects_page() {
                 className="btn btn-outline btn-sm ml-2 flex-shrink-0"
                 style={{ minWidth: 110 }}
                 onClick={handle_enhance_prompt}
-                disabled={enhancing || loading || !prompt.trim() || job_in_progress}
+                disabled={
+                  enhancing || loading || !prompt.trim() || job_in_progress
+                }
                 aria-label="Enhance prompt"
               >
                 {enhancing ? "Enhancing..." : "Enhance Prompt"}
@@ -293,10 +335,14 @@ export default function Video_effects_page() {
       {job_in_progress && (
         <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">
           <div className="w-full max-w-md h-2 bg-base-300 rounded-full overflow-hidden mb-2">
-            <div className="h-full bg-jade animate-pulse" style={{ width: '100%' }}></div>
+            <div
+              className="h-full bg-jade animate-pulse"
+              style={{ width: "100%" }}
+            ></div>
           </div>
           <span className="text-base font-semibold text-jade">
-            Your video is being generated. Please wait for it to finish before starting a new one.
+            Your video is being generated. Please wait for it to finish before
+            starting a new one.
           </span>
         </div>
       )}
@@ -528,7 +574,8 @@ export default function Video_effects_page() {
       {/* Add this style block for the animation */}
       <style jsx>{`
         .options-card-animated {
-          transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+          transition:
+            top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
             opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           opacity: 1;
         }
@@ -538,4 +585,4 @@ export default function Video_effects_page() {
       `}</style>
     </div>
   );
-} 
+}

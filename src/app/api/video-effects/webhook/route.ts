@@ -6,21 +6,23 @@ export const runtime = "nodejs"; // Ensure this runs in Node.js, not Edge
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const {
-      request_id,
-      status,
-      payload,
-      error,
-      payload_error,
-    } = body;
+    const { request_id, status, payload, error, payload_error } = body;
 
     if (!request_id) {
-      return NextResponse.json({ error: "Missing request_id" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing request_id" },
+        { status: 400 },
+      );
     }
 
     const supabase = await create_clerk_supabase_client_ssr();
     const update_data: Record<string, unknown> = {
-      status: status === "OK" ? "done" : status === "ERROR" ? "error" : status?.toLowerCase() || "unknown",
+      status:
+        status === "OK"
+          ? "done"
+          : status === "ERROR"
+            ? "error"
+            : status?.toLowerCase() || "unknown",
       updated_at: new Date().toISOString(),
     };
 
@@ -40,7 +42,8 @@ export async function POST(req: NextRequest) {
         update_data.video_url = video_url;
       }
     } else if (status === "ERROR") {
-      update_data.error_message = error || (payload_error ? String(payload_error) : "Unknown error");
+      update_data.error_message =
+        error || (payload_error ? String(payload_error) : "Unknown error");
     }
 
     // Update the job in the DB
@@ -55,6 +58,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Webhook error" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Webhook error" },
+      { status: 500 },
+    );
   }
-} 
+}
