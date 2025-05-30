@@ -146,6 +146,15 @@ export default function Video_effects_page() {
       if (selected_model?.is_image_to_video && !final_image_url) {
         final_image_url = black_placeholder;
       }
+      //convert image to base64
+      await fetch(final_image_url).then(res => res.blob()).then(blob => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      });
       // Parse prompt for negative prompt
       let main_prompt = prompt;
       let negative_prompt = "";
@@ -161,7 +170,7 @@ export default function Video_effects_page() {
         body: JSON.stringify({
           prompt: main_prompt,
           negative_prompt,
-          image_url: final_image_url,
+          image_url:  final_image_url, //make base64,
           aspect,
           model_id,
           duration: video_duration,
