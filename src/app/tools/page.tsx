@@ -21,6 +21,12 @@ export default function Tools_home_page() {
           <span className="text-gray-600 dark:text-gray-300">Plan: <span className="font-mono font-bold text-primary">{plan || "-"}</span></span>
           <span className="text-gray-600 dark:text-gray-300">Mana Points (Credits): {is_loading_tokens ? <span className="loading loading-spinner loading-xs" aria-label="Loading MP" role="status"></span> : token_error ? <span className="text-error">--</span> : <span className="font-mono font-bold text-orange-500">{mp_tokens}</span>}</span>
         </div>
+        <a
+          href="/buy-tokens"
+          className="btn btn-primary w-full mt-4"
+        >
+          Buy Tokens
+        </a>
       </div>
       <div className="w-full max-w-2xl flex flex-col gap-4">
         <div className="alert alert-info bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200">
