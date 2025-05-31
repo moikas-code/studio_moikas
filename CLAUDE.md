@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Styling**: Tailwind CSS v4 + DaisyUI
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Clerk
-- **AI**: fal.ai for image generation
+- **AI**: fal.ai for image generation, Langchain/langraph for LLM Agent development using grok-3-mini-latest
 - **Payments**: Stripe
 - **Caching**: Upstash Redis
 
@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Token System (Mana Points)**
    - Users have renewable tokens (monthly allowance) and permanent tokens (purchased)
    - Deduction happens in database function `deduct_tokens()` - renewable first, then permanent
-   - Free users: 125 MP/month, Standard: 150 MP/month
+   - Free users: 125 MP/month, Standard: 20480 MP/month
 
 2. **Image Generation Flow**
    - Component: `src/app/components/image_generator.tsx`
@@ -84,3 +84,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Follow the established pattern for new API routes (auth check → rate limit → process → response)
 - Database operations should use server-side Supabase client with service role
 - Client components should use `useAuth()` from Clerk for user context
+- Use Snake Case
+- Follow DRY Programming

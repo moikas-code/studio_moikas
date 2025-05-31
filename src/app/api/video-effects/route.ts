@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
+import { create_clerk_supabase_client_ssr, create_service_role_client } from "@/lib/supabase_server";
 import {
   calculateGenerationMP,
   deduct_tokens,
@@ -13,6 +13,7 @@ import fetch from "node-fetch";
 
 const SUPPORTED_ASPECTS = {
   "16:9": { width: 1280, height: 720 },
+  "1:1": { width: 1024, height: 1024 },
   "9:16": { width: 720, height: 1280 },
 };
 
@@ -75,15 +76,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Deduct tokens (scale by duration)
-    const supabase = await create_clerk_supabase_client_ssr();
-    const { data: user_row, error: user_error } = await supabase
+    // Use service role client to bypass RLS for user lookup
+    const serviceClient = create_service_role_client();
+    const { data: user_row, error: user_error } = await serviceClient
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
       .single();
     if (user_error || !user_row?.id) {
+      console.error(`User lookup failed for clerk_id ${userId}:`, user_error);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    
+    // Use the regular client for token operations
+    const supabase = await create_clerk_supabase_client_ssr();
     user_id_for_refund = user_row.id;
     // --- Fetch current token balances before deduction ---
     const { data: subscription } = await supabase
@@ -151,8 +157,7 @@ export async function POST(req: NextRequest) {
       const base_url =
         process.env.NEXT_PUBLIC_APP_URL || "https://studio.moikas.com";
       const webhook_url = `${base_url}/api/webhooks/fal-ai`;
-      // Use the queue endpoint with fal_webhook as a query param
-
+      // Submit with webhook URL for async processing
       const falRes = await fal.queue.submit(model_id, {
         input: {
           prompt,
@@ -191,7 +196,7 @@ export async function POST(req: NextRequest) {
 
     // Store job metadata for analytics/history (optional, no polling required)
     try {
-      await supabase.from("video_jobs").insert({
+      const job_record = {
         id: uuidv4(),
         user_id: user_row.id,
         job_id,
@@ -203,7 +208,30 @@ export async function POST(req: NextRequest) {
         duration,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
+      };
+      
+      console.log(`Creating video job in DB: job_id=${job_id}, user_id=${user_row.id}`);
+      console.log(`Full job record:`, JSON.stringify(job_record, null, 2));
+      
+      // Use service role client to bypass RLS for job creation
+      const { error: insertError } = await serviceClient
+        .from("video_jobs")
+        .insert(job_record);
+        
+      if (insertError) {
+        console.error(`Failed to insert job record:`, insertError);
+        throw insertError;
+      }
+      
+      // Verify the job was created
+      const { data: verifyJob, error: verifyError } = await serviceClient
+        .from("video_jobs")
+        .select("job_id, user_id, status")
+        .eq("job_id", job_id)
+        .single();
+        
+      console.log(`Video job verification:`, { verifyJob, verifyError });
+      console.log(`Video job created successfully in DB: ${job_id}`);
     } catch (err) {
       // --- Refund tokens if DB insert fails ---
       if (tokens_deducted && user_id_for_refund) {

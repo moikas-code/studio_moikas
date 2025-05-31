@@ -79,23 +79,68 @@ export default function Video_effects_page() {
   useEffect(() => {
     if (!job_id) return;
     set_error("");
+    
+    let retryCount = 0;
+    const maxRetries = 3;
+    
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/video-effects/status?job_id=${job_id}`);
+        
+        if (!res.ok) {
+          // Handle specific HTTP errors
+          if (res.status === 404) {
+            set_error("Job not found. Please try generating a new video.");
+            set_job_id(null);
+            clearInterval(interval);
+            localStorage.removeItem("jobState");
+            return;
+          } else if (res.status === 401) {
+            set_error("Session expired. Please refresh the page.");
+            clearInterval(interval);
+            return;
+          }
+        }
+        
         const data = await res.json();
+        
+        // Reset retry count on successful response
+        retryCount = 0;
+        
         if (data.status === "done" && data.video_url) {
           set_video_url(data.video_url);
+          set_job_id(null); // Clear job_id after successful completion
           clearInterval(interval);
           localStorage.removeItem("jobState");
         } else if (data.status === "error") {
           set_error(data.error || "Video generation failed.");
+          set_job_id(null); // Clear job_id after error
           clearInterval(interval);
           localStorage.removeItem("jobState");
+        } else if (data.error) {
+          // Handle any error response
+          set_error(data.error);
+          if (data.error.includes("not found") || data.error.includes("timeout")) {
+            set_job_id(null);
+            clearInterval(interval);
+            localStorage.removeItem("jobState");
+          }
         }
-      } catch {
-        set_error("Failed to check job status.");
-        clearInterval(interval);
-        localStorage.removeItem("jobState");
+      } catch (err) {
+        console.error("Error checking job status:", err);
+        retryCount++;
+        
+        // Show temporary error message
+        if (retryCount >= maxRetries) {
+          set_error("Connection issues. Still trying to check video status...");
+        }
+        
+        // Don't clear job_id on network errors - allow retry
+        // But stop polling after too many failures
+        if (retryCount > 10) {
+          set_error("Unable to check video status. Please refresh the page.");
+          clearInterval(interval);
+        }
       }
     }, 4000);
     return () => clearInterval(interval);
@@ -152,15 +197,20 @@ export default function Video_effects_page() {
       if (selected_model?.is_image_to_video && !final_image_url) {
         final_image_url = black_placeholder;
       }
-      //convert image to base64
-      await fetch(final_image_url).then(res => res.blob()).then(blob => {
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
+      // Convert image to base64 if needed
+      let image_base64 = "";
+      if (final_image_url) {
+        const base64_result = await fetch(final_image_url).then(res => res.blob()).then(blob => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
         });
-      });
+        // Extract base64 data from data URL
+        image_base64 = base64_result.split(',')[1] || "";
+      }
       // Parse prompt for negative prompt
       let main_prompt = prompt;
       let negative_prompt = "";
@@ -176,7 +226,8 @@ export default function Video_effects_page() {
         body: JSON.stringify({
           prompt: main_prompt,
           negative_prompt,
-          image_url: final_image_url, //make base64,
+          image_url: final_image_url,
+          image_file_base64: image_base64, // Send base64 data
           aspect,
           model_id,
           duration: video_duration,
@@ -424,16 +475,24 @@ export default function Video_effects_page() {
       {/* Progress bar and message when job in progress */}
       {job_in_progress && (
         <div className="w-full flex flex-col items-center justify-center mt-8 mb-4">
-          <div className="w-full max-w-md h-2 bg-base-300 rounded-full overflow-hidden mb-2">
-            <div
-              className="h-full bg-jade animate-pulse"
-              style={{ width: "100%" }}
-            ></div>
+          <div className="w-full max-w-md">
+            <div className="h-2 bg-base-300 rounded-full overflow-hidden mb-3">
+              <div className="h-full bg-gradient-to-r from-jade via-jade/80 to-jade bg-[length:200%_100%] animate-gradient-x rounded-full" />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-jade mb-1">
+                Your video is being generated
+              </p>
+              <p className="text-sm text-base-content/70">
+                This may take 1-3 minutes depending on the duration and complexity
+              </p>
+              {job_id && (
+                <p className="text-xs text-base-content/50 mt-2 font-mono">
+                  Job ID: {job_id}
+                </p>
+              )}
+            </div>
           </div>
-          <span className="text-base font-semibold text-jade">
-            Your video is being generated. Please wait for it to finish before
-            starting a new one.
-          </span>
         </div>
       )}
       {/* Loading indicator and message */}
@@ -679,6 +738,17 @@ export default function Video_effects_page() {
           height: 4px;
           cursor: pointer;
           background: transparent;
+        }
+        @keyframes gradient-x {
+          0% {
+            background-position: 0% 50%;
+          }
+          100% {
+            background-position: 100% 50%;
+          }
+        }
+        .animate-gradient-x {
+          animation: gradient-x 2s ease infinite;
         }
       `}</style>
     </div>
