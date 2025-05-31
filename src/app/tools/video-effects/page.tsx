@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { VIDEO_MODELS, sort_models_by_cost } from "@/lib/generate_helpers";
+import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import CostDisplay from "../../components/CostDisplay";
 import Token_count_display from "@/app/components/TokenCountDisplay";
@@ -13,9 +13,7 @@ const ASPECT_OPTIONS = [
 
 export default function Video_effects_page() {
   const [prompt, set_prompt] = useState("");
-  const [image_url, set_image_url] = useState("");
   const [image_file, set_image_file] = useState<File | null>(null);
-  const [image_source, set_image_source] = useState<"url" | "upload">("url");
   const [aspect, set_aspect] = useState("1:1");
   const [aspect_slider, set_aspect_slider] = useState(1);
   const [video_url, set_video_url] = useState("");
@@ -45,8 +43,15 @@ export default function Video_effects_page() {
       set_window_width(window.innerWidth);
     }
     window.addEventListener("resize", handle_resize);
+
+    // Load saved model preference
+    const savedModel = localStorage.getItem('videoEffectsModel');
+    if (savedModel && sorted_video_models.some(m => m.value === savedModel)) {
+      set_model_id(savedModel);
+    }
+
     return () => window.removeEventListener("resize", handle_resize);
-  }, []);
+  }, [sorted_video_models]);
 
   useEffect(() => {
     // On mount, restore job state if present
@@ -129,9 +134,9 @@ export default function Video_effects_page() {
     set_job_id(null);
     // Public black PNG URL
     const black_placeholder = "https://placehold.co/600x400/000000/000";
-    let final_image_url = image_url;
+    let final_image_url = "";
     try {
-      if (image_source === "upload" && image_file) {
+      if (image_file) {
         const form_data = new FormData();
         form_data.append("file", image_file);
         const upload_res = await fetch("/api/video-effects/upload", {
@@ -171,7 +176,7 @@ export default function Video_effects_page() {
         body: JSON.stringify({
           prompt: main_prompt,
           negative_prompt,
-          image_url:  final_image_url, //make base64,
+          image_url: final_image_url, //make base64,
           aspect,
           model_id,
           duration: video_duration,
@@ -246,9 +251,33 @@ export default function Video_effects_page() {
 
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
-      {/* Token count display */}
-      <div className="w-full max-w-2xl mx-auto mb-2 flex justify-end">
+
+      <div className="w-full flex flex-col items-end justify-center max-w-2xl  mb-4 gap-2">
+        {/* Token count display */}
         <Token_count_display />
+        {/* Model selection dropdown */}
+        <div className="w-full max-w-[200px]">
+          <div className="w-full flex items-center gap-2 justify-center">
+            <FaVideo className="text-jade text-sm" />
+            <select
+              className="select select-sm select-bordered bg-base-200"
+              value={model_id}
+              onChange={(e) => {
+                set_model_id(e.target.value);
+                localStorage.setItem('videoEffectsModel', e.target.value);
+              }}
+              aria-label="Select video model"
+            >
+              {sorted_video_models.map((model) => (
+                <option key={model.value} value={model.value}>
+                  {model.name} ({calculateGenerationMP(model)} MP/1s)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+ 
+
       </div>
       {/* Main input bar */}
       <div className="w-full flex flex-col items-center z-50">
@@ -278,14 +307,12 @@ export default function Video_effects_page() {
                   <label
                     htmlFor="image-upload"
                     className="btn btn-sm btn-ghost text-jade hover:bg-jade/10 cursor-pointer flex items-center gap-1"
-                    title={image_source === "upload" && image_file ? "Change image" : "Upload image"}
+                    title={image_file ? "Change image" : "Upload image"}
                   >
                     <FaImage className="w-4 h-4" />
                     <span className="text-xs">
-                      {image_source === "upload" && image_file 
-                        ? image_file.name.slice(0, 10) + '...' 
-                        : image_source === "url" && image_url 
-                        ? "URL Set" 
+                      {image_file
+                        ? image_file.name.slice(0, 10) + '...'
                         : "Image"}
                     </span>
                   </label>
@@ -431,7 +458,7 @@ export default function Video_effects_page() {
             position: "absolute",
             left: 0,
             right: 0,
-            top: window_width < 768 ? 120 : 80 + prompt_input_height,
+            top: window_width < 768 ? 120 : 142 + prompt_input_height,
             margin: "0 auto",
           }}
         >
@@ -457,7 +484,7 @@ export default function Video_effects_page() {
             </svg>
           </button>
           {/* Options row */}
-          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 bg-transparent">
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 bg-transparent">
             {/* Aspect Ratio */}
             <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm p-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:border-jade/30 relative group">
               <div className="flex items-center gap-2 mb-2">
@@ -476,7 +503,7 @@ export default function Video_effects_page() {
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full h-1 bg-base-300 rounded-full" />
-                    <div 
+                    <div
                       className="absolute h-1 bg-jade rounded-full transition-all duration-200"
                       style={{
                         left: aspect_slider < 1 ? `${aspect_slider * 50}%` : '50%',
@@ -536,25 +563,6 @@ export default function Video_effects_page() {
               <div className="mt-auto">
                 <CostDisplay model={selected_model} />
               </div>
-            </div>
-            {/* Model selection */}
-            <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm p-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:border-jade/30 relative group">
-              <div className="flex items-center gap-2 mb-2">
-                <FaVideo className="text-jade text-base" />
-                <span className="text-base font-semibold">Model</span>
-              </div>
-              <select
-                className="select select-bordered select-sm w-full"
-                value={model_id}
-                onChange={(e) => set_model_id(e.target.value)}
-                aria-label="Select model"
-              >
-                {sorted_video_models.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
             </div>
           </div>
           {/* Image URL Input for image2video models */}
