@@ -7,7 +7,7 @@ interface FalWebhookPayload {
   request_id: string;
   gateway_request_id?: string;
   status: "OK" | "ERROR";
-  payload?: any;
+  payload?: Record<string, unknown>;
   error?: string;
   payload_error?: string;
 }
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       
       // Add detailed error information if available
       if (payload?.detail && Array.isArray(payload.detail)) {
-        const error_details = payload.detail.map((d: any) => 
+        const error_details = payload.detail.map((d: { type?: string; msg?: string; loc?: string[] }) => 
           `${d.type || 'error'}: ${d.msg || 'Unknown'} at ${d.loc?.join('.') || 'unknown location'}`
         ).join('; ');
         error_message = `${error_message} - Details: ${error_details}`;
@@ -157,21 +157,28 @@ export async function POST(req: NextRequest) {
 /**
  * Extract media URLs from various fal.ai model response formats
  */
-function extract_media_urls(payload: any): { video_url?: string; image_urls?: string[] } {
+function extract_media_urls(payload: Record<string, unknown>): { video_url?: string; image_urls?: string[] } {
   const result: { video_url?: string; image_urls?: string[] } = {};
+  
+  // Helper to safely access nested properties
+  const get = (obj: unknown, path: string): unknown => {
+    return path.split('.').reduce((curr: unknown, key: string) => {
+      return curr && typeof curr === 'object' && key in curr ? (curr as Record<string, unknown>)[key] : undefined;
+    }, obj);
+  };
   
   // Video URL extraction patterns
   const video_patterns = [
-    () => payload.video?.url,
-    () => payload.videos?.[0]?.url,
-    () => payload.output?.video?.url,
-    () => payload.output?.videos?.[0]?.url,
-    () => payload.url, // Some models return URL directly
+    () => get(payload, 'video.url') as string | undefined,
+    () => (get(payload, 'videos') as Array<{ url?: string }> | undefined)?.[0]?.url,
+    () => get(payload, 'output.video.url') as string | undefined,
+    () => (get(payload, 'output.videos') as Array<{ url?: string }> | undefined)?.[0]?.url,
+    () => get(payload, 'url') as string | undefined, // Some models return URL directly
   ];
   
   for (const pattern of video_patterns) {
     const url = pattern();
-    if (url) {
+    if (url && typeof url === 'string') {
       result.video_url = url;
       break;
     }
@@ -179,10 +186,16 @@ function extract_media_urls(payload: any): { video_url?: string; image_urls?: st
   
   // Image URLs extraction patterns
   const image_patterns = [
-    () => payload.images?.map((img: any) => img.url).filter(Boolean),
-    () => payload.image?.url ? [payload.image.url] : null,
-    () => payload.output?.images?.map((img: any) => img.url).filter(Boolean),
-    () => payload.output?.image?.url ? [payload.output.image.url] : null,
+    () => (get(payload, 'images') as Array<{ url?: string }> | undefined)?.map((img) => img.url).filter((url): url is string => !!url),
+    () => {
+      const url = get(payload, 'image.url') as string | undefined;
+      return url ? [url] : null;
+    },
+    () => (get(payload, 'output.images') as Array<{ url?: string }> | undefined)?.map((img) => img.url).filter((url): url is string => !!url),
+    () => {
+      const url = get(payload, 'output.image.url') as string | undefined;
+      return url ? [url] : null;
+    },
   ];
   
   for (const pattern of image_patterns) {
