@@ -110,6 +110,19 @@
   animation-delay: 800ms;
 }
 
+/* Gradient text support */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Ensure gradient text is visible */
+.text-gradient {
+  -webkit-text-fill-color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
 /* Smooth scroll behavior */
 html {
   scroll-behavior: smooth;
