@@ -2,42 +2,170 @@
 import React, { useContext } from "react";
 import { Protect, useUser } from "@clerk/nextjs";
 import { MpContext } from "../components/../context/mp_context";
+import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket } from "react-icons/fa";
+import Link from "next/link";
 
 export default function Tools_home_page() {
   const { user, isLoaded } = useUser();
   const { mp_tokens, is_loading_tokens, token_error, plan } = useContext(MpContext);
   const username = user?.username || user?.firstName || user?.lastName || user?.emailAddresses?.[0]?.emailAddress || "User";
 
+  const tools = [
+    {
+      title: "Image Generator",
+      description: "Create stunning AI-generated images from text prompts",
+      icon: FaImage,
+      href: "/tools/create",
+      color: "from-purple-500 to-pink-500",
+      available: true
+    },
+    {
+      title: "Video Effects",
+      description: "Generate captivating videos with AI-powered effects",
+      icon: FaVideo,
+      href: "/tools/video-effects",
+      color: "from-blue-500 to-cyan-500",
+      available: true
+    },
+    {
+      title: "Text Analyzer",
+      description: "Scripts, descriptions, tweets, bios, summaries & quizzes",
+      icon: FaFileAlt,
+      href: "/tools/text-analyzer",
+      color: "from-green-500 to-teal-500",
+      available: true
+    }
+  ];
+
   return (
     <Protect feature={"all_freemium_features"} fallback={<div>Loading...</div>}>
-    <div className="h-full w-full max-w-3xl mx-auto py-12 px-4 flex flex-col items-center">
-      <h1 className="text-3xl md:text-4xl font-bold mb-4 text-center">Welcome, {isLoaded ? username : "..."}!</h1>
-      <p className="text-lg text-gray-700 dark:text-gray-200 mb-8 text-center">
-        This is your creative tools dashboard. Here you can access all Studio Moikas tools.
-      </p>
-      <div className="w-full max-w-md bg-white dark:bg-base-200 rounded-xl shadow-lg border border-base-200 p-6 flex flex-col items-center mb-8">
-        <h2 className="text-xl font-semibold mb-2">Overview</h2>
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-gray-600 dark:text-gray-300">Plan: <span className="font-mono font-bold text-primary">{plan || "-"}</span></span>
-          <span className="text-gray-600 dark:text-gray-300">Mana Points (Credits): {is_loading_tokens ? <span className="loading loading-spinner loading-xs" aria-label="Loading MP" role="status"></span> : token_error ? <span className="text-error">--</span> : <span className="font-mono font-bold text-orange-500">{mp_tokens}</span>}</span>
-        </div>
-        <a
-          href="/buy-tokens"
-          className="btn btn-primary w-full mt-4"
-        >
-          Buy Tokens
-        </a>
+    <div className="h-full w-full max-w-7xl mx-auto py-8 px-4 flex flex-col">
+      {/* Header Section */}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-jade to-blue-600 bg-clip-text text-transparent">
+          Welcome to Your Studio{isLoaded && `, ${username}`}!
+        </h1>
+        <p className="text-lg text-base-content/70 max-w-2xl mx-auto">
+          Your creative AI workspace. Generate images, create videos, and analyze text with the power of AI.
+        </p>
       </div>
-      <div className="w-full max-w-2xl flex flex-col gap-4">
-        <div className="alert alert-info bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200">
-          <span>Use the sidebar to access available tools like the Image Generator.</span>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Mana Points Card */}
+        <div className="bg-gradient-to-br from-jade/10 to-jade/5 rounded-2xl p-6 border border-jade/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-jade/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-base-content/70">Mana Points</h3>
+              <FaStar className="text-jade" />
+            </div>
+            <div className="text-3xl font-bold text-jade mb-1">
+              {is_loading_tokens ? (
+                <span className="loading loading-spinner loading-sm" />
+              ) : token_error ? (
+                <span className="text-error">--</span>
+              ) : (
+                mp_tokens
+              )}
+            </div>
+            <p className="text-xs text-base-content/60">Available credits</p>
+          </div>
         </div>
-        <a
-          href="/tools/text-analyzer"
-          className="btn btn-outline btn-primary w-full mt-2"
-        >
-          Text Analyzer (Scripts, Descriptions, Tweets, Bios, Summaries, Quizzes)
-        </a>
+
+        {/* Plan Card */}
+        <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-base-content/70">Current Plan</h3>
+              <FaRocket className="text-purple-500" />
+            </div>
+            <div className="text-3xl font-bold text-purple-500 mb-1">
+              {plan || "Free"}
+            </div>
+            <p className="text-xs text-base-content/60">Active subscription</p>
+          </div>
+        </div>
+
+        {/* Quick Actions Card */}
+        <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 rounded-2xl p-6 border border-orange-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-base-content/70">Get More MP</h3>
+              <FaCoins className="text-orange-500" />
+            </div>
+            <Link 
+              href="/buy-tokens"
+              className="btn btn-sm btn-primary w-full bg-gradient-to-r from-orange-500 to-yellow-500 border-0 text-white hover:opacity-90"
+            >
+              Buy Tokens
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Tools Grid */}
+      <div className="flex-1">
+        <h2 className="text-2xl font-bold mb-6">Available Tools</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <Link
+                key={tool.href}
+                href={tool.href}
+                className={`group relative bg-base-100 rounded-2xl p-6 border border-base-300 hover:border-jade/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${!tool.available && 'opacity-50 cursor-not-allowed'}`}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300"
+                     style={{backgroundImage: `linear-gradient(to bottom right, ${tool.color.split(' ')[1].replace('to-', '')}, ${tool.color.split(' ')[3]})`}} />
+                
+                <div className="relative z-10">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${tool.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="text-white text-xl" />
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold mb-2 group-hover:text-jade transition-colors">
+                    {tool.title}
+                  </h3>
+                  
+                  <p className="text-sm text-base-content/70">
+                    {tool.description}
+                  </p>
+
+                  {!tool.available && (
+                    <div className="absolute inset-0 bg-base-100/80 rounded-2xl flex items-center justify-center">
+                      <span className="text-sm font-medium">Coming Soon</span>
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tips Section */}
+      <div className="mt-8 bg-gradient-to-r from-jade/5 to-blue-500/5 rounded-2xl p-6 border border-jade/10">
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <FaStar className="text-jade" />
+          Pro Tips
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-base-content/70">
+          <div>
+            • Use descriptive prompts for better AI-generated content
+          </div>
+          <div>
+            • Each tool uses Mana Points (MP) based on complexity
+          </div>
+          <div>
+            • Save your favorite creations to build your portfolio
+          </div>
+          <div>
+            • Upgrade your plan for more MP and premium features
+          </div>
+        </div>
       </div>
     </div>
     </Protect>

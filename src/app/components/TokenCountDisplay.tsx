@@ -21,7 +21,7 @@ export default function Token_count_display(props: Token_count_display_props) {
     token_error = mp_ctx.token_error,
   } = props;
   return (
-    <div style={{ fontFamily: 'monospace', fontSize: 16, background: '#f5f5f5', borderRadius: 6, padding: '4px 12px', border: '1px solid #e0e0e0' }}>
+    <div className="text-black" style={{ fontFamily: 'monospace', fontSize: 16, background: '#f5f5f5', borderRadius: 6, padding: '4px 12px', border: '1px solid #e0e0e0' }}>
       {is_loading_tokens ? (
         <span>Loading tokens...</span>
       ) : token_error ? (
