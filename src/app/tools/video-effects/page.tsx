@@ -6,8 +6,9 @@ import CostDisplay from "../../components/CostDisplay";
 import Token_count_display from "@/app/components/TokenCountDisplay";
 
 const ASPECT_OPTIONS = [
-  { label: "16:9 (Landscape)", value: "16:9" },
-  { label: "9:16 (Portrait)", value: "9:16" },
+  { label: "16:9 (Landscape)", value: "16:9", sliderValue: 0 },
+  { label: "1:1 (Square)", value: "1:1", sliderValue: 1 },
+  { label: "9:16 (Portrait)", value: "9:16", sliderValue: 2 },
 ];
 
 export default function Video_effects_page() {
@@ -15,7 +16,8 @@ export default function Video_effects_page() {
   const [image_url, set_image_url] = useState("");
   const [image_file, set_image_file] = useState<File | null>(null);
   const [image_source, set_image_source] = useState<"url" | "upload">("url");
-  const [aspect, set_aspect] = useState("16:9");
+  const [aspect, set_aspect] = useState("1:1");
+  const [aspect_slider, set_aspect_slider] = useState(1);
   const [video_url, set_video_url] = useState("");
   const [loading, set_loading] = useState(false);
   const [error, set_error] = useState("");
@@ -234,10 +236,8 @@ export default function Video_effects_page() {
   }
 
   // Placeholder for aspect ratio preview
-  const aspect_label =
-    ASPECT_OPTIONS.find((a) => a.value === aspect)?.label || aspect;
-  const preview_width = aspect === "16:9" ? 112 : 63;
-  const preview_height = aspect === "9:16" ? 63 : 112;
+  const preview_width = aspect === "16:9" ? 112 : aspect === "1:1" ? 80 : 63;
+  const preview_height = aspect === "9:16" ? 112 : aspect === "1:1" ? 80 : 63;
   const placeholder_style = {
     width: `${preview_width}px`,
     height: `${preview_height}px`,
@@ -251,13 +251,13 @@ export default function Video_effects_page() {
         <Token_count_display />
       </div>
       {/* Main input bar */}
-      <div className="w-full flex flex-col items-center z-30">
+      <div className="w-full flex flex-col items-center z-50">
         <div
           ref={prompt_input_ref}
           className="w-full flex justify-center items-start"
         >
           <div
-            className="fixed bottom-20 left-0 w-full px-2 z-40 md:static md:bottom-auto md:left-auto md:px-0 md:mt-8"
+            className="fixed bottom-20 left-0 w-full px-2 z-50 md:static md:bottom-auto md:left-auto md:px-0 md:mt-8"
             style={{ pointerEvents: "auto" }}
           >
             <form
@@ -265,28 +265,54 @@ export default function Video_effects_page() {
               className="w-full max-w-2xl mx-auto flex items-start bg-base-200 rounded border border-base-300 shadow-lg px-4 md:px-6 py-2.5 md:py-3 gap-2 md:gap-3 relative min-h-[56px]"
               style={{ boxShadow: "0 2px 16px 0 rgba(0,0,0,0.18)" }}
             >
-              {/* Left video icon */}
-              <span className="flex items-center text-jade pl-0.5 pt-1">
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <rect
-                    x="3"
-                    y="7"
-                    width="18"
-                    height="10"
-                    rx="2"
+              {/* Upload/URL button for image2video models */}
+              {selected_model?.is_image_to_video ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    id="image-upload"
+                    accept="image/*"
+                    onChange={handle_file_change}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="btn btn-sm btn-ghost text-jade hover:bg-jade/10 cursor-pointer flex items-center gap-1"
+                    title={image_source === "upload" && image_file ? "Change image" : "Upload image"}
+                  >
+                    <FaImage className="w-4 h-4" />
+                    <span className="text-xs">
+                      {image_source === "upload" && image_file 
+                        ? image_file.name.slice(0, 10) + '...' 
+                        : image_source === "url" && image_url 
+                        ? "URL Set" 
+                        : "Image"}
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <span className="flex items-center text-jade pl-0.5 pt-1">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
-                    fill="none"
-                  />
-                  <polygon points="16,12 20,10 20,14" fill="currentColor" />
-                </svg>
-              </span>
+                    viewBox="0 0 24 24"
+                  >
+                    <rect
+                      x="3"
+                      y="7"
+                      width="18"
+                      height="10"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      fill="none"
+                    />
+                    <polygon points="16,12 20,10 20,14" fill="currentColor" />
+                  </svg>
+                </span>
+              )}
               {/* Prompt input */}
               <textarea
                 id="prompt_text"
@@ -400,12 +426,12 @@ export default function Video_effects_page() {
       {show_settings && (
         <form
           onSubmit={handle_generate}
-          className="w-full max-w-5xl mx-auto flex flex-col z-50 options-card-animated bg-gradient-to-br from-base-200 via-base-100 to-base-200 rounded-2xl border border-base-300 shadow-lg p-2 md:p-4"
+          className="w-full max-w-3xl mx-auto flex flex-col z-20 options-card-animated bg-base-200 rounded-xl border border-base-300 shadow-lg p-4 md:p-6"
           style={{
             position: "absolute",
             left: 0,
             right: 0,
-            top: window_width < 768 ? 72 : 42 + prompt_input_height,
+            top: window_width < 768 ? 120 : 80 + prompt_input_height,
             margin: "0 auto",
           }}
         >
@@ -431,63 +457,75 @@ export default function Video_effects_page() {
             </svg>
           </button>
           {/* Options row */}
-          <div className="w-full grid grid-cols-3 gap-4  bg-transparent">
+          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 bg-transparent">
             {/* Aspect Ratio */}
-            <div className="col-span-1 flex-1 min-w-[180px] min-h-[280px] bg-white/80 rounded-2xl border border-base-300 shadow-md p-5 flex flex-col gap-3 items-center justify-center transition-all duration-200 hover:shadow-xl focus-within:ring-2 focus-within:ring-jade relative group">
-              <div className="flex items-center gap-2 mb-1 w-full">
-                <FaExpandArrowsAlt className="text-jade text-lg" />
-                <span className="text-lg font-bold text-base-900">
-                  Aspect Ratio
-                </span>
-                <span
-                  className="ml-1 text-base-400 cursor-help"
-                  title="Choose the aspect ratio for your video."
-                >
-                  ?
-                </span>
+            <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm p-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:border-jade/30 relative group">
+              <div className="flex items-center gap-2 mb-2">
+                <FaExpandArrowsAlt className="text-jade text-base" />
+                <span className="text-base font-semibold">Aspect Ratio</span>
               </div>
-              <div className="flex flex-col h-full  w-full items-center justify-center gap-2 md:gap-3 relative">
-                {/* Aspect ratio preview (placeholder) */}
-                <div className="flex flex-col items-center justify-center w-[42px] md:w-[63px] h-[42px] md:h-[63px] mb-4">
+              <div className="flex flex-col gap-3">
+                {/* Visual aspect ratio preview */}
+                <div className="flex justify-center">
                   <div
-                    className="border border-base rounded-md flex items-center justify-center bg-base-800 w-[22px] h-[22px] flex-shrink-0 mx-1 md:mx-2 my-1 md:my-2 p-1 md:p-2"
+                    className="border-2 border-jade/30 rounded-md bg-base-200 transition-all duration-300"
                     style={{ ...placeholder_style }}
-                  >
-                    <span className="text-base md:text-lg font-semibold text-base">
-                      {aspect_label}
-                    </span>
-                  </div>
+                  />
                 </div>
-                <select
-                  className="select select-bordered w-full text-lg font-semibold bg-base-100 border border-base-300 focus:border-jade focus:ring-2 focus:ring-jade-focus transition text-base rounded-lg px-3 py-2 hover:border-jade"
-                  value={aspect}
-                  onChange={(e) => set_aspect(e.target.value)}
-                  aria-label="Select aspect ratio"
-                >
+                {/* Slider with custom track */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full h-1 bg-base-300 rounded-full" />
+                    <div 
+                      className="absolute h-1 bg-jade rounded-full transition-all duration-200"
+                      style={{
+                        left: aspect_slider < 1 ? `${aspect_slider * 50}%` : '50%',
+                        right: aspect_slider > 1 ? `${(2 - aspect_slider) * 50}%` : '50%',
+                      }}
+                    />
+                    {/* Position dots */}
+                    <div className="absolute w-2 h-2 bg-base-300 rounded-full" style={{ left: '0%', transform: 'translateX(-50%)' }} />
+                    <div className="absolute w-2 h-2 bg-base-300 rounded-full" style={{ left: '50%', transform: 'translateX(-50%)' }} />
+                    <div className="absolute w-2 h-2 bg-base-300 rounded-full" style={{ left: '100%', transform: 'translateX(-50%)' }} />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value={aspect_slider}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      set_aspect_slider(value);
+                      const selected = ASPECT_OPTIONS[value];
+                      if (selected) set_aspect(selected.value);
+                    }}
+                    className="relative z-10 w-full h-6 bg-transparent appearance-none cursor-pointer aspect-slider"
+                    aria-label="Select aspect ratio"
+                  />
+                </div>
+                {/* Labels */}
+                <div className="flex justify-between text-xs text-base-content/70">
                   {ASPECT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
+                    <span key={opt.value} className="text-center">
+                      {opt.value}
+                    </span>
                   ))}
-                </select>
+                </div>
+                {/* Current selection label */}
+                <div className="text-center text-sm font-medium">
+                  {ASPECT_OPTIONS[aspect_slider]?.label}
+                </div>
               </div>
             </div>
             {/* Duration */}
-            <div className="flex-1 min-w-[140px] bg-white/80 rounded-2xl border border-base-300 shadow-md p-5 flex flex-col gap-3 items-center justify-between transition-all duration-200 hover:shadow-xl focus-within:ring-2 focus-within:ring-jade relative group">
-              <div className="flex items-center gap-2 mb-1 w-full">
-                <FaClock className="text-jade text-lg" />
-                <span className="text-lg font-bold text-base-900">
-                  Duration
-                </span>
-                <span
-                  className="ml-1 text-base-400 cursor-help"
-                  title="Choose the length of the generated video."
-                >
-                  ?
-                </span>
+            <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm p-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:border-jade/30 relative group">
+              <div className="flex items-center gap-2 mb-2">
+                <FaClock className="text-jade text-base" />
+                <span className="text-base font-semibold">Duration</span>
               </div>
               <select
-                className="select select-bordered w-full text-lg font-semibold bg-base-100 border border-base-300 focus:border-jade focus:ring-2 focus:ring-jade-focus transition text-base rounded-lg px-3 py-2 hover:border-jade"
+                className="select select-bordered select-sm w-full mb-2"
                 value={video_duration}
                 onChange={(e) => set_video_duration(Number(e.target.value))}
                 aria-label="Select video duration"
@@ -495,22 +533,18 @@ export default function Video_effects_page() {
                 <option value={5}>5 seconds</option>
                 <option value={10}>10 seconds</option>
               </select>
-              <CostDisplay model={selected_model} />
+              <div className="mt-auto">
+                <CostDisplay model={selected_model} />
+              </div>
             </div>
             {/* Model selection */}
-            <div className="flex-1 min-w-[220px]  bg-white/80 rounded-2xl border border-base-300 shadow-md p-5 flex flex-col gap-3 transition-all duration-200 hover:shadow-xl focus-within:ring-2 focus-within:ring-jade relative group">
-              <div className="flex items-center gap-2 mb-1">
-                <FaVideo className="text-jade text-lg" />
-                <span className="text-lg font-bold text-base-900">Model</span>
-                <span
-                  className="ml-1 text-base-400 cursor-help"
-                  title="Choose the AI model for video generation."
-                >
-                  ?
-                </span>
+            <div className="bg-base-100 rounded-xl border border-base-300 shadow-sm p-4 flex flex-col gap-3 transition-all duration-200 hover:shadow-md hover:border-jade/30 relative group">
+              <div className="flex items-center gap-2 mb-2">
+                <FaVideo className="text-jade text-base" />
+                <span className="text-base font-semibold">Model</span>
               </div>
               <select
-                className="select select-bordered w-full text-lg font-semibold bg-base-100 border border-base-300 focus:border-jade focus:ring-2 focus:ring-jade-focus transition text-base rounded-lg px-3 py-2 hover:border-jade"
+                className="select select-bordered select-sm w-full"
                 value={model_id}
                 onChange={(e) => set_model_id(e.target.value)}
                 aria-label="Select model"
@@ -522,70 +556,56 @@ export default function Video_effects_page() {
                 ))}
               </select>
             </div>
-            {/* Image Source and Upload/URL - only if is_image_to_video */}
-            {selected_model?.is_image_to_video && (
-              <div className="flex-1 min-w-[220px] bg-white/80 rounded-2xl border border-base-300 shadow-md p-5 flex flex-col gap-3 transition-all duration-200 hover:shadow-xl focus-within:ring-2 focus-within:ring-jade relative group">
-                <div className="flex items-center gap-2 mb-1">
-                  <FaImage className="text-jade text-lg" />
-                  <span className="text-lg font-bold text-base-900">
-                    Image Source
-                  </span>
-                  <span
-                    className="ml-1 text-base-400 cursor-help"
-                    title="Provide an image URL or upload an image to guide the video."
-                  >
-                    ?
-                  </span>
-                </div>
-                <div className="flex gap-3 items-center mb-1">
-                  <label className="flex items-center gap-2">
+          </div>
+          {/* Image URL Input for image2video models */}
+          {/* {selected_model?.is_image_to_video && (
+            <div className="mt-4 p-4 bg-base-100 rounded-xl border border-base-300">
+              <div className="flex items-center gap-2 mb-3">
+                <FaImage className="text-jade text-base" />
+                <span className="text-base font-semibold">Image Input</span>
+              </div>
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="image_source"
-                      value="url"
-                      checked={image_source === "url"}
-                      onChange={() => set_image_source("url")}
-                    />
-                    Use Image URL
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="image_source"
+                      name="img_src"
                       value="upload"
                       checked={image_source === "upload"}
                       onChange={() => set_image_source("upload")}
+                      className="radio radio-sm radio-jade"
                     />
-                    Upload Image
+                    <span className="text-sm">Upload File</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="img_src"
+                      value="url"
+                      checked={image_source === "url"}
+                      onChange={() => set_image_source("url")}
+                      className="radio radio-sm radio-jade"
+                    />
+                    <span className="text-sm">Use URL</span>
                   </label>
                 </div>
-                {image_source === "url" ? (
-                  <>
-                    <label className="font-medium">Image URL</label>
-                    <input
-                      className="input input-bordered w-full rounded-lg px-3 py-2"
-                      type="url"
-                      value={image_url}
-                      onChange={(e) => set_image_url(e.target.value)}
-                      placeholder="https://..."
-                      required
-                    />
-                  </>
-                ) : (
-                  <>
-                    <label className="font-medium">Upload Image</label>
-                    <input
-                      className="file-input file-input-bordered w-full rounded-lg px-3 py-2"
-                      type="file"
-                      accept="image/*"
-                      onChange={handle_file_change}
-                      required
-                    />
-                  </>
+                {image_source === "url" && (
+                  <input
+                    type="url"
+                    value={image_url}
+                    onChange={(e) => set_image_url(e.target.value)}
+                    placeholder="Enter image URL..."
+                    className="input input-bordered input-sm w-full"
+                  />
+                )}
+                {image_source === "upload" && image_file && (
+                  <div className="text-sm text-base-content/70">
+                    Selected: {image_file.name}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )} */}
         </form>
       )}
       {/* Error message (always below menu/input) */}
@@ -618,6 +638,39 @@ export default function Video_effects_page() {
         }
         .options-card-animated.hide {
           opacity: 0;
+        }
+        .aspect-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #000000;
+          border-radius: 50%;
+          cursor: pointer;
+          position: relative;
+          z-index: 20;
+        }
+        .aspect-slider::-moz-range-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #000000;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          position: relative;
+          z-index: 20;
+        }
+        .aspect-slider::-webkit-slider-runnable-track {
+          width: 100%;
+          height: 4px;
+          cursor: pointer;
+          background: transparent;
+        }
+        .aspect-slider::-moz-range-track {
+          width: 100%;
+          height: 4px;
+          cursor: pointer;
+          background: transparent;
         }
       `}</style>
     </div>

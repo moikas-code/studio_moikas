@@ -45,7 +45,7 @@ export default function FAQSection() {
                 Mana Points (MP) are our flexible credit system. Each image generation
                 costs MP based on the model, resolution, and parameters used.
                 Free users receive 125 MP monthly (renewed automatically), while
-                Standard users get 150 MP monthly plus the ability to purchase additional
+                Standard users get 20480 MP monthly plus the ability to purchase additional
                 permanent MP as needed.
               </p>
             </div>
