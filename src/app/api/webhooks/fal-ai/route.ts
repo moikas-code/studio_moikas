@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
+import { create_service_role_client } from "@/lib/supabase_server";
 
 export const runtime = "nodejs"; // Ensure this runs in Node.js, not Edge
 
@@ -14,8 +14,26 @@ interface FalWebhookPayload {
 
 export async function POST(req: NextRequest) {
   try {
+    // Log all headers for debugging
+    console.log(`[Webhook] Headers:`, Object.fromEntries(req.headers.entries()));
+    
+    // Optional: Add webhook secret verification (disabled for now)
+    // const webhook_secret = process.env.FAL_WEBHOOK_SECRET;
+    // if (webhook_secret) {
+    //   const auth_header = req.headers.get('authorization');
+    //   if (auth_header !== `Bearer ${webhook_secret}`) {
+    //     console.error("Webhook authentication failed");
+    //     return NextResponse.json(
+    //       { error: "Unauthorized" },
+    //       { status: 401 },
+    //     );
+    //   }
+    // }
+
     const body: FalWebhookPayload = await req.json();
     const { request_id, gateway_request_id, status, payload, error, payload_error } = body;
+
+    console.log(`[Webhook] Received webhook for job ${request_id} with status ${status}`);
 
     // Validate required fields
     if (!request_id) {
@@ -32,7 +50,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = await create_clerk_supabase_client_ssr();
+    // Use service role client since webhooks don't have authentication
+    const supabase = create_service_role_client();
     
     // Initialize update data
     const update_data: Record<string, unknown> = {
