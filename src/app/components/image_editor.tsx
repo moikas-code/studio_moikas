@@ -162,8 +162,75 @@ export default function Image_editor() {
     return { x: canvas_x, y: canvas_y };
   }, [canvas_state.zoom, canvas_state.pan_x, canvas_state.pan_y]);
 
+  // Resize/reposition an image to fit template dimensions
+  const resize_image_to_template = useCallback(async (image_base64: string, template: Template): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(image_base64);
+        return;
+      }
+
+      // Set canvas to template dimensions
+      canvas.width = template.width;
+      canvas.height = template.height;
+
+      // Create image element
+      const img = new window.Image();
+      img.onload = () => {
+        // Calculate scaling to fit within template while maintaining aspect ratio
+        const scale_to_fit = Math.min(
+          template.width / img.width,
+          template.height / img.height
+        );
+
+        const scaled_width = img.width * scale_to_fit;
+        const scaled_height = img.height * scale_to_fit;
+
+        // Center the image within the template
+        const x = (template.width - scaled_width) / 2;
+        const y = (template.height - scaled_height) / 2;
+
+        // Clear canvas with template background if it exists
+        if (template.background_gradient) {
+          const gradient = ctx.createLinearGradient(
+            template.background_gradient.direction === 'horizontal' ? 0 : 
+            template.background_gradient.direction === 'diagonal' ? 0 : 
+            template.width / 2,
+            template.background_gradient.direction === 'vertical' ? 0 : 
+            template.background_gradient.direction === 'diagonal' ? 0 : 
+            template.height / 2,
+            template.background_gradient.direction === 'horizontal' ? template.width : 
+            template.background_gradient.direction === 'diagonal' ? template.width : 
+            template.width / 2,
+            template.background_gradient.direction === 'vertical' ? template.height : 
+            template.background_gradient.direction === 'diagonal' ? template.height : 
+            template.height / 2
+          );
+          gradient.addColorStop(0, template.background_gradient.start);
+          gradient.addColorStop(1, template.background_gradient.end);
+          ctx.fillStyle = gradient;
+        } else {
+          ctx.fillStyle = template.background_color;
+        }
+        ctx.fillRect(0, 0, template.width, template.height);
+
+        // Draw the resized image
+        ctx.drawImage(img, x, y, scaled_width, scaled_height);
+
+        resolve(canvas.toDataURL().split(',')[1]); // Return base64 without prefix
+      };
+      img.onerror = () => resolve(image_base64); // Return original if error
+      img.src = `data:image/png;base64,${image_base64}`;
+    });
+  }, []);
+
+  // Store current selected template for upload handling
+  const [current_template, set_current_template] = useState<Template | null>(null);
+
   // Apply template with specified background choice
-  const apply_template_with_background = useCallback((template: Template, use_template_background: boolean) => {
+  const apply_template_with_background = useCallback(async (template: Template, use_template_background: boolean) => {
     // Convert template text elements to our format
     const text_elements: Text_element[] = template.text_elements.map((element, index) => ({
       id: `template_${Date.now()}_${index}`,
@@ -193,9 +260,12 @@ export default function Image_editor() {
     
     if (use_template_background || !canvas_state.image_base64) {
       final_background = create_template_background(template);
+    } else {
+      // Keep existing image but resize/position it to fit template
+      final_background = await resize_image_to_template(canvas_state.image_base64, template);
     }
 
-        const new_state = {
+    const new_state = {
       ...canvas_state,
       image_base64: final_background,
       canvas_width: template.width,
@@ -207,6 +277,7 @@ export default function Image_editor() {
     };
 
     set_canvas_state(save_to_history(new_state));
+    set_current_template(template); // Store the current template for future uploads
     set_show_templates(false);
     set_selected_text_id(null);
     // Draw canvas with the template's viewport dimensions
@@ -220,7 +291,7 @@ export default function Image_editor() {
       used_template_background: use_template_background,
       plan: plan || "unknown",
     });
-  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions]);
+  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -261,7 +332,7 @@ export default function Image_editor() {
   }, [canvas_state.image_base64, apply_template_with_background, get_skip_template_confirmation]);
 
   // Process uploaded file
-  const process_file = useCallback((file: File) => {
+  const process_file = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       set_error_message("Please select a valid image file");
       return;
@@ -274,32 +345,63 @@ export default function Image_editor() {
 
     set_is_loading(true);
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const base64 = e.target?.result as string;
       const img = new window.Image();
-      img.onload = () => {
-        // Calculate viewport dimensions for the uploaded image
-        const image_viewport = calculate_viewport_dimensions(img.width, img.height);
+      img.onload = async () => {
+        const uploaded_image_base64 = base64.split(',')[1]; // Remove data:image/... prefix
         
-        // Auto-fit zoom to viewport with padding (90% of viewport)
-        const initial_zoom = Math.min(
-          (image_viewport.width * 0.9) / img.width,
-          (image_viewport.height * 0.9) / img.height,
-          1 // Don't zoom in beyond 100%
-        );
+        // Check if we have an active template (has text elements or current_template is set)
+        const has_template = canvas_state.text_elements.length > 0 || current_template;
+        
+        if (has_template && current_template) {
+          // Template is active - resize image to fit template and preserve template structure
+          const resized_image = await resize_image_to_template(uploaded_image_base64, current_template);
+          
+          const new_state = {
+            ...canvas_state,
+            image_base64: resized_image,
+            // Keep existing template dimensions and text elements
+          };
+          set_canvas_state(save_to_history(new_state));
+          draw_canvas(new_state);
+        } else if (has_template && !current_template) {
+          // We have text elements but no current_template reference
+          // This means a template was applied but we lost the reference
+          // In this case, just replace the image but keep text elements and dimensions
+          const new_state = {
+            ...canvas_state,
+            image_base64: uploaded_image_base64,
+            // Keep existing canvas dimensions and text elements
+          };
+          set_canvas_state(save_to_history(new_state));
+          draw_canvas(new_state);
+        } else {
+          // No template active - treat as new image upload
+          // Calculate viewport dimensions for the uploaded image
+          const image_viewport = calculate_viewport_dimensions(img.width, img.height);
+          
+          // Auto-fit zoom to viewport with padding (90% of viewport)
+          const initial_zoom = Math.min(
+            (image_viewport.width * 0.9) / img.width,
+            (image_viewport.height * 0.9) / img.height,
+            1 // Don't zoom in beyond 100%
+          );
 
-        const new_state = {
-          ...canvas_state,
-          image_base64: base64.split(',')[1], // Remove data:image/... prefix
-          canvas_width: img.width,
-          canvas_height: img.height,
-          text_elements: [],
-          zoom: initial_zoom,
-          pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
-          pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
-        };
-        set_canvas_state(save_to_history(new_state));
-        draw_canvas(new_state);
+          const new_state = {
+            ...canvas_state,
+            image_base64: uploaded_image_base64,
+            canvas_width: img.width,
+            canvas_height: img.height,
+            text_elements: [],
+            zoom: initial_zoom,
+            pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
+            pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
+          };
+          set_canvas_state(save_to_history(new_state));
+          draw_canvas(new_state);
+        }
+        
         set_is_loading(false);
         set_error_message(null);
       };
@@ -314,7 +416,7 @@ export default function Image_editor() {
       set_is_loading(false);
     };
     reader.readAsDataURL(file);
-  }, [canvas_state, save_to_history, calculate_viewport_dimensions]);
+  }, [canvas_state, save_to_history, calculate_viewport_dimensions, current_template, resize_image_to_template]);
 
   // Handle file upload
   const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -998,6 +1100,7 @@ export default function Image_editor() {
                 pan_y: 0,
               };
               set_canvas_state(save_to_history(new_state));
+              set_current_template(null); // Clear the current template
               set_selected_text_id(null);
               draw_canvas(new_state);
             }
