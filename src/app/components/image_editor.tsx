@@ -26,6 +26,11 @@ import {
   RotateCcw,
   MousePointer,
   Grid,
+  ChevronUp,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
 } from "lucide-react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
@@ -38,6 +43,15 @@ import {
   type Template,
   type Template_text_element 
 } from "@/lib/image_editor_templates";
+
+// Hooks and utilities
+import { use_canvas_state } from "@/hooks/use_canvas_state";
+import { use_zoom_pan } from "@/hooks/use_zoom_pan";
+import { calculate_viewport_dimensions } from "@/lib/image_editor_utils";
+
+// Components
+import { Image_editor_header } from "./image_editor/image_editor_header";
+import { Image_editor_toolbar } from "./image_editor/image_editor_toolbar";
 
 interface Text_element {
   id: string;
@@ -67,18 +81,21 @@ interface Canvas_state {
 export default function Image_editor() {
   const { refresh_mp, plan } = useContext(MpContext);
   
-  // Canvas state
-  const [canvas_state, set_canvas_state] = useState<Canvas_state>({
-    image_base64: null,
-    text_elements: [],
-    canvas_width: 400,
-    canvas_height: 300,
-    zoom: 1,
-    pan_x: 0,
-    pan_y: 0,
-    history: [],
-    history_index: -1,
-  });
+  // Use custom hooks
+  const {
+    canvas_state,
+    set_canvas_state,
+    update_canvas_state,
+    update_canvas_state_with_history,
+    save_to_history,
+  } = use_canvas_state();
+
+  const {
+    zoom_in,
+    zoom_out,
+    reset_zoom,
+    handle_wheel_zoom,
+  } = use_zoom_pan(canvas_state, update_canvas_state);
 
   // UI state
   const [is_loading, set_is_loading] = useState(false);
@@ -96,6 +113,10 @@ export default function Image_editor() {
   const [drag_offset, set_drag_offset] = useState({ x: 0, y: 0 });
   const [last_pan_position, set_last_pan_position] = useState({ x: 0, y: 0 });
   const [show_grid, set_show_grid] = useState(false);
+  
+  // Layer reordering state
+  const [dragging_layer_index, set_dragging_layer_index] = useState<number | null>(null);
+  const [drag_over_layer_index, set_drag_over_layer_index] = useState<number | null>(null);
 
   // Text editing state
   const [text_input, set_text_input] = useState("");
@@ -109,104 +130,13 @@ export default function Image_editor() {
   const viewport_ref = useRef<HTMLDivElement>(null);
   const file_input_ref = useRef<HTMLInputElement>(null);
 
-  // Dynamic viewport dimensions based on canvas content
-  const MAX_VIEWPORT_WIDTH = 1000;
-  const MAX_VIEWPORT_HEIGHT = 700;
-  const MIN_VIEWPORT_WIDTH = 400;
-  const MIN_VIEWPORT_HEIGHT = 300;
-  
-  // Calculate optimal viewport size based on canvas dimensions
-  const get_viewport_dimensions = useCallback(() => {
-    if (!canvas_state.canvas_width || !canvas_state.canvas_height) {
-      return { width: MIN_VIEWPORT_WIDTH, height: MIN_VIEWPORT_HEIGHT };
-    }
+  // State for tracking viewport dimensions
+  const [viewport_dimensions_state, set_viewport_dimensions] = useState(() => 
+    calculate_viewport_dimensions(canvas_state.canvas_width, canvas_state.canvas_height)
+  );
 
-    // Calculate aspect ratio
-    const aspect_ratio = canvas_state.canvas_width / canvas_state.canvas_height;
-    
-    // Start with canvas dimensions
-    let viewport_width = canvas_state.canvas_width;
-    let viewport_height = canvas_state.canvas_height;
-    
-    // Scale down if too large
-    if (viewport_width > MAX_VIEWPORT_WIDTH) {
-      viewport_width = MAX_VIEWPORT_WIDTH;
-      viewport_height = viewport_width / aspect_ratio;
-    }
-    
-    if (viewport_height > MAX_VIEWPORT_HEIGHT) {
-      viewport_height = MAX_VIEWPORT_HEIGHT;
-      viewport_width = viewport_height * aspect_ratio;
-    }
-    
-    // Ensure minimum size
-    if (viewport_width < MIN_VIEWPORT_WIDTH) {
-      viewport_width = MIN_VIEWPORT_WIDTH;
-      viewport_height = viewport_width / aspect_ratio;
-    }
-    
-    if (viewport_height < MIN_VIEWPORT_HEIGHT) {
-      viewport_height = MIN_VIEWPORT_HEIGHT;
-      viewport_width = viewport_height * aspect_ratio;
-    }
-    
-    return {
-      width: Math.round(viewport_width),
-      height: Math.round(viewport_height)
-    };
-  }, [canvas_state.canvas_width, canvas_state.canvas_height]);
-
-  // Helper function to calculate viewport dimensions for any canvas size
-  const get_viewport_dimensions_for_canvas = useCallback((canvas_width: number, canvas_height: number) => {
-    if (!canvas_width || !canvas_height) {
-      return { width: MIN_VIEWPORT_WIDTH, height: MIN_VIEWPORT_HEIGHT };
-    }
-
-    // Calculate aspect ratio
-    const aspect_ratio = canvas_width / canvas_height;
-    
-    // Start with canvas dimensions
-    let viewport_width = canvas_width;
-    let viewport_height = canvas_height;
-    
-    // Scale down if too large
-    if (viewport_width > MAX_VIEWPORT_WIDTH) {
-      viewport_width = MAX_VIEWPORT_WIDTH;
-      viewport_height = viewport_width / aspect_ratio;
-    }
-    
-    if (viewport_height > MAX_VIEWPORT_HEIGHT) {
-      viewport_height = MAX_VIEWPORT_HEIGHT;
-      viewport_width = viewport_height * aspect_ratio;
-    }
-    
-    // Ensure minimum size
-    if (viewport_width < MIN_VIEWPORT_WIDTH) {
-      viewport_width = MIN_VIEWPORT_WIDTH;
-      viewport_height = viewport_width / aspect_ratio;
-    }
-    
-    if (viewport_height < MIN_VIEWPORT_HEIGHT) {
-      viewport_height = MIN_VIEWPORT_HEIGHT;
-      viewport_width = viewport_height * aspect_ratio;
-    }
-    
-    return {
-      width: Math.round(viewport_width),
-      height: Math.round(viewport_height)
-    };
-  }, []);
-
-  // State to track current viewport dimensions
-  const [viewport_dimensions, set_viewport_dimensions] = useState(() => get_viewport_dimensions());
-  const VIEWPORT_WIDTH = viewport_dimensions.width;
-  const VIEWPORT_HEIGHT = viewport_dimensions.height;
-
-  // Update viewport dimensions when canvas state changes
-  useEffect(() => {
-    const new_dimensions = get_viewport_dimensions();
-    set_viewport_dimensions(new_dimensions);
-  }, [canvas_state.canvas_width, canvas_state.canvas_height, get_viewport_dimensions]);
+  // Use the state-tracked viewport dimensions
+  const viewport_dimensions = viewport_dimensions_state;
 
   // Font options
   const font_options = [
@@ -224,47 +154,6 @@ export default function Image_editor() {
     { value: "bold", label: "Bold" },
     { value: "lighter", label: "Light" },
   ];
-
-  // Save state to history
-  const save_to_history = useCallback((state: Canvas_state) => {
-    const history_entry = JSON.stringify({
-      image_base64: state.image_base64,
-      text_elements: state.text_elements,
-    });
-    
-    const new_history = state.history.slice(0, state.history_index + 1);
-    new_history.push(history_entry);
-    
-    return {
-      ...state,
-      history: new_history,
-      history_index: new_history.length - 1,
-    };
-  }, []);
-
-  // Zoom functions
-  const zoom_in = useCallback(() => {
-    set_canvas_state(prev => ({
-      ...prev,
-      zoom: Math.min(prev.zoom * 1.2, 5)
-    }));
-  }, []);
-
-  const zoom_out = useCallback(() => {
-    set_canvas_state(prev => ({
-      ...prev,
-      zoom: Math.max(prev.zoom / 1.2, 0.1)
-    }));
-  }, []);
-
-  const reset_zoom = useCallback(() => {
-    set_canvas_state(prev => ({
-      ...prev,
-      zoom: 1,
-      pan_x: 0,
-      pan_y: 0
-    }));
-  }, []);
 
   // Convert viewport coordinates to canvas coordinates
   const viewport_to_canvas = useCallback((viewport_x: number, viewport_y: number) => {
@@ -290,7 +179,7 @@ export default function Image_editor() {
     }));
 
     // Calculate optimal zoom to fit template nicely in the dynamic viewport
-    const template_viewport = get_viewport_dimensions_for_canvas(template.width, template.height);
+    const template_viewport = calculate_viewport_dimensions(template.width, template.height);
     
     // Fit the template with some padding (90% of viewport)
     const initial_zoom = Math.min(
@@ -331,7 +220,7 @@ export default function Image_editor() {
       used_template_background: use_template_background,
       plan: plan || "unknown",
     });
-  }, [canvas_state, save_to_history, plan, get_viewport_dimensions_for_canvas]);
+  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -390,7 +279,7 @@ export default function Image_editor() {
       const img = new window.Image();
       img.onload = () => {
         // Calculate viewport dimensions for the uploaded image
-        const image_viewport = get_viewport_dimensions_for_canvas(img.width, img.height);
+        const image_viewport = calculate_viewport_dimensions(img.width, img.height);
         
         // Auto-fit zoom to viewport with padding (90% of viewport)
         const initial_zoom = Math.min(
@@ -425,7 +314,7 @@ export default function Image_editor() {
       set_is_loading(false);
     };
     reader.readAsDataURL(file);
-  }, [canvas_state, save_to_history, get_viewport_dimensions_for_canvas]);
+  }, [canvas_state, save_to_history, calculate_viewport_dimensions]);
 
   // Handle file upload
   const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,12 +369,12 @@ export default function Image_editor() {
     if (!ctx) return;
 
     // Use custom dimensions if provided, otherwise calculate based on state
-    const viewport_dims = custom_viewport_dimensions || get_viewport_dimensions_for_canvas(state.canvas_width, state.canvas_height);
+    const viewport_dims = custom_viewport_dimensions || calculate_viewport_dimensions(state.canvas_width, state.canvas_height);
     const current_viewport_width = viewport_dims.width;
     const current_viewport_height = viewport_dims.height;
 
     // Update the component's viewport dimensions if they've changed
-    if (current_viewport_width !== VIEWPORT_WIDTH || current_viewport_height !== VIEWPORT_HEIGHT) {
+    if (current_viewport_width !== viewport_dimensions.width || current_viewport_height !== viewport_dimensions.height) {
       set_viewport_dimensions({ width: current_viewport_width, height: current_viewport_height });
     }
 
@@ -596,15 +485,15 @@ export default function Image_editor() {
       // No image, just draw text elements
       draw_all();
     }
-  }, [get_viewport_dimensions_for_canvas, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, show_grid]);
+  }, [calculate_viewport_dimensions, show_grid]);
 
   // Add text element
   const add_text_element = useCallback(() => {
     if (!text_input.trim()) return;
 
     // Place text at center of visible viewport
-    const viewport_center_x = VIEWPORT_WIDTH / 2;
-    const viewport_center_y = VIEWPORT_HEIGHT / 2;
+    const viewport_center_x = viewport_dimensions.width / 2;
+    const viewport_center_y = viewport_dimensions.height / 2;
     const canvas_coords = viewport_to_canvas(viewport_center_x, viewport_center_y);
 
     const new_text_element: Text_element = {
@@ -681,6 +570,117 @@ export default function Image_editor() {
     set_canvas_state(save_to_history(new_state));
     draw_canvas(new_state);
   }, [canvas_state, selected_text_id, save_to_history]);
+
+  // Layer management functions
+  const move_layer_up = useCallback((element_id: string) => {
+    const current_index = canvas_state.text_elements.findIndex(t => t.id === element_id);
+    if (current_index < canvas_state.text_elements.length - 1) {
+      const new_elements = [...canvas_state.text_elements];
+      [new_elements[current_index], new_elements[current_index + 1]] = 
+        [new_elements[current_index + 1], new_elements[current_index]];
+      
+      const new_state = {
+        ...canvas_state,
+        text_elements: new_elements,
+      };
+      set_canvas_state(save_to_history(new_state));
+      draw_canvas(new_state);
+    }
+  }, [canvas_state, save_to_history]);
+
+  const move_layer_down = useCallback((element_id: string) => {
+    const current_index = canvas_state.text_elements.findIndex(t => t.id === element_id);
+    if (current_index > 0) {
+      const new_elements = [...canvas_state.text_elements];
+      [new_elements[current_index], new_elements[current_index - 1]] = 
+        [new_elements[current_index - 1], new_elements[current_index]];
+      
+      const new_state = {
+        ...canvas_state,
+        text_elements: new_elements,
+      };
+      set_canvas_state(save_to_history(new_state));
+      draw_canvas(new_state);
+    }
+  }, [canvas_state, save_to_history]);
+
+  const bring_to_front = useCallback((element_id: string) => {
+    const element = canvas_state.text_elements.find(t => t.id === element_id);
+    if (!element) return;
+    
+    const new_elements = [
+      ...canvas_state.text_elements.filter(t => t.id !== element_id),
+      element
+    ];
+    
+    const new_state = {
+      ...canvas_state,
+      text_elements: new_elements,
+    };
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+  }, [canvas_state, save_to_history]);
+
+  const send_to_back = useCallback((element_id: string) => {
+    const element = canvas_state.text_elements.find(t => t.id === element_id);
+    if (!element) return;
+    
+    const new_elements = [
+      element,
+      ...canvas_state.text_elements.filter(t => t.id !== element_id)
+    ];
+    
+    const new_state = {
+      ...canvas_state,
+      text_elements: new_elements,
+    };
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+  }, [canvas_state, save_to_history]);
+
+  // Handle drag and drop reordering of text elements
+  const handle_layer_drag_start = useCallback((e: React.DragEvent, index: number) => {
+    set_dragging_layer_index(index);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handle_layer_drag_over = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    set_drag_over_layer_index(index);
+  }, []);
+
+  const handle_layer_drag_leave = useCallback(() => {
+    set_drag_over_layer_index(null);
+  }, []);
+
+  const handle_layer_drop = useCallback((e: React.DragEvent, drop_index: number) => {
+    e.preventDefault();
+    
+    if (dragging_layer_index === null || dragging_layer_index === drop_index) {
+      set_dragging_layer_index(null);
+      set_drag_over_layer_index(null);
+      return;
+    }
+
+    const new_elements = [...canvas_state.text_elements];
+    const [moved_element] = new_elements.splice(dragging_layer_index, 1);
+    new_elements.splice(drop_index, 0, moved_element);
+    
+    const new_state = {
+      ...canvas_state,
+      text_elements: new_elements,
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+    set_dragging_layer_index(null);
+    set_drag_over_layer_index(null);
+  }, [canvas_state, dragging_layer_index, save_to_history]);
+
+  const handle_layer_drag_end = useCallback(() => {
+    set_dragging_layer_index(null);
+    set_drag_over_layer_index(null);
+  }, []);
 
   // Handle canvas mouse down
   const handle_canvas_mouse_down = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -931,7 +931,7 @@ export default function Image_editor() {
       const img = new window.Image();
       img.onload = () => {
         // Calculate viewport dimensions for the stored image
-        const stored_image_viewport = get_viewport_dimensions_for_canvas(img.width, img.height);
+        const stored_image_viewport = calculate_viewport_dimensions(img.width, img.height);
         
         const initial_zoom = Math.min(
           (stored_image_viewport.width * 0.9) / img.width,
@@ -962,152 +962,48 @@ export default function Image_editor() {
 
   return (
     <div className="h-full w-full flex flex-col">
-      {/* Header */}
-      <div className="bg-base-200 border-b border-base-300 p-4">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold">Image Editor</h1>
-          <div className="flex gap-2">
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={undo}
-              disabled={canvas_state.history_index <= 0}
-              title="Undo"
-            >
-              <Undo className="w-4 h-4" />
-            </button>
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={redo}
-              disabled={canvas_state.history_index >= canvas_state.history.length - 1}
-              title="Redo"
-            >
-              <Redo className="w-4 h-4" />
-            </button>
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={zoom_in}
-              disabled={canvas_state.zoom >= 5}
-              title="Zoom In"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={zoom_out}
-              disabled={canvas_state.zoom <= 0.1}
-              title="Zoom Out"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={reset_zoom}
-              title="Reset Zoom"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={export_image}
-              disabled={!canvas_state.image_base64}
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-          </div>
-        </div>
-      </div>
+      <Image_editor_header
+        canvas_state={canvas_state}
+        on_undo={undo}
+        on_redo={redo}
+        on_zoom_in={zoom_in}
+        on_zoom_out={zoom_out}
+        on_reset_zoom={reset_zoom}
+        on_export={export_image}
+      />
 
       <div className="flex-1 flex">
-        {/* Toolbar */}
-        <div className="w-16 bg-base-200 border-r border-base-300 flex flex-col items-center py-4 gap-2">
-          <input
-            type="file"
-            ref={file_input_ref}
-            onChange={handle_file_upload}
-            accept="image/*"
-            className="hidden"
-          />
-          <button
-            className="btn btn-sm btn-square btn-ghost tooltip tooltip-right"
-            data-tip="Upload Image"
-            onClick={() => file_input_ref.current?.click()}
-          >
-            <Upload className="w-4 h-4" />
-          </button>
-          <button
-            className={`btn btn-sm btn-square ${show_templates ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Templates"
-            onClick={() => set_show_templates(!show_templates)}
-          >
-            <Layers className="w-4 h-4" />
-          </button>
-          <button
-            className={`btn btn-sm btn-square ${active_tool === 'pan' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Pan Tool"
-            onClick={() => set_active_tool('pan')}
-          >
-            <Move className="w-4 h-4" />
-          </button>
-          <button
-            className={`btn btn-sm btn-square ${active_tool === 'text' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Add Text"
-            onClick={() => {
-              set_active_tool('text');
-              set_show_text_panel(true);
-            }}
-          >
-            <Type className="w-4 h-4" />
-          </button>
-          <button
-            className={`btn btn-sm btn-square ${active_tool === 'move' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Move Text"
-            onClick={() => set_active_tool('move')}
-          >
-            <MousePointer className="w-4 h-4" />
-          </button>
-          <button
-            className={`btn btn-sm btn-square ${show_grid ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Toggle Grid"
-            onClick={() => set_show_grid(!show_grid)}
-          >
-            <Grid className="w-4 h-4" />
-          </button>
-          {selected_text_id && (
-            <button
-              className="btn btn-sm btn-square btn-error tooltip tooltip-right"
-              data-tip="Delete Selected"
-              onClick={delete_selected_text}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          )}
-          {canvas_state.image_base64 && (
-            <button
-              className="btn btn-sm btn-square btn-warning tooltip tooltip-right"
-              data-tip="Clear Canvas"
-              onClick={() => {
-                if (confirm('Are you sure you want to clear the canvas? This will remove the image and all text elements.')) {
-                  const new_state = {
-                    ...canvas_state,
-                    image_base64: null,
-                    text_elements: [],
-                    canvas_width: 400,
-                    canvas_height: 300,
-                    zoom: 1,
-                    pan_x: 0,
-                    pan_y: 0,
-                  };
-                  set_canvas_state(save_to_history(new_state));
-                  set_selected_text_id(null);
-                  draw_canvas(new_state);
-                }
-              }}
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+        <Image_editor_toolbar
+          active_tool={active_tool}
+          show_templates={show_templates}
+          show_grid={show_grid}
+          selected_text_id={selected_text_id}
+          has_image={!!canvas_state.image_base64}
+          file_input_ref={file_input_ref}
+          on_tool_change={set_active_tool}
+          on_toggle_templates={() => set_show_templates(!show_templates)}
+          on_toggle_grid={() => set_show_grid(!show_grid)}
+          on_toggle_text_panel={() => set_show_text_panel(!show_text_panel)}
+          on_delete_selected={delete_selected_text}
+          on_clear_canvas={() => {
+            if (confirm('Are you sure you want to clear the canvas? This will remove the image and all text elements.')) {
+              const new_state = {
+                ...canvas_state,
+                image_base64: null,
+                text_elements: [],
+                canvas_width: 400,
+                canvas_height: 300,
+                zoom: 1,
+                pan_x: 0,
+                pan_y: 0,
+              };
+              set_canvas_state(save_to_history(new_state));
+              set_selected_text_id(null);
+              draw_canvas(new_state);
+            }
+          }}
+          on_file_upload={() => file_input_ref.current?.click()}
+        />
 
         {/* Templates Panel */}
         {show_templates && (
@@ -1192,7 +1088,7 @@ export default function Image_editor() {
                 <div 
                   className={`border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
                   onClick={() => file_input_ref.current?.click()}
-                  style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
+                  style={{ width: viewport_dimensions.width, height: viewport_dimensions.height }}
                 >
                   <div className="text-center space-y-4 flex flex-col items-center justify-center h-full">
                     <Upload className="w-12 h-12 mx-auto text-base-content opacity-50" />
@@ -1229,8 +1125,8 @@ export default function Image_editor() {
                         'cursor-pointer'
                       } ${is_panning ? 'cursor-grabbing' : ''}`}
                       style={{
-                        width: VIEWPORT_WIDTH,
-                        height: VIEWPORT_HEIGHT,
+                        width: viewport_dimensions.width,
+                        height: viewport_dimensions.height,
                       }}
                       onMouseDown={handle_canvas_mouse_down}
                       onMouseMove={handle_canvas_mouse_move}
@@ -1401,19 +1297,30 @@ export default function Image_editor() {
                   />
                 </div>
 
-                {/* Text Elements List */}
+                {/* Text Elements List with Layer Controls */}
                 {canvas_state.text_elements.length > 0 && (
                   <div>
                     <label className="label">
-                      <span className="label-text">Text Elements</span>
+                      <span className="label-text">Layers (drag to reorder)</span>
                     </label>
                     <div className="space-y-2">
-                      {canvas_state.text_elements.map((element) => (
+                      {canvas_state.text_elements.map((element, index) => (
                         <div
                           key={element.id}
-                          className={`p-2 rounded border cursor-pointer ${
+                          draggable
+                          onDragStart={(e) => handle_layer_drag_start(e, index)}
+                          onDragOver={(e) => handle_layer_drag_over(e, index)}
+                          onDragLeave={handle_layer_drag_leave}
+                          onDrop={(e) => handle_layer_drop(e, index)}
+                          onDragEnd={handle_layer_drag_end}
+                          className={`group relative p-2 rounded border transition-all ${
                             element.selected ? 'border-primary bg-primary/10' : 'border-base-300'
-                          }`}
+                          } ${
+                            dragging_layer_index === index ? 'opacity-50' : ''
+                          } ${
+                            drag_over_layer_index === index && dragging_layer_index !== index 
+                              ? 'border-primary border-2 bg-primary/5' : ''
+                          } hover:border-primary hover:shadow-sm cursor-pointer`}
                           onClick={() => {
                             const new_state = {
                               ...canvas_state,
@@ -1435,14 +1342,81 @@ export default function Image_editor() {
                             draw_canvas(new_state);
                           }}
                         >
-                          <div className="text-sm font-medium truncate">
-                            {element.text}
+                          {/* Drag handle */}
+                          <div className="absolute left-1 top-1/2 transform -translate-y-1/2 text-base-content/40 group-hover:text-base-content/60">
+                            <GripVertical className="w-3 h-3" />
                           </div>
-                          <div className="text-xs text-base-content/60">
-                            {element.font_family} • {element.font_size}px
+                          
+                          {/* Layer controls */}
+                          <div className="absolute right-1 top-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              className="btn btn-xs btn-ghost p-0 w-5 h-5 min-h-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                bring_to_front(element.id);
+                              }}
+                              title="Bring to front"
+                              disabled={index === canvas_state.text_elements.length - 1}
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              className="btn btn-xs btn-ghost p-0 w-5 h-5 min-h-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                send_to_back(element.id);
+                              }}
+                              title="Send to back"
+                              disabled={index === 0}
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              className="btn btn-xs btn-ghost p-0 w-5 h-5 min-h-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                move_layer_up(element.id);
+                              }}
+                              title="Move up one layer"
+                              disabled={index === canvas_state.text_elements.length - 1}
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              className="btn btn-xs btn-ghost p-0 w-5 h-5 min-h-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                move_layer_down(element.id);
+                              }}
+                              title="Move down one layer"
+                              disabled={index === 0}
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          </div>
+                          
+                          {/* Element content */}
+                          <div className="ml-4 mr-20">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full border flex-shrink-0" 
+                                style={{ backgroundColor: element.color }}
+                              />
+                              <div className="text-sm font-medium truncate">
+                                {element.text}
+                              </div>
+                            </div>
+                            <div className="text-xs text-base-content/60 mt-1">
+                              Layer {canvas_state.text_elements.length - index} • {element.font_family} • {element.font_size}px
+                            </div>
                           </div>
                         </div>
                       ))}
+                    </div>
+                    
+                    {/* Layer help text */}
+                    <div className="text-xs text-base-content/50 mt-2 p-2 bg-base-200 rounded">
+                      💡 Higher layers appear on top. Drag to reorder, or use the layer controls.
                     </div>
                   </div>
                 )}
@@ -1538,6 +1512,15 @@ export default function Image_editor() {
           </div>
         </div>
       )}
+      
+      {/* Hidden file input for uploads */}
+      <input
+        ref={file_input_ref}
+        type="file"
+        accept="image/*"
+        onChange={handle_file_upload}
+        className="hidden"
+      />
     </div>
   );
 } 
