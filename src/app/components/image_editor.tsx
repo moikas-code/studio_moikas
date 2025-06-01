@@ -10,83 +10,38 @@ import React, {
 import { MpContext } from "../context/mp_context";
 import {
   Upload,
-  Type,
-  Download,
-  RotateCw,
-  Palette,
   Layers,
-  Move,
-  Save,
-  Undo,
-  Redo,
-  Trash2,
-  Settings,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  MousePointer,
-  Grid,
   ChevronUp,
   ChevronDown,
   ArrowUp,
   ArrowDown,
   GripVertical,
 } from "lucide-react";
-import Image from "next/image";
 import { track } from "@vercel/analytics";
 import { 
-  templates, 
   template_categories, 
   get_templates_by_category, 
-  get_categories_with_counts,
   create_template_background,
   type Template,
-  type Template_text_element 
 } from "@/lib/image_editor_templates";
 
 // Hooks and utilities
 import { use_canvas_state } from "@/hooks/use_canvas_state";
 import { use_zoom_pan } from "@/hooks/use_zoom_pan";
-import { calculate_viewport_dimensions } from "@/lib/image_editor_utils";
+import { calculate_viewport_dimensions, type Canvas_state, type Text_element } from "@/lib/image_editor_utils";
 
 // Components
 import { Image_editor_header } from "./image_editor/image_editor_header";
 import { Image_editor_toolbar } from "./image_editor/image_editor_toolbar";
 
-interface Text_element {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  font_size: number;
-  color: string;
-  font_family: string;
-  font_weight: string;
-  rotation: number;
-  selected: boolean;
-}
-
-interface Canvas_state {
-  image_base64: string | null;
-  text_elements: Text_element[];
-  canvas_width: number;
-  canvas_height: number;
-  zoom: number;
-  pan_x: number;
-  pan_y: number;
-  history: string[];
-  history_index: number;
-}
-
 export default function Image_editor() {
-  const { refresh_mp, plan } = useContext(MpContext);
+  const { plan } = useContext(MpContext);
   
   // Use custom hooks
   const {
     canvas_state,
     set_canvas_state,
     update_canvas_state,
-    update_canvas_state_with_history,
     save_to_history,
   } = use_canvas_state();
 
@@ -94,7 +49,6 @@ export default function Image_editor() {
     zoom_in,
     zoom_out,
     reset_zoom,
-    handle_wheel_zoom,
   } = use_zoom_pan(canvas_state, update_canvas_state);
 
   // UI state
@@ -114,6 +68,25 @@ export default function Image_editor() {
   const [last_pan_position, set_last_pan_position] = useState({ x: 0, y: 0 });
   const [show_grid, set_show_grid] = useState(false);
   
+  // Background editing state
+  const [show_background_panel, set_show_background_panel] = useState(false);
+  const [background_type, set_background_type] = useState<'color' | 'gradient'>('color');
+  const [background_color, set_background_color] = useState('#ffffff');
+  const [gradient_start, set_gradient_start] = useState('#ff4444');
+  const [gradient_end, set_gradient_end] = useState('#cc0000');
+  const [gradient_direction, set_gradient_direction] = useState<'horizontal' | 'vertical' | 'diagonal'>('diagonal');
+  
+  // Template color editing state
+  const [show_template_colors_panel, set_show_template_colors_panel] = useState(false);
+  
+  // Add persistent background settings
+  const [user_background_type, set_user_background_type] = useState<'color' | 'gradient'>('color');
+  const [user_background_color, set_user_background_color] = useState('#ffffff');
+  const [user_gradient_start, set_user_gradient_start] = useState('#ff4444');
+  const [user_gradient_end, set_user_gradient_end] = useState('#cc0000');
+  const [user_gradient_direction, set_user_gradient_direction] = useState<'horizontal' | 'vertical' | 'diagonal'>('diagonal');
+  const [has_user_background_settings, set_has_user_background_settings] = useState(false);
+
   // Layer reordering state
   const [dragging_layer_index, set_dragging_layer_index] = useState<number | null>(null);
   const [drag_over_layer_index, set_drag_over_layer_index] = useState<number | null>(null);
@@ -127,8 +100,11 @@ export default function Image_editor() {
 
   // Refs
   const canvas_ref = useRef<HTMLCanvasElement>(null);
-  const viewport_ref = useRef<HTMLDivElement>(null);
   const file_input_ref = useRef<HTMLInputElement>(null);
+  
+  // Cache for images
+  const cached_background = useRef<HTMLImageElement | null>(null);
+  const cached_background_base64 = useRef<string | null>(null);
 
   // State for tracking viewport dimensions
   const [viewport_dimensions_state, set_viewport_dimensions] = useState(() => 
@@ -162,7 +138,7 @@ export default function Image_editor() {
     return { x: canvas_x, y: canvas_y };
   }, [canvas_state.zoom, canvas_state.pan_x, canvas_state.pan_y]);
 
-  // Resize/reposition an image to fit template dimensions
+  // Resize/reposition an image to fit template dimensions (without merging with template background)
   const resize_image_to_template = useCallback(async (image_base64: string, template: Template): Promise<string> => {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
@@ -192,31 +168,10 @@ export default function Image_editor() {
         const x = (template.width - scaled_width) / 2;
         const y = (template.height - scaled_height) / 2;
 
-        // Clear canvas with template background if it exists
-        if (template.background_gradient) {
-          const gradient = ctx.createLinearGradient(
-            template.background_gradient.direction === 'horizontal' ? 0 : 
-            template.background_gradient.direction === 'diagonal' ? 0 : 
-            template.width / 2,
-            template.background_gradient.direction === 'vertical' ? 0 : 
-            template.background_gradient.direction === 'diagonal' ? 0 : 
-            template.height / 2,
-            template.background_gradient.direction === 'horizontal' ? template.width : 
-            template.background_gradient.direction === 'diagonal' ? template.width : 
-            template.width / 2,
-            template.background_gradient.direction === 'vertical' ? template.height : 
-            template.background_gradient.direction === 'diagonal' ? template.height : 
-            template.height / 2
-          );
-          gradient.addColorStop(0, template.background_gradient.start);
-          gradient.addColorStop(1, template.background_gradient.end);
-          ctx.fillStyle = gradient;
-        } else {
-          ctx.fillStyle = template.background_color;
-        }
-        ctx.fillRect(0, 0, template.width, template.height);
+        // Clear canvas with transparent background (do NOT include template background here)
+        ctx.clearRect(0, 0, template.width, template.height);
 
-        // Draw the resized image
+        // Draw ONLY the resized image (template background will be handled separately in background layer)
         ctx.drawImage(img, x, y, scaled_width, scaled_height);
 
         resolve(canvas.toDataURL().split(',')[1]); // Return base64 without prefix
@@ -228,6 +183,62 @@ export default function Image_editor() {
 
   // Store current selected template for upload handling
   const [current_template, set_current_template] = useState<Template | null>(null);
+
+  // Background editing functions
+  const create_custom_background = useCallback(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas_state.canvas_width;
+    canvas.height = canvas_state.canvas_height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    if (background_type === 'color') {
+      // Solid color background
+      ctx.fillStyle = background_color;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else {
+      // Gradient background
+      let gradient;
+      switch (gradient_direction) {
+        case 'horizontal':
+          gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+          break;
+        case 'vertical':
+          gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+          break;
+        case 'diagonal':
+        default:
+          gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+          break;
+      }
+      gradient.addColorStop(0, gradient_start);
+      gradient.addColorStop(1, gradient_end);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    return canvas.toDataURL().split(',')[1]; // Return base64 without prefix
+  }, [canvas_state.canvas_width, canvas_state.canvas_height, background_type, background_color, gradient_start, gradient_end, gradient_direction]);
+
+  // Initialize background settings from current template/image
+  useEffect(() => {
+    // If user has custom background settings, use those instead of template defaults
+    if (has_user_background_settings) {
+      set_background_type(user_background_type);
+      set_background_color(user_background_color);
+      set_gradient_start(user_gradient_start);
+      set_gradient_end(user_gradient_end);
+      set_gradient_direction(user_gradient_direction);
+    } else if (current_template && current_template.background_gradient) {
+      set_background_type('gradient');
+      set_gradient_start(current_template.background_gradient.start);
+      set_gradient_end(current_template.background_gradient.end);
+      set_gradient_direction(current_template.background_gradient.direction);
+    } else if (current_template) {
+      set_background_type('color');
+      set_background_color(current_template.background_color);
+    }
+  }, [current_template, has_user_background_settings, user_background_type, user_background_color, user_gradient_start, user_gradient_end, user_gradient_direction]);
 
   // Apply template with specified background choice
   const apply_template_with_background = useCallback(async (template: Template, use_template_background: boolean) => {
@@ -255,19 +266,37 @@ export default function Image_editor() {
       1 // Don't zoom in beyond actual size
     );
 
-    // Determine what background to use
-    let final_background = canvas_state.image_base64;
+    // Determine what to do with layers
+    let final_image = canvas_state.image_base64;
+    let final_background = canvas_state.background_base64;
     
-    if (use_template_background || !canvas_state.image_base64) {
-      final_background = create_template_background(template);
+    if (use_template_background) {
+      // Apply template background to background layer
+      if (has_user_background_settings) {
+        final_background = create_custom_background();
+      } else {
+        final_background = create_template_background(template);
+      }
+    }
+    
+    if (!canvas_state.image_base64) {
+      // No existing image, optionally add template background as main image if no separate background
+      if (use_template_background && !final_background) {
+        if (has_user_background_settings) {
+          final_image = create_custom_background();
+        } else {
+          final_image = create_template_background(template);
+        }
+      }
     } else {
-      // Keep existing image but resize/position it to fit template
-      final_background = await resize_image_to_template(canvas_state.image_base64, template);
+      // Keep existing image but resize/position it to fit template if requested
+      final_image = await resize_image_to_template(canvas_state.image_base64, template);
     }
 
     const new_state = {
       ...canvas_state,
-      image_base64: final_background,
+      image_base64: final_image,
+      background_base64: final_background,
       canvas_width: template.width,
       canvas_height: template.height,
       text_elements,
@@ -291,7 +320,7 @@ export default function Image_editor() {
       used_template_background: use_template_background,
       plan: plan || "unknown",
     });
-  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template]);
+  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template, has_user_background_settings, create_custom_background, create_template_background]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -425,6 +454,135 @@ export default function Image_editor() {
     process_file(file);
   }, [process_file]);
 
+  // Apply background
+  const apply_background = useCallback(() => {
+    const background_base64 = create_custom_background();
+    if (!background_base64) return;
+
+    // Save user's custom background settings for future templates
+    set_user_background_type(background_type);
+    set_user_background_color(background_color);
+    set_user_gradient_start(gradient_start);
+    set_user_gradient_end(gradient_end);
+    set_user_gradient_direction(gradient_direction);
+    set_has_user_background_settings(true);
+
+    // Always use the background layer - never replace the main image
+    const new_state = {
+      ...canvas_state,
+      background_base64: background_base64,
+      // Keep the main image_base64 intact
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+
+    track("Background Applied", {
+      plan: plan || "unknown",
+      background_type,
+      canvas_width: canvas_state.canvas_width,
+      canvas_height: canvas_state.canvas_height,
+      is_template: !!current_template,
+      has_existing_image: !!canvas_state.image_base64,
+    });
+  }, [create_custom_background, canvas_state, save_to_history, background_type, background_color, gradient_start, gradient_end, gradient_direction, current_template, plan]);
+
+  // Template color editing functions
+  const update_template_background_color = useCallback((color: string) => {
+    if (!current_template) return;
+    
+    // Update the template's background color and regenerate background
+    const updated_template = {
+      ...current_template,
+      background_color: color,
+      background_gradient: undefined, // Clear gradient when setting solid color
+    };
+    
+    const background_base64 = create_template_background(updated_template);
+    
+    const new_state = {
+      ...canvas_state,
+      background_base64: background_base64,
+      template_background_settings: {
+        type: 'color' as const,
+        color: color,
+      },
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+    
+    track("Template Background Color Updated", {
+      plan: plan || "unknown",
+      template_id: current_template.id,
+      new_color: color,
+    });
+  }, [current_template, canvas_state, save_to_history, plan]);
+
+  const update_template_background_gradient = useCallback((gradient_start: string, gradient_end: string, direction: 'horizontal' | 'vertical' | 'diagonal') => {
+    if (!current_template) return;
+    
+    // Update the template's background gradient and regenerate background
+    const updated_template = {
+      ...current_template,
+      background_gradient: {
+        start: gradient_start,
+        end: gradient_end,
+        direction: direction,
+      },
+    };
+    
+    const background_base64 = create_template_background(updated_template);
+    
+    const new_state = {
+      ...canvas_state,
+      background_base64: background_base64,
+      template_background_settings: {
+        type: 'gradient' as const,
+        gradient: {
+          start: gradient_start,
+          end: gradient_end,
+          direction: direction,
+        },
+      },
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+    
+    track("Template Background Gradient Updated", {
+      plan: plan || "unknown",
+      template_id: current_template.id,
+      gradient_start,
+      gradient_end,
+      direction,
+    });
+  }, [current_template, canvas_state, save_to_history, plan]);
+
+  const update_template_text_color = useCallback((element_id: string, color: string) => {
+    const new_state = {
+      ...canvas_state,
+      text_elements: canvas_state.text_elements.map(t => 
+        t.id === element_id ? { ...t, color: color } : t
+      ),
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+    
+    track("Template Text Color Updated", {
+      plan: plan || "unknown",
+      template_id: current_template?.id,
+      element_id,
+      new_color: color,
+    });
+  }, [canvas_state, save_to_history, current_template, plan]);
+
+  // Helper to check if we have a template loaded
+  const has_template = useCallback(() => {
+    return !!current_template || canvas_state.text_elements.some(t => t.id.startsWith('template_'));
+  }, [current_template, canvas_state.text_elements]);
+
   // Handle drag and drop
   const handle_drag_enter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -485,7 +643,7 @@ export default function Image_editor() {
     canvas.height = current_viewport_height;
 
     // Function to draw everything
-    const draw_all = (img?: HTMLImageElement) => {
+    const draw_all = (img?: HTMLImageElement, background_img?: HTMLImageElement) => {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
@@ -496,7 +654,12 @@ export default function Image_editor() {
       ctx.translate(state.pan_x, state.pan_y);
       ctx.scale(state.zoom, state.zoom);
       
-      // Draw background image if exists
+      // Draw background first if exists
+      if (background_img) {
+        ctx.drawImage(background_img, 0, 0, state.canvas_width, state.canvas_height);
+      }
+      
+      // Draw main image on top if exists
       if (img) {
         ctx.drawImage(img, 0, 0, state.canvas_width, state.canvas_height);
       }
@@ -568,24 +731,61 @@ export default function Image_editor() {
       ctx.restore();
     };
 
-    // Draw background image if exists
-    if (state.image_base64) {
-      // Check if we can use cached image
-      if (cached_image.current && cached_image_base64.current === state.image_base64) {
-        draw_all(cached_image.current);
+    // Load background and main images
+    let main_img: HTMLImageElement | undefined;
+    let background_img: HTMLImageElement | undefined;
+    let images_to_load = 0;
+    let images_loaded = 0;
+
+    const check_all_loaded = () => {
+      if (images_loaded === images_to_load) {
+        draw_all(main_img, background_img);
+      }
+    };
+
+    // Load background image if exists
+    if (state.background_base64) {
+      images_to_load++;
+      if (cached_background.current && cached_background_base64.current === state.background_base64) {
+        background_img = cached_background.current;
+        images_loaded++;
       } else {
-        // Load new image
+                 const bg_img = new window.Image();
+        bg_img.onload = () => {
+          cached_background.current = bg_img;
+          cached_background_base64.current = state.background_base64 || null;
+          background_img = bg_img;
+          images_loaded++;
+          check_all_loaded();
+        };
+        bg_img.src = `data:image/png;base64,${state.background_base64}`;
+      }
+    }
+
+    // Load main image if exists
+    if (state.image_base64) {
+      images_to_load++;
+      if (cached_image.current && cached_image_base64.current === state.image_base64) {
+        main_img = cached_image.current;
+        images_loaded++;
+      } else {
         const img = new window.Image();
         img.onload = () => {
           cached_image.current = img;
           cached_image_base64.current = state.image_base64;
-          draw_all(img);
+          main_img = img;
+          images_loaded++;
+          check_all_loaded();
         };
         img.src = `data:image/png;base64,${state.image_base64}`;
       }
-    } else {
-      // No image, just draw text elements
+    }
+
+    // If no images to load, just draw
+    if (images_to_load === 0) {
       draw_all();
+    } else {
+      check_all_loaded();
     }
   }, [calculate_viewport_dimensions, show_grid]);
 
@@ -948,12 +1148,17 @@ export default function Image_editor() {
     export_canvas.height = canvas_state.canvas_height;
 
     try {
-      // Draw background image if exists
+      // Draw background layer first if exists
+      if (canvas_state.background_base64 && cached_background.current) {
+        export_ctx.drawImage(cached_background.current, 0, 0, canvas_state.canvas_width, canvas_state.canvas_height);
+      }
+
+      // Draw main image layer if exists
       if (canvas_state.image_base64 && cached_image.current) {
         export_ctx.drawImage(cached_image.current, 0, 0, canvas_state.canvas_width, canvas_state.canvas_height);
       }
 
-      // Draw text elements
+      // Draw text elements on top
       canvas_state.text_elements.forEach((text_element) => {
         export_ctx.save();
         export_ctx.translate(text_element.x, text_element.y);
@@ -985,6 +1190,8 @@ export default function Image_editor() {
         text_elements_count: canvas_state.text_elements.length,
         canvas_width: canvas_state.canvas_width,
         canvas_height: canvas_state.canvas_height,
+        has_background: !!canvas_state.background_base64,
+        has_image: !!canvas_state.image_base64,
       });
     } catch (error) {
       set_error_message("Failed to export image");
@@ -1079,19 +1286,56 @@ export default function Image_editor() {
           active_tool={active_tool}
           show_templates={show_templates}
           show_grid={show_grid}
+          show_background_panel={show_background_panel}
+          show_template_colors_panel={show_template_colors_panel}
           selected_text_id={selected_text_id}
           has_image={!!canvas_state.image_base64}
-          file_input_ref={file_input_ref}
+          has_template={has_template()}
           on_tool_change={set_active_tool}
-          on_toggle_templates={() => set_show_templates(!show_templates)}
+          on_toggle_templates={() => {
+            set_show_templates(!show_templates);
+            // Close other panels when opening templates
+            if (!show_templates) {
+              set_show_text_panel(false);
+              set_show_background_panel(false);
+              set_show_template_colors_panel(false);
+            }
+          }}
           on_toggle_grid={() => set_show_grid(!show_grid)}
-          on_toggle_text_panel={() => set_show_text_panel(!show_text_panel)}
+          on_toggle_text_panel={() => {
+            set_show_text_panel(!show_text_panel);
+            // Close other panels when opening text panel
+            if (!show_text_panel) {
+              set_show_templates(false);
+              set_show_background_panel(false);
+              set_show_template_colors_panel(false);
+            }
+          }}
+          on_toggle_background_panel={() => {
+            set_show_background_panel(!show_background_panel);
+            // Close other panels when opening background panel
+            if (!show_background_panel) {
+              set_show_templates(false);
+              set_show_text_panel(false);
+              set_show_template_colors_panel(false);
+            }
+          }}
+          on_toggle_template_colors_panel={() => {
+            set_show_template_colors_panel(!show_template_colors_panel);
+            // Close other panels when opening template colors panel
+            if (!show_template_colors_panel) {
+              set_show_templates(false);
+              set_show_text_panel(false);
+              set_show_background_panel(false);
+            }
+          }}
           on_delete_selected={delete_selected_text}
           on_clear_canvas={() => {
-            if (confirm('Are you sure you want to clear the canvas? This will remove the image and all text elements.')) {
+            if (confirm('Are you sure you want to clear the canvas? This will remove the image, background, and all text elements.')) {
               const new_state = {
                 ...canvas_state,
                 image_base64: null,
+                background_base64: null,
                 text_elements: [],
                 canvas_width: 400,
                 canvas_height: 300,
@@ -1400,6 +1644,34 @@ export default function Image_editor() {
                   />
                 </div>
 
+                {/* Layer Information */}
+                <div className="border border-base-300 rounded p-3 bg-base-50">
+                  <h4 className="font-medium text-sm mb-2">Active Layers</h4>
+                  <div className="space-y-1 text-xs">
+                    {canvas_state.background_base64 && (
+                      <div className="flex items-center gap-2 text-base-content/70">
+                        <div className="w-2 h-2 bg-blue-500 rounded"></div>
+                        Background Layer
+                      </div>
+                    )}
+                    {canvas_state.image_base64 && (
+                      <div className="flex items-center gap-2 text-base-content/70">
+                        <div className="w-2 h-2 bg-green-500 rounded"></div>
+                        Main Image
+                      </div>
+                    )}
+                    {canvas_state.text_elements.length > 0 && (
+                      <div className="flex items-center gap-2 text-base-content/70">
+                        <div className="w-2 h-2 bg-purple-500 rounded"></div>
+                        {canvas_state.text_elements.length} Text Element(s)
+                      </div>
+                    )}
+                    {!canvas_state.background_base64 && !canvas_state.image_base64 && canvas_state.text_elements.length === 0 && (
+                      <div className="text-base-content/50 italic">No layers</div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Text Elements List with Layer Controls */}
                 {canvas_state.text_elements.length > 0 && (
                   <div>
@@ -1523,6 +1795,323 @@ export default function Image_editor() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Background Panel */}
+          {show_background_panel && (
+            <div className="w-80 bg-base-100 border-l border-base-300 p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Background</h3>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => set_show_background_panel(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Background Type */}
+                <div>
+                  <label className="label">
+                    <span className="label-text">Background Type</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      className={`btn btn-sm flex-1 ${background_type === 'color' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => set_background_type('color')}
+                    >
+                      Solid Color
+                    </button>
+                    <button
+                      className={`btn btn-sm flex-1 ${background_type === 'gradient' ? 'btn-primary' : 'btn-outline'}`}
+                      onClick={() => set_background_type('gradient')}
+                    >
+                      Gradient
+                    </button>
+                  </div>
+                </div>
+
+                {/* Background Color (for solid color) */}
+                {background_type === 'color' && (
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Color</span>
+                    </label>
+                    <input
+                      type="color"
+                      className="w-full h-10 rounded border border-base-300"
+                      value={background_color}
+                      onChange={(e) => set_background_color(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {/* Gradient Settings */}
+                {background_type === 'gradient' && (
+                  <>
+                    <div>
+                      <label className="label">
+                        <span className="label-text">Gradient Start</span>
+                      </label>
+                      <input
+                        type="color"
+                        className="w-full h-10 rounded border border-base-300"
+                        value={gradient_start}
+                        onChange={(e) => set_gradient_start(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="label">
+                        <span className="label-text">Gradient End</span>
+                      </label>
+                      <input
+                        type="color"
+                        className="w-full h-10 rounded border border-base-300"
+                        value={gradient_end}
+                        onChange={(e) => set_gradient_end(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="label">
+                        <span className="label-text">Direction</span>
+                      </label>
+                      <select
+                        className="select select-bordered w-full"
+                        value={gradient_direction}
+                        onChange={(e) => set_gradient_direction(e.target.value as 'horizontal' | 'vertical' | 'diagonal')}
+                      >
+                        <option value="horizontal">Horizontal</option>
+                        <option value="vertical">Vertical</option>
+                        <option value="diagonal">Diagonal</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Preview */}
+                <div>
+                  <label className="label">
+                    <span className="label-text">Preview</span>
+                  </label>
+                  <div 
+                    className="w-full h-16 rounded border border-base-300 mb-4"
+                    style={{
+                      background: background_type === 'color' 
+                        ? background_color
+                        : `linear-gradient(${
+                            gradient_direction === 'horizontal' ? '90deg' :
+                            gradient_direction === 'vertical' ? '0deg' : '45deg'
+                          }, ${gradient_start}, ${gradient_end})`
+                    }}
+                  />
+                </div>
+
+                {/* Apply Button */}
+                <button
+                  className="btn btn-primary w-full"
+                  onClick={apply_background}
+                >
+                  Apply Background
+                </button>
+
+                {/* Help Text */}
+                <div className="text-xs text-base-content/50 p-2 bg-base-200 rounded">
+                  💡 Background appears behind your image and text. This won't replace your current image - it creates a separate background layer.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Template Colors Panel */}
+          {show_template_colors_panel && current_template && (
+            <div className="w-80 bg-base-100 border-l border-base-300 p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Template Colors</h3>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => set_show_template_colors_panel(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Template Background Section */}
+                <div>
+                  <h4 className="font-medium mb-3">Background</h4>
+                  
+                  {/* Background Type Toggle */}
+                  <div className="mb-4">
+                    <label className="label">
+                      <span className="label-text">Background Type</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        className={`btn btn-sm flex-1 ${!current_template.background_gradient ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => {
+                          // Convert to solid color
+                          const color = current_template.background_gradient?.start || current_template.background_color;
+                          update_template_background_color(color);
+                        }}
+                      >
+                        Solid Color
+                      </button>
+                      <button
+                        className={`btn btn-sm flex-1 ${current_template.background_gradient ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => {
+                          // Convert to gradient if not already
+                          if (!current_template.background_gradient) {
+                            update_template_background_gradient(
+                              current_template.background_color,
+                              '#cc0000',
+                              'diagonal'
+                            );
+                          }
+                        }}
+                      >
+                        Gradient
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Solid Color Controls */}
+                  {!current_template.background_gradient && (
+                    <div>
+                      <label className="label">
+                        <span className="label-text">Background Color</span>
+                      </label>
+                      <input
+                        type="color"
+                        className="w-full h-10 rounded border border-base-300"
+                        value={current_template.background_color}
+                        onChange={(e) => update_template_background_color(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Gradient Controls */}
+                  {current_template.background_gradient && (
+                    <>
+                      <div>
+                        <label className="label">
+                          <span className="label-text">Gradient Start</span>
+                        </label>
+                        <input
+                          type="color"
+                          className="w-full h-10 rounded border border-base-300"
+                          value={current_template.background_gradient.start}
+                          onChange={(e) => update_template_background_gradient(
+                            e.target.value,
+                            current_template.background_gradient!.end,
+                            current_template.background_gradient!.direction
+                          )}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="label">
+                          <span className="label-text">Gradient End</span>
+                        </label>
+                        <input
+                          type="color"
+                          className="w-full h-10 rounded border border-base-300"
+                          value={current_template.background_gradient.end}
+                          onChange={(e) => update_template_background_gradient(
+                            current_template.background_gradient!.start,
+                            e.target.value,
+                            current_template.background_gradient!.direction
+                          )}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="label">
+                          <span className="label-text">Gradient Direction</span>
+                        </label>
+                        <select
+                          className="select select-bordered w-full"
+                          value={current_template.background_gradient.direction}
+                          onChange={(e) => update_template_background_gradient(
+                            current_template.background_gradient!.start,
+                            current_template.background_gradient!.end,
+                            e.target.value as 'horizontal' | 'vertical' | 'diagonal'
+                          )}
+                        >
+                          <option value="horizontal">Horizontal</option>
+                          <option value="vertical">Vertical</option>
+                          <option value="diagonal">Diagonal</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Background Preview */}
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Preview</span>
+                    </label>
+                    <div 
+                      className="w-full h-16 rounded border border-base-300 mb-4"
+                      style={{
+                        background: current_template.background_gradient 
+                          ? `linear-gradient(${
+                              current_template.background_gradient.direction === 'horizontal' ? '90deg' :
+                              current_template.background_gradient.direction === 'vertical' ? '0deg' : '45deg'
+                            }, ${current_template.background_gradient.start}, ${current_template.background_gradient.end})`
+                          : current_template.background_color
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Template Text Elements Section */}
+                {canvas_state.text_elements.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-3">Text Elements</h4>
+                    <div className="space-y-3">
+                      {canvas_state.text_elements.map((element, index) => (
+                        <div key={element.id} className="border border-base-300 rounded p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-4 h-4 rounded-full border flex-shrink-0" 
+                                style={{ backgroundColor: element.color }}
+                              />
+                              <span className="text-sm font-medium truncate max-w-32">
+                                {element.text}
+                              </span>
+                            </div>
+                            <div className="text-xs text-base-content/60">
+                              Layer {canvas_state.text_elements.length - index}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="label">
+                              <span className="label-text text-xs">Color</span>
+                            </label>
+                            <input
+                              type="color"
+                              className="w-full h-8 rounded border border-base-300"
+                              value={element.color}
+                              onChange={(e) => update_template_text_color(element.id, e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Help Text */}
+                <div className="text-xs text-base-content/50 p-2 bg-base-200 rounded">
+                  💡 Template color changes are applied instantly. You can edit background colors/gradients and individual text element colors.
+                </div>
               </div>
             </div>
           )}

@@ -3,6 +3,7 @@ import { Canvas_state, create_history_entry } from '@/lib/image_editor_utils';
 
 const initial_canvas_state: Canvas_state = {
   image_base64: null,
+  background_base64: null,
   text_elements: [],
   canvas_width: 400,
   canvas_height: 300,

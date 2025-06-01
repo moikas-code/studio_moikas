@@ -12,8 +12,19 @@ export interface Text_element {
   selected: boolean;
 }
 
+export interface Template_background_settings {
+  type: 'color' | 'gradient';
+  color?: string;
+  gradient?: {
+    start: string;
+    end: string;
+    direction: 'horizontal' | 'vertical' | 'diagonal';
+  };
+}
+
 export interface Canvas_state {
   image_base64: string | null;
+  background_base64?: string | null;
   text_elements: Text_element[];
   canvas_width: number;
   canvas_height: number;
@@ -22,6 +33,7 @@ export interface Canvas_state {
   pan_y: number;
   history: string[];
   history_index: number;
+  template_background_settings?: Template_background_settings | null;
 }
 
 export interface Viewport_dimensions {
@@ -90,6 +102,7 @@ export const viewport_to_canvas_coords = (
 export const create_history_entry = (state: Canvas_state): string => {
   return JSON.stringify({
     image_base64: state.image_base64,
+    background_base64: state.background_base64,
     text_elements: state.text_elements,
   });
 }; 

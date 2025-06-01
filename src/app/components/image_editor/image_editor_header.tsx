@@ -23,8 +23,8 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
 }) => {
   return (
     <div className="bg-base-200 border-b border-base-300 p-4">
-      <div className="flex items-center justify-between max-w-7xl mx-auto">
-        <h1 className="text-2xl font-bold">Image Editor</h1>
+      <div className="flex items-center justify-end max-w-7xl mx-auto">
+
         <div className="flex gap-2">
           <button
             className="btn btn-sm btn-ghost"
