@@ -106,7 +106,7 @@ export default function Text_analyzer_page() {
 
   return (
     <div className="max-w-xl mx-auto py-10 px-4">
-      <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content. Today.</h1>
+      {/* <h1 className="text-4xl font-extrabold mb-2 text-center">Turn Knowledge Into Content. Today.</h1> */}
       <p className="text-lg text-center mb-8 text-gray-600 dark:text-gray-300">
         Generate scripts, product descriptions, video descriptions, tweets, bios, summaries, outlines, and quizzes from any PDF, website, or topic. Our AI helps you create and learn effectively.
       </p>
