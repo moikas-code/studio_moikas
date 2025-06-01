@@ -71,7 +71,7 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
       <button
         className={`btn btn-sm btn-square ${active_tool === 'pan' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
         data-tip="Pan Tool"
-        onClick={() => on_tool_change('pan')}
+        onClick={() => on_tool_change(active_tool === 'pan' ? 'select' : 'pan')}
       >
         <Move className="w-4 h-4" />
       </button>
@@ -89,7 +89,7 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
       
       <button
         className={`btn btn-sm btn-square ${show_grid ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-        data-tip="Toggle Grid"
+        data-tip="Toggle Grid Lines"
         onClick={on_toggle_grid}
       >
         <Grid className="w-4 h-4" />

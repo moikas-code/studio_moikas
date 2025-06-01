@@ -363,27 +363,39 @@ export default function Image_editor() {
         }
       }
       
-      // Draw grid if enabled
+      // Always draw canvas border to show editing boundary
+      ctx.save();
+      ctx.strokeStyle = 'rgba(0, 150, 255, 0.4)'; // Blue border, slightly transparent
+      ctx.lineWidth = Math.max(2, 2 / state.zoom); // Slightly thicker for visibility
+      ctx.setLineDash([]); // Solid line
+      
+      // Draw canvas border
+      ctx.beginPath();
+      ctx.rect(0, 0, state.canvas_width, state.canvas_height);
+      ctx.stroke();
+      ctx.restore();
+      
+      // Draw internal grid lines if enabled
       if (show_grid) {
         ctx.save();
         
-        // Use a more visible color with higher opacity
-        ctx.strokeStyle = 'rgba(0, 150, 255, 0.6)'; // Blue grid lines
-        ctx.lineWidth = Math.max(1, 1 / state.zoom); // Ensure minimum line width
+        // Use a more visible color with higher opacity for grid lines
+        ctx.strokeStyle = 'rgba(0, 150, 255, 0.3)'; // Lighter blue for internal lines
+        ctx.lineWidth = Math.max(1, 1 / state.zoom); // Thinner than border
         ctx.setLineDash([]); // Solid lines for better visibility
         
         const grid_size = 50; // Grid spacing in pixels
         
-        // Vertical lines
-        for (let x = 0; x <= state.canvas_width; x += grid_size) {
+        // Vertical lines (skip the border lines at x=0 and x=canvas_width)
+        for (let x = grid_size; x < state.canvas_width; x += grid_size) {
           ctx.beginPath();
           ctx.moveTo(x, 0);
           ctx.lineTo(x, state.canvas_height);
           ctx.stroke();
         }
         
-        // Horizontal lines
-        for (let y = 0; y <= state.canvas_height; y += grid_size) {
+        // Horizontal lines (skip the border lines at y=0 and y=canvas_height)
+        for (let y = grid_size; y < state.canvas_height; y += grid_size) {
           ctx.beginPath();
           ctx.moveTo(0, y);
           ctx.lineTo(state.canvas_width, y);
@@ -536,10 +548,8 @@ export default function Image_editor() {
           final_image = create_template_background(template);
         }
       }
-    } else {
-      // Keep existing image but resize/position it to fit template if requested
-      final_image = await resize_image_to_template(canvas_state.image_base64, template);
     }
+    // Keep existing image unchanged - only canvas dimensions will change
 
     const new_state = {
       ...canvas_state,
@@ -551,7 +561,7 @@ export default function Image_editor() {
       zoom: initial_zoom,
       pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
       pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
-      image_transform: {
+      image_transform: canvas_state.image_transform || {
         x: 0,
         y: 0,
         width: template.width,
