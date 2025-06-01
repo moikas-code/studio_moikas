@@ -15,7 +15,7 @@ interface Image_grid_props {
   enhancement_count?: number;
   onRedo?: () => void;
   onReuse?: () => void;
-  onEdit?: (img: string, idx: number) => void;
+  onEdit?: (img: string) => void;
 }
 
 export default function Image_grid({
@@ -292,7 +292,7 @@ export default function Image_grid({
                   <div className="relative w-full">
                     <button
                       className="btn btn-sm btn-accent w-full"
-                      onClick={() => onEdit(image_base64[0], 0)}
+                      onClick={() => onEdit(image_base64[0])}
                       aria-label="Edit image"
                     >
                       Edit
@@ -363,7 +363,7 @@ export default function Image_grid({
                     {onEdit && (
                       <button
                         className="btn btn-xs btn-accent w-full"
-                        onClick={() => onEdit(img, idx)}
+                        onClick={() => onEdit(img)}
                         aria-label="Edit image"
                       >
                         Edit

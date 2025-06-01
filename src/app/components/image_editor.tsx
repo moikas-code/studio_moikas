@@ -618,6 +618,8 @@ export default function Image_editor() {
       has_existing_image: !!canvas_state.image_base64,
       used_template_background: use_template_background,
       plan: plan || "unknown",
+      canvas_width: template.width,
+      canvas_height: template.height,
     });
   }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template, has_user_background_settings, create_custom_background, create_template_background, draw_canvas, set_canvas_state]);
 
@@ -759,6 +761,20 @@ export default function Image_editor() {
         
         set_is_loading(false);
         set_error_message(null);
+        
+        // Track image upload
+        track("Image Editor Upload", {
+          plan: plan || "unknown",
+          file_size_mb: Math.round((file.size / 1024 / 1024) * 100) / 100,
+          file_type: file.type,
+          image_width: img.width,
+          image_height: img.height,
+          has_existing_image: !!canvas_state.image_base64,
+          has_template: !!current_template,
+          canvas_width: canvas_state.canvas_width,
+          canvas_height: canvas_state.canvas_height,
+          upload_context: has_template ? "template_active" : "new_image",
+        });
       };
       img.onerror = () => {
         set_error_message("Failed to load image");
@@ -892,6 +908,7 @@ export default function Image_editor() {
   const delete_selected_text = useCallback(() => {
     if (!selected_text_id) return;
 
+    const text_element = canvas_state.text_elements.find(t => t.id === selected_text_id);
     const new_state = {
       ...canvas_state,
       text_elements: canvas_state.text_elements.filter(t => t.id !== selected_text_id),
@@ -900,7 +917,15 @@ export default function Image_editor() {
     set_canvas_state(save_to_history(new_state));
     set_selected_text_id(null);
     draw_canvas(new_state);
-  }, [selected_text_id, canvas_state, save_to_history, draw_canvas, set_canvas_state]);
+
+    // Track text deletion
+    track("Image Editor Text Deleted", {
+      plan: plan || "unknown",
+      text_length: text_element?.text.length || 0,
+      font_size: text_element?.font_size || 0,
+      remaining_text_elements: new_state.text_elements.length,
+    });
+  }, [selected_text_id, canvas_state, save_to_history, draw_canvas, set_canvas_state, plan]);
 
   // Update selected text properties (for live editing - no history save)
   const update_selected_text_live = useCallback((updates: Partial<Text_element>) => {
@@ -1775,6 +1800,17 @@ export default function Image_editor() {
           on_delete_selected={delete_selected_text}
           on_clear_canvas={() => {
             if (confirm('Are you sure you want to clear the canvas? This will remove the image, background, and all text elements.')) {
+              // Track before clearing
+              track("Image Editor Canvas Cleared", {
+                plan: plan || "unknown",
+                had_image: !!canvas_state.image_base64,
+                had_background: !!canvas_state.background_base64,
+                text_elements_count: canvas_state.text_elements.length,
+                had_template: !!current_template,
+                canvas_width: canvas_state.canvas_width,
+                canvas_height: canvas_state.canvas_height,
+              });
+
               const new_state = {
                 ...canvas_state,
                 image_base64: null,

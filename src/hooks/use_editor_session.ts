@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { track } from '@vercel/analytics';
 import { Canvas_state } from '@/lib/image_editor_utils';
 import { 
   Editor_session, 
@@ -63,6 +64,17 @@ export function useEditorSession({
       const sessions = await storage.current.list_sessions();
       set_sessions_list(sessions);
       
+      // Track session save
+      track("Image Editor Session Save", {
+        session_id,
+        session_name: session_name_to_use,
+        is_new_session: !current_session_id,
+        has_image: !!canvas_state.image_base64,
+        text_elements_count: canvas_state.text_elements.length,
+        canvas_width: canvas_state.canvas_width,
+        canvas_height: canvas_state.canvas_height,
+      });
+      
       return session_id;
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -102,11 +114,16 @@ export function useEditorSession({
       }
       
       // Set up new timer
-      auto_save_timer.current = setInterval(() => {
+      auto_save_timer.current = setInterval(async () => {
         // Only save if canvas state has changed
         if (JSON.stringify(last_canvas_state.current) !== JSON.stringify(canvas_state)) {
-          save_session();
-          last_canvas_state.current = canvas_state;
+          try {
+            await save_session();
+            last_canvas_state.current = canvas_state;
+          } catch (error) {
+            console.warn('Auto-save failed:', error);
+            // Don't throw to prevent breaking the interval
+          }
         }
       }, auto_save_interval);
       
@@ -126,6 +143,17 @@ export function useEditorSession({
       set_current_session_id(session_id);
       set_session_name(session.name);
       set_last_saved(new Date(session.updated_at));
+      
+      // Track session load
+      track("Image Editor Session Load", {
+        session_id,
+        session_name: session.name,
+        has_image: !!session.canvas_state.image_base64,
+        text_elements_count: session.canvas_state.text_elements.length,
+        canvas_width: session.canvas_state.canvas_width,
+        canvas_height: session.canvas_state.canvas_height,
+      });
+      
       return session.canvas_state;
     }
     return null;

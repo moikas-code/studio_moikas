@@ -22,6 +22,29 @@ export interface Storage_provider {
 export class Local_storage_provider implements Storage_provider {
   private readonly SESSIONS_KEY = 'image_editor_sessions';
   private readonly CURRENT_SESSION_KEY = 'image_editor_current_session';
+  private readonly MAX_SESSIONS = 10; // Limit to 10 sessions max
+
+  private async cleanup_old_sessions(sessions: Editor_session[]): Promise<Editor_session[]> {
+    // Sort by updated_at (newest first) and keep only MAX_SESSIONS
+    const sorted = sessions.sort((a, b) => 
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+    return sorted.slice(0, this.MAX_SESSIONS);
+  }
+
+  private async try_save_with_cleanup(sessions: Editor_session[]): Promise<void> {
+    try {
+      localStorage.setItem(this.SESSIONS_KEY, JSON.stringify(sessions));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        // Remove the oldest sessions and try again
+        const cleaned_sessions = await this.cleanup_old_sessions(sessions.slice(0, Math.max(1, sessions.length - 2)));
+        localStorage.setItem(this.SESSIONS_KEY, JSON.stringify(cleaned_sessions));
+      } else {
+        throw error;
+      }
+    }
+  }
 
   async save_session(session: Editor_session): Promise<void> {
     const sessions = await this.list_sessions();
@@ -33,7 +56,9 @@ export class Local_storage_provider implements Storage_provider {
       sessions.push(session);
     }
     
-    localStorage.setItem(this.SESSIONS_KEY, JSON.stringify(sessions));
+    // Clean up old sessions before saving
+    const cleaned_sessions = await this.cleanup_old_sessions(sessions);
+    await this.try_save_with_cleanup(cleaned_sessions);
   }
 
   async load_session(id: string): Promise<Editor_session | null> {
@@ -74,6 +99,31 @@ export class Local_storage_provider implements Storage_provider {
     } else {
       localStorage.removeItem(this.CURRENT_SESSION_KEY);
     }
+  }
+
+  // Utility method to get storage usage info
+  get_storage_info(): { used_mb: number; sessions_count: number; estimated_limit_mb: number } {
+    try {
+      const sessions_data = localStorage.getItem(this.SESSIONS_KEY) || '[]';
+      const used_bytes = new Blob([sessions_data]).size;
+      const used_mb = Math.round((used_bytes / 1024 / 1024) * 100) / 100;
+      const sessions = JSON.parse(sessions_data);
+      
+      return {
+        used_mb,
+        sessions_count: sessions.length,
+        estimated_limit_mb: 5, // Most browsers limit localStorage to ~5-10MB
+      };
+    } catch {
+      return { used_mb: 0, sessions_count: 0, estimated_limit_mb: 5 };
+    }
+  }
+
+  // Manual cleanup method - keeps only the 5 most recent sessions
+  async cleanup_storage(): Promise<void> {
+    const sessions = await this.list_sessions();
+    const cleaned_sessions = await this.cleanup_old_sessions(sessions.slice(0, 5));
+    localStorage.setItem(this.SESSIONS_KEY, JSON.stringify(cleaned_sessions));
   }
 }
 

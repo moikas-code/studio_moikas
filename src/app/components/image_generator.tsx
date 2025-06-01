@@ -355,7 +355,7 @@ export default function Image_generator() {
   }, [last_generation]);
 
   // Handle edit: navigate to image editor with the selected image
-  const handle_edit = useCallback((img: string, idx: number) => {
+  const handle_edit = useCallback((img: string) => {
     // Store the image in localStorage for the editor to pick up
     localStorage.setItem('image_editor_image', img);
     // Navigate to image editor
