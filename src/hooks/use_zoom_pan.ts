@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Canvas_state } from '@/lib/image_editor_utils';
 
-export const use_zoom_pan = (
+export const useZoomPan = (
   canvas_state: Canvas_state,
   update_canvas_state: (updates: Partial<Canvas_state>) => void
 ) => {

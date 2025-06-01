@@ -14,7 +14,7 @@ const initial_canvas_state: Canvas_state = {
   history_index: -1,
 };
 
-export const use_canvas_state = () => {
+export const useCanvasState = () => {
   const [canvas_state, set_canvas_state] = useState<Canvas_state>(initial_canvas_state);
 
   const save_to_history = useCallback((state: Canvas_state): Canvas_state => {

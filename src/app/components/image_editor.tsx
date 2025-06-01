@@ -26,9 +26,10 @@ import {
 } from "@/lib/image_editor_templates";
 
 // Hooks and utilities
-import { use_canvas_state } from "@/hooks/use_canvas_state";
-import { use_zoom_pan } from "@/hooks/use_zoom_pan";
-import { calculate_viewport_dimensions, type Canvas_state, type Text_element, type Image_transform } from "@/lib/image_editor_utils";
+import { useCanvasState } from "@/hooks/use_canvas_state";
+import { useZoomPan } from "@/hooks/use_zoom_pan";
+import { useEditorSession } from "@/hooks/use_editor_session";
+import { calculate_viewport_dimensions, type Canvas_state, type Text_element } from "@/lib/image_editor_utils";
 
 // Components
 import { Image_editor_header } from "./image_editor/image_editor_header";
@@ -43,13 +44,30 @@ export default function Image_editor() {
     set_canvas_state,
     update_canvas_state,
     save_to_history,
-  } = use_canvas_state();
+  } = useCanvasState();
 
   const {
     zoom_in,
     zoom_out,
     reset_zoom,
-  } = use_zoom_pan(canvas_state, update_canvas_state);
+  } = useZoomPan(canvas_state, update_canvas_state);
+
+  // Session management
+  const {
+    session_name,
+    is_saving,
+    last_saved,
+    sessions_list,
+    save_session,
+    load_session,
+    new_session,
+    export_session,
+    import_session,
+  } = useEditorSession({
+    canvas_state,
+    use_database: false, // Will change to true when database is ready
+    auto_save_interval: 30000, // 30 seconds
+  });
 
   // UI state
   const [is_loading, set_is_loading] = useState(false);
@@ -70,14 +88,6 @@ export default function Image_editor() {
   
   // Image selection and transform state
   const [is_image_selected, set_is_image_selected] = useState(false);
-  const [image_transform, set_image_transform] = useState({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-    scale_x: 1,
-    scale_y: 1,
-  });
   const [is_resizing_image, set_is_resizing_image] = useState(false);
   const [resize_handle, set_resize_handle] = useState<string | null>(null);
   const [resize_start, set_resize_start] = useState({ x: 0, y: 0, width: 0, height: 0, original_x: 0, original_y: 0 });
@@ -253,324 +263,6 @@ export default function Image_editor() {
       set_background_color(current_template.background_color);
     }
   }, [current_template, has_user_background_settings, user_background_type, user_background_color, user_gradient_start, user_gradient_end, user_gradient_direction]);
-
-  // Apply template with specified background choice
-  const apply_template_with_background = useCallback(async (template: Template, use_template_background: boolean) => {
-    // Convert template text elements to our format
-    const text_elements: Text_element[] = template.text_elements.map((element, index) => ({
-      id: `template_${Date.now()}_${index}`,
-      text: element.text,
-      x: element.x,
-      y: element.y,
-      font_size: element.font_size,
-      color: element.color,
-      font_family: element.font_family,
-      font_weight: element.font_weight,
-      rotation: element.rotation,
-      selected: false,
-    }));
-
-    // Calculate optimal zoom to fit template nicely in the dynamic viewport
-    const template_viewport = calculate_viewport_dimensions(template.width, template.height);
-    
-    // Fit the template with some padding (90% of viewport)
-    const initial_zoom = Math.min(
-      (template_viewport.width * 0.9) / template.width,
-      (template_viewport.height * 0.9) / template.height,
-      1 // Don't zoom in beyond actual size
-    );
-
-    // Determine what to do with layers
-    let final_image = canvas_state.image_base64;
-    let final_background = canvas_state.background_base64;
-    
-    if (use_template_background) {
-      // Apply template background to background layer
-      if (has_user_background_settings) {
-        final_background = create_custom_background();
-      } else {
-        final_background = create_template_background(template);
-      }
-    }
-    
-    if (!canvas_state.image_base64) {
-      // No existing image, optionally add template background as main image if no separate background
-      if (use_template_background && !final_background) {
-        if (has_user_background_settings) {
-          final_image = create_custom_background();
-        } else {
-          final_image = create_template_background(template);
-        }
-      }
-    } else {
-      // Keep existing image but resize/position it to fit template if requested
-      final_image = await resize_image_to_template(canvas_state.image_base64, template);
-    }
-
-    const new_state = {
-      ...canvas_state,
-      image_base64: final_image,
-      background_base64: final_background,
-      canvas_width: template.width,
-      canvas_height: template.height,
-      text_elements,
-      zoom: initial_zoom,
-      pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
-      pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
-      image_transform: {
-        x: 0,
-        y: 0,
-        width: template.width,
-        height: template.height,
-        scale_x: 1,
-        scale_y: 1,
-      },
-    };
-
-    set_canvas_state(save_to_history(new_state));
-    set_image_transform(new_state.image_transform);
-    set_current_template(template); // Store the current template for future uploads
-    set_show_templates(false);
-    set_selected_text_id(null);
-    // Draw canvas with the template's viewport dimensions
-    draw_canvas(new_state, template_viewport);
-
-    track("Image Editor Template Loaded", {
-      template_id: template.id,
-      template_name: template.name,
-      category: template.category,
-      has_existing_image: !!canvas_state.image_base64,
-      used_template_background: use_template_background,
-      plan: plan || "unknown",
-    });
-  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template, has_user_background_settings, create_custom_background, create_template_background]);
-
-  // Check if user has disabled template confirmations
-  const get_skip_template_confirmation = useCallback(() => {
-    return localStorage.getItem('image_editor_skip_template_confirmation') === 'true';
-  }, []);
-
-  // Set skip template confirmation preference
-  const set_skip_template_confirmation = useCallback((skip: boolean) => {
-    localStorage.setItem('image_editor_skip_template_confirmation', skip.toString());
-  }, []);
-
-  // Handle template modal confirmation
-  const handle_template_confirmation = useCallback((keep_image: boolean, dont_show_again: boolean) => {
-    if (dont_show_again) {
-      set_skip_template_confirmation(true);
-    }
-    
-    if (pending_template) {
-      apply_template_with_background(pending_template, !keep_image);
-    }
-    
-    set_show_template_modal(false);
-    set_pending_template(null);
-  }, [pending_template, apply_template_with_background, set_skip_template_confirmation]);
-
-  // Load template (with confirmation if image exists)
-  const load_template = useCallback((template: Template) => {
-    // If there's an existing image and user hasn't disabled confirmations
-    if (canvas_state.image_base64 && !get_skip_template_confirmation()) {
-      set_pending_template(template);
-      set_show_template_modal(true);
-    } else {
-      // No existing image: use template background
-      // Existing image but confirmations disabled: keep the image (since checkbox says "always keep my image")
-      const use_template_background = !canvas_state.image_base64;
-      apply_template_with_background(template, use_template_background);
-    }
-  }, [canvas_state.image_base64, apply_template_with_background, get_skip_template_confirmation]);
-
-  // Process uploaded file
-  const process_file = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      set_error_message("Please select a valid image file");
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) { // 10MB limit
-      set_error_message("File size too large. Please choose an image under 10MB");
-      return;
-    }
-
-    set_is_loading(true);
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
-      const img = new window.Image();
-      img.onload = async () => {
-        const uploaded_image_base64 = base64.split(',')[1]; // Remove data:image/... prefix
-        
-        // Check if we have an active template (has text elements or current_template is set)
-        const has_template = canvas_state.text_elements.length > 0 || current_template;
-        
-        if (has_template && current_template) {
-          // Template is active - resize image to fit template and preserve template structure
-          const resized_image = await resize_image_to_template(uploaded_image_base64, current_template);
-          
-          const new_state = {
-            ...canvas_state,
-            image_base64: resized_image,
-            // Keep existing template dimensions and text elements
-            image_transform: {
-              x: 0,
-              y: 0,
-              width: current_template.width,
-              height: current_template.height,
-              scale_x: 1,
-              scale_y: 1,
-            },
-          };
-          set_canvas_state(save_to_history(new_state));
-          set_image_transform(new_state.image_transform);
-          draw_canvas(new_state);
-        } else if (has_template && !current_template) {
-          // We have text elements but no current_template reference
-          // This means a template was applied but we lost the reference
-          // In this case, just replace the image but keep text elements and dimensions
-          const new_state = {
-            ...canvas_state,
-            image_base64: uploaded_image_base64,
-            // Keep existing canvas dimensions and text elements
-            image_transform: {
-              x: 0,
-              y: 0,
-              width: canvas_state.canvas_width,
-              height: canvas_state.canvas_height,
-              scale_x: 1,
-              scale_y: 1,
-            },
-          };
-          set_canvas_state(save_to_history(new_state));
-          set_image_transform(new_state.image_transform);
-          draw_canvas(new_state);
-        } else {
-          // No template active - treat as new image upload
-          // Calculate viewport dimensions for the uploaded image
-          const image_viewport = calculate_viewport_dimensions(img.width, img.height);
-          
-          // Auto-fit zoom to viewport with padding (90% of viewport)
-          const initial_zoom = Math.min(
-            (image_viewport.width * 0.9) / img.width,
-            (image_viewport.height * 0.9) / img.height,
-            1 // Don't zoom in beyond 100%
-          );
-
-          const new_state = {
-            ...canvas_state,
-            image_base64: uploaded_image_base64,
-            canvas_width: img.width,
-            canvas_height: img.height,
-            text_elements: [],
-            zoom: initial_zoom,
-            pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
-            pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
-            image_transform: {
-              x: 0,
-              y: 0,
-              width: img.width,
-              height: img.height,
-              scale_x: 1,
-              scale_y: 1,
-            },
-          };
-          set_canvas_state(save_to_history(new_state));
-          set_image_transform(new_state.image_transform);
-          draw_canvas(new_state);
-        }
-        
-        set_is_loading(false);
-        set_error_message(null);
-      };
-      img.onerror = () => {
-        set_error_message("Failed to load image");
-        set_is_loading(false);
-      };
-      img.src = base64;
-    };
-    reader.onerror = () => {
-      set_error_message("Failed to read file");
-      set_is_loading(false);
-    };
-    reader.readAsDataURL(file);
-  }, [canvas_state, save_to_history, calculate_viewport_dimensions, current_template, resize_image_to_template]);
-
-  // Handle file upload
-  const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    process_file(file);
-  }, [process_file]);
-
-  // Apply background
-  const apply_background = useCallback(() => {
-    const background_base64 = create_custom_background();
-    if (!background_base64) return;
-
-    // Save user's custom background settings for future templates
-    set_user_background_type(background_type);
-    set_user_background_color(background_color);
-    set_user_gradient_start(gradient_start);
-    set_user_gradient_end(gradient_end);
-    set_user_gradient_direction(gradient_direction);
-    set_has_user_background_settings(true);
-
-    // Always use the background layer - never replace the main image
-    const new_state = {
-      ...canvas_state,
-      background_base64: background_base64,
-      // Keep the main image_base64 intact
-    };
-    
-    set_canvas_state(save_to_history(new_state));
-    draw_canvas(new_state);
-
-    track("Background Applied", {
-      plan: plan || "unknown",
-      background_type,
-      canvas_width: canvas_state.canvas_width,
-      canvas_height: canvas_state.canvas_height,
-      is_template: !!current_template,
-      has_existing_image: !!canvas_state.image_base64,
-    });
-  }, [create_custom_background, canvas_state, save_to_history, background_type, background_color, gradient_start, gradient_end, gradient_direction, current_template, plan]);
-
-
-
-  // Handle drag and drop
-  const handle_drag_enter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    set_drag_over(true);
-  }, []);
-
-  const handle_drag_leave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    set_drag_over(false);
-  }, []);
-
-  const handle_drag_over = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handle_drop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    set_drag_over(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const image_file = files.find(file => file.type.startsWith('image/'));
-    
-    if (image_file) {
-      process_file(image_file);
-    } else {
-      set_error_message("Please drop an image file");
-    }
-  }, [process_file]);
 
   // Cache the loaded image to avoid reloading
   const cached_image = useRef<HTMLImageElement | null>(null);
@@ -757,7 +449,7 @@ export default function Image_editor() {
         background_img = cached_background.current;
         images_loaded++;
       } else {
-                 const bg_img = new window.Image();
+        const bg_img = new window.Image();
         bg_img.onload = () => {
           cached_background.current = bg_img;
           cached_background_base64.current = state.background_base64 || null;
@@ -795,6 +487,324 @@ export default function Image_editor() {
       check_all_loaded();
     }
   }, [calculate_viewport_dimensions, show_grid, is_image_selected, is_moving_image]);
+
+  // Apply template with specified background choice
+  const apply_template_with_background = useCallback(async (template: Template, use_template_background: boolean) => {
+    // Convert template text elements to our format
+    const text_elements: Text_element[] = template.text_elements.map((element, index) => ({
+      id: `template_${Date.now()}_${index}`,
+      text: element.text,
+      x: element.x,
+      y: element.y,
+      font_size: element.font_size,
+      color: element.color,
+      font_family: element.font_family,
+      font_weight: element.font_weight,
+      rotation: element.rotation,
+      selected: false,
+    }));
+
+    // Calculate optimal zoom to fit template nicely in the dynamic viewport
+    const template_viewport = calculate_viewport_dimensions(template.width, template.height);
+    
+    // Fit the template with some padding (90% of viewport)
+    const initial_zoom = Math.min(
+      (template_viewport.width * 0.9) / template.width,
+      (template_viewport.height * 0.9) / template.height,
+      1 // Don't zoom in beyond actual size
+    );
+
+    // Determine what to do with layers
+    let final_image = canvas_state.image_base64;
+    let final_background = canvas_state.background_base64;
+    
+    if (use_template_background) {
+      // Apply template background to background layer
+      if (has_user_background_settings) {
+        final_background = create_custom_background();
+      } else {
+        final_background = create_template_background(template);
+      }
+    }
+    
+    if (!canvas_state.image_base64) {
+      // No existing image, optionally add template background as main image if no separate background
+      if (use_template_background && !final_background) {
+        if (has_user_background_settings) {
+          final_image = create_custom_background();
+        } else {
+          final_image = create_template_background(template);
+        }
+      }
+    } else {
+      // Keep existing image but resize/position it to fit template if requested
+      final_image = await resize_image_to_template(canvas_state.image_base64, template);
+    }
+
+    const new_state = {
+      ...canvas_state,
+      image_base64: final_image,
+      background_base64: final_background,
+      canvas_width: template.width,
+      canvas_height: template.height,
+      text_elements,
+      zoom: initial_zoom,
+      pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
+      pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
+      image_transform: {
+        x: 0,
+        y: 0,
+        width: template.width,
+        height: template.height,
+        scale_x: 1,
+        scale_y: 1,
+      },
+    };
+
+    set_canvas_state(save_to_history(new_state));
+    // Image transform is now part of canvas_state
+    set_current_template(template); // Store the current template for future uploads
+    set_show_templates(false);
+    set_selected_text_id(null);
+    // Draw canvas with the template's viewport dimensions
+    draw_canvas(new_state, template_viewport);
+
+    track("Image Editor Template Loaded", {
+      template_id: template.id,
+      template_name: template.name,
+      category: template.category,
+      has_existing_image: !!canvas_state.image_base64,
+      used_template_background: use_template_background,
+      plan: plan || "unknown",
+    });
+  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template, has_user_background_settings, create_custom_background, create_template_background, draw_canvas, set_canvas_state]);
+
+  // Check if user has disabled template confirmations
+  const get_skip_template_confirmation = useCallback(() => {
+    return localStorage.getItem('image_editor_skip_template_confirmation') === 'true';
+  }, []);
+
+  // Set skip template confirmation preference
+  const set_skip_template_confirmation = useCallback((skip: boolean) => {
+    localStorage.setItem('image_editor_skip_template_confirmation', skip.toString());
+  }, []);
+
+  // Handle template modal confirmation
+  const handle_template_confirmation = useCallback((keep_image: boolean, dont_show_again: boolean) => {
+    if (dont_show_again) {
+      set_skip_template_confirmation(true);
+    }
+    
+    if (pending_template) {
+      apply_template_with_background(pending_template, !keep_image);
+    }
+    
+    set_show_template_modal(false);
+    set_pending_template(null);
+  }, [pending_template, apply_template_with_background, set_skip_template_confirmation]);
+
+  // Load template (with confirmation if image exists)
+  const load_template = useCallback((template: Template) => {
+    // If there's an existing image and user hasn't disabled confirmations
+    if (canvas_state.image_base64 && !get_skip_template_confirmation()) {
+      set_pending_template(template);
+      set_show_template_modal(true);
+    } else {
+      // No existing image: use template background
+      // Existing image but confirmations disabled: keep the image (since checkbox says "always keep my image")
+      const use_template_background = !canvas_state.image_base64;
+      apply_template_with_background(template, use_template_background);
+    }
+  }, [canvas_state.image_base64, apply_template_with_background, get_skip_template_confirmation]);
+
+  // Process uploaded file
+  const process_file = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      set_error_message("Please select a valid image file");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      set_error_message("File size too large. Please choose an image under 10MB");
+      return;
+    }
+
+    set_is_loading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string;
+      const img = new window.Image();
+      img.onload = async () => {
+        const uploaded_image_base64 = base64.split(',')[1]; // Remove data:image/... prefix
+        
+        // Check if we have an active template (has text elements or current_template is set)
+        const has_template = canvas_state.text_elements.length > 0 || current_template;
+        
+        if (has_template && current_template) {
+          // Template is active - resize image to fit template and preserve template structure
+          const resized_image = await resize_image_to_template(uploaded_image_base64, current_template);
+          
+          const new_state = {
+            ...canvas_state,
+            image_base64: resized_image,
+            // Keep existing template dimensions and text elements
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: current_template.width,
+              height: current_template.height,
+              scale_x: 1,
+              scale_y: 1,
+            },
+          };
+          set_canvas_state(save_to_history(new_state));
+          // Image transform is now part of canvas_state
+          draw_canvas(new_state);
+        } else if (has_template && !current_template) {
+          // We have text elements but no current_template reference
+          // This means a template was applied but we lost the reference
+          // In this case, just replace the image but keep text elements and dimensions
+          const new_state = {
+            ...canvas_state,
+            image_base64: uploaded_image_base64,
+            // Keep existing canvas dimensions and text elements
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: canvas_state.canvas_width,
+              height: canvas_state.canvas_height,
+              scale_x: 1,
+              scale_y: 1,
+            },
+          };
+          set_canvas_state(save_to_history(new_state));
+          // Image transform is now part of canvas_state
+          draw_canvas(new_state);
+        } else {
+          // No template active - treat as new image upload
+          // Calculate viewport dimensions for the uploaded image
+          const image_viewport = calculate_viewport_dimensions(img.width, img.height);
+          
+          // Auto-fit zoom to viewport with padding (90% of viewport)
+          const initial_zoom = Math.min(
+            (image_viewport.width * 0.9) / img.width,
+            (image_viewport.height * 0.9) / img.height,
+            1 // Don't zoom in beyond 100%
+          );
+
+          const new_state = {
+            ...canvas_state,
+            image_base64: uploaded_image_base64,
+            canvas_width: img.width,
+            canvas_height: img.height,
+            text_elements: [],
+            zoom: initial_zoom,
+            pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
+            pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: img.width,
+              height: img.height,
+              scale_x: 1,
+              scale_y: 1,
+            },
+          };
+          set_canvas_state(save_to_history(new_state));
+          // Image transform is now part of canvas_state
+          draw_canvas(new_state);
+        }
+        
+        set_is_loading(false);
+        set_error_message(null);
+      };
+      img.onerror = () => {
+        set_error_message("Failed to load image");
+        set_is_loading(false);
+      };
+      img.src = base64;
+    };
+    reader.onerror = () => {
+      set_error_message("Failed to read file");
+      set_is_loading(false);
+    };
+    reader.readAsDataURL(file);
+  }, [canvas_state, save_to_history, calculate_viewport_dimensions, current_template, resize_image_to_template, draw_canvas, set_canvas_state]);
+
+  // Handle file upload
+  const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    process_file(file);
+  }, [process_file]);
+
+  // Apply background
+  const apply_background = useCallback(() => {
+    const background_base64 = create_custom_background();
+    if (!background_base64) return;
+
+    // Save user's custom background settings for future templates
+    set_user_background_type(background_type);
+    set_user_background_color(background_color);
+    set_user_gradient_start(gradient_start);
+    set_user_gradient_end(gradient_end);
+    set_user_gradient_direction(gradient_direction);
+    set_has_user_background_settings(true);
+
+    // Always use the background layer - never replace the main image
+    const new_state = {
+      ...canvas_state,
+      background_base64: background_base64,
+      // Keep the main image_base64 intact
+    };
+    
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+
+    track("Background Applied", {
+      plan: plan || "unknown",
+      background_type,
+      canvas_width: canvas_state.canvas_width,
+      canvas_height: canvas_state.canvas_height,
+      is_template: !!current_template,
+      has_existing_image: !!canvas_state.image_base64,
+    });
+  }, [create_custom_background, canvas_state, save_to_history, background_type, background_color, gradient_start, gradient_end, gradient_direction, current_template, plan, draw_canvas, set_canvas_state]);
+
+
+
+  // Handle drag and drop
+  const handle_drag_enter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(true);
+  }, []);
+
+  const handle_drag_leave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(false);
+  }, []);
+
+  const handle_drag_over = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handle_drop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const image_file = files.find(file => file.type.startsWith('image/'));
+    
+    if (image_file) {
+      process_file(image_file);
+    } else {
+      set_error_message("Please drop an image file");
+    }
+  }, [process_file]);
 
   // Add text element
   const add_text_element = useCallback(() => {
@@ -848,7 +858,7 @@ export default function Image_editor() {
     set_canvas_state(save_to_history(new_state));
     set_selected_text_id(null);
     draw_canvas(new_state);
-  }, [selected_text_id, canvas_state, save_to_history]);
+  }, [selected_text_id, canvas_state, save_to_history, draw_canvas, set_canvas_state]);
 
   // Update selected text properties (for live editing - no history save)
   const update_selected_text_live = useCallback((updates: Partial<Text_element>) => {
@@ -863,7 +873,7 @@ export default function Image_editor() {
 
     set_canvas_state(new_state);
     draw_canvas(new_state);
-  }, [canvas_state, selected_text_id]);
+  }, [canvas_state, selected_text_id, draw_canvas, set_canvas_state]);
 
   // Update selected text properties and save to history (for final changes)
   const update_selected_text_final = useCallback((updates: Partial<Text_element>) => {
@@ -878,7 +888,7 @@ export default function Image_editor() {
 
     set_canvas_state(save_to_history(new_state));
     draw_canvas(new_state);
-  }, [canvas_state, selected_text_id, save_to_history]);
+  }, [canvas_state, selected_text_id, save_to_history, draw_canvas, set_canvas_state]);
 
   // Layer management functions
   const move_layer_up = useCallback((element_id: string) => {
@@ -895,7 +905,7 @@ export default function Image_editor() {
       set_canvas_state(save_to_history(new_state));
       draw_canvas(new_state);
     }
-  }, [canvas_state, save_to_history]);
+  }, [canvas_state, save_to_history, draw_canvas, set_canvas_state]);
 
   const move_layer_down = useCallback((element_id: string) => {
     const current_index = canvas_state.text_elements.findIndex(t => t.id === element_id);
@@ -911,7 +921,7 @@ export default function Image_editor() {
       set_canvas_state(save_to_history(new_state));
       draw_canvas(new_state);
     }
-  }, [canvas_state, save_to_history]);
+  }, [canvas_state, save_to_history, draw_canvas, set_canvas_state]);
 
   const bring_to_front = useCallback((element_id: string) => {
     const element = canvas_state.text_elements.find(t => t.id === element_id);
@@ -1238,7 +1248,7 @@ export default function Image_editor() {
         y: move_start.image_y + dy,
       };
       
-      set_image_transform(new_transform);
+      // Transform is updated via canvas_state
       const new_state = {
         ...canvas_state,
         image_transform: new_transform,
@@ -1258,7 +1268,7 @@ export default function Image_editor() {
       const dx = canvas_coords.x - resize_start.x;
       const dy = canvas_coords.y - resize_start.y;
       
-      let new_transform = { ...canvas_state.image_transform };
+      const new_transform = { ...canvas_state.image_transform };
       const original_x = resize_start.original_x;
       const original_y = resize_start.original_y;
       const original_scaled_width = resize_start.width;
@@ -1321,7 +1331,7 @@ export default function Image_editor() {
           break;
       }
       
-      set_image_transform(new_transform);
+      // Transform is updated via canvas_state
       const new_state = {
         ...canvas_state,
         image_transform: new_transform,
@@ -1517,6 +1527,20 @@ export default function Image_editor() {
     draw_canvas(canvas_state);
   }, [canvas_state, draw_canvas, show_grid]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handle_keydown = (e: KeyboardEvent) => {
+      // Save shortcut (Ctrl/Cmd + S)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        save_session();
+      }
+    };
+
+    window.addEventListener('keydown', handle_keydown);
+    return () => window.removeEventListener('keydown', handle_keydown);
+  }, [save_session]);
+
   // Initialize canvas and load image from localStorage if available
   useEffect(() => {
     const stored_image = localStorage.getItem('image_editor_image');
@@ -1551,7 +1575,7 @@ export default function Image_editor() {
           },
         };
         set_canvas_state(save_to_history(new_state));
-        set_image_transform(new_state.image_transform);
+        // Image transform is now part of canvas_state
         draw_canvas(new_state);
       };
       img.src = `data:image/png;base64,${stored_image}`;
@@ -1572,6 +1596,64 @@ export default function Image_editor() {
         on_zoom_out={zoom_out}
         on_reset_zoom={reset_zoom}
         on_export={export_image}
+        // Session management
+        session_name={session_name}
+        is_saving={is_saving}
+        last_saved={last_saved}
+        sessions_list={sessions_list}
+        on_save={() => save_session()}
+        on_save_as={(name) => save_session(name)}
+        on_load_session={async (session_id) => {
+          const loaded_state = await load_session(session_id);
+          if (loaded_state) {
+            set_canvas_state(loaded_state);
+            // Image transform is loaded with canvas_state
+            draw_canvas(loaded_state);
+          }
+        }}
+        on_new_session={async () => {
+          if (confirm('Create a new project? Any unsaved changes will be lost.')) {
+            await new_session();
+            const initial_state = {
+              image_base64: null,
+              background_base64: null,
+              text_elements: [],
+              canvas_width: 800,
+              canvas_height: 600,
+              zoom: 1,
+              pan_x: 0,
+              pan_y: 0,
+              history: [],
+              history_index: 0,
+              image_transform: {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+                scale_x: 1,
+                scale_y: 1,
+              },
+            };
+            set_canvas_state(initial_state);
+            // Image transform is part of initial_state
+            set_is_image_selected(false);
+            set_selected_text_id(null);
+            draw_canvas(initial_state);
+          }
+        }}
+        on_export_session={export_session}
+        on_import_session={async (file) => {
+          try {
+            const loaded_state = await import_session(file);
+            if (loaded_state) {
+              set_canvas_state(loaded_state);
+              // Image transform is loaded with canvas_state
+              draw_canvas(loaded_state);
+            }
+          } catch {
+            set_error_message('Failed to import session');
+          }
+        }}
       />
 
       <div className="flex-1 flex">
@@ -1640,14 +1722,7 @@ export default function Image_editor() {
               set_current_template(null); // Clear the current template
               set_selected_text_id(null);
               set_is_image_selected(false);
-              set_image_transform({
-                x: 0,
-                y: 0,
-                width: 0,
-                height: 0,
-                scale_x: 1,
-                scale_y: 1,
-              });
+              // Reset image transform in canvas_state
               draw_canvas(new_state);
             }
           }}
@@ -1790,12 +1865,12 @@ export default function Image_editor() {
                   </div>
                   
                   {/* Zoom indicator */}
-                  <div className="absolute top-2 left-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
+                  <div className="absolute top-2 left-2 bg-base-100 text-base-content px-2 py-1 rounded text-xs border border-base-300">
                     {Math.round(canvas_state.zoom * 100)}%
                   </div>
                   
                   {/* Tool instruction */}
-                  <div className="absolute top-2 right-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
+                  <div className="absolute top-2 right-2 bg-base-100 text-base-content px-2 py-1 rounded text-xs border border-base-300">
                     {active_tool === 'pan' && 'Drag to pan • Scroll to zoom'}
                     {active_tool === 'text' && 'Click to add text'}
                     {active_tool === 'select' && 'Click to select • Double-click for quick select • Drag selected to move'}
@@ -2228,7 +2303,7 @@ export default function Image_editor() {
 
                 {/* Help Text */}
                 <div className="text-xs text-base-content/50 p-2 bg-base-200 rounded">
-                  💡 Background appears behind your image and text. This won't replace your current image - it creates a separate background layer.
+                  💡 Background appears behind your image and text. This won&apos;t replace your current image - it creates a separate background layer.
                 </div>
               </div>
             </div>
@@ -2269,7 +2344,7 @@ export default function Image_editor() {
                             ...canvas_state.image_transform,
                             scale_x: new_scale_x,
                           };
-                          set_image_transform(new_transform);
+                          // Transform is updated via canvas_state
                           const new_state = {
                             ...canvas_state,
                             image_transform: new_transform,
@@ -2295,7 +2370,7 @@ export default function Image_editor() {
                             ...canvas_state.image_transform,
                             scale_y: new_scale_y,
                           };
-                          set_image_transform(new_transform);
+                          // Transform is updated via canvas_state
                           const new_state = {
                             ...canvas_state,
                             image_transform: new_transform,
@@ -2321,7 +2396,7 @@ export default function Image_editor() {
                         scale_x: 1,
                         scale_y: 1,
                       };
-                      set_image_transform(new_transform);
+                      // Transform is updated via canvas_state
                       const new_state = {
                         ...canvas_state,
                         image_transform: new_transform,
@@ -2353,7 +2428,7 @@ export default function Image_editor() {
                             ...canvas_state.image_transform,
                             x: new_x,
                           };
-                          set_image_transform(new_transform);
+                          // Transform is updated via canvas_state
                           const new_state = {
                             ...canvas_state,
                             image_transform: new_transform,
@@ -2378,7 +2453,7 @@ export default function Image_editor() {
                             ...canvas_state.image_transform,
                             y: new_y,
                           };
-                          set_image_transform(new_transform);
+                          // Transform is updated via canvas_state
                           const new_state = {
                             ...canvas_state,
                             image_transform: new_transform,
@@ -2401,7 +2476,7 @@ export default function Image_editor() {
                         x: centered_x,
                         y: centered_y,
                       };
-                      set_image_transform(new_transform);
+                      // Transform is updated via canvas_state
                       const new_state = {
                         ...canvas_state,
                         image_transform: new_transform,
@@ -2459,7 +2534,7 @@ export default function Image_editor() {
               >
                 <div className="text-left py-2">
                   <div className="font-medium">Use template background</div>
-                  <div className="text-xs opacity-70">Replace with template's background design</div>
+                  <div className="text-xs opacity-70">Replace with template&apos;s background design</div>
                 </div>
               </button>
             </div>
@@ -2471,13 +2546,13 @@ export default function Image_editor() {
                   className="checkbox checkbox-sm"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      // If checked, apply the default behavior (keep image) and don't show again
+                      // If checked, apply the default behavior (keep image) and don&apos;t show again
                       handle_template_confirmation(true, true);
                     }
                   }}
                 />
                 <span className="text-sm text-base-content/70">
-                  Don't show this again (always keep my image)
+                  Don&apos;t show this again (always keep my image)
                 </span>
               </label>
             </div>
