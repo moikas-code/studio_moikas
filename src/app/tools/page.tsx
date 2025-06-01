@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { Protect, useUser } from "@clerk/nextjs";
 import { MpContext } from "../components/../context/mp_context";
-import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket } from "react-icons/fa";
+import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit } from "react-icons/fa";
 import Link from "next/link";
 
 export default function Tools_home_page() {
@@ -17,6 +17,14 @@ export default function Tools_home_page() {
       icon: FaImage,
       href: "/tools/create",
       color: "from-purple-500 to-pink-500",
+      available: true
+    },
+    {
+      title: "Image Editor",
+      description: "Edit images with text overlays and AI-powered enhancements",
+      icon: FaEdit,
+      href: "/tools/image-editor",
+      color: "from-orange-500 to-red-500",
       available: true
     },
     {

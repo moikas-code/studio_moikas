@@ -27,7 +27,7 @@ interface ImageGenerationCreationProps {
   onDownload?: (img: string, idx: number) => void;
   onRedo?: () => void; // Redo handler
   onReuse?: () => void; // Reuse handler
-  // For future: onTransferToEditor, onTransferToMerch
+  onEdit?: (img: string, idx: number) => void; // Edit handler
 }
 
 // Helper to sanitize file names
@@ -155,6 +155,7 @@ export default function ImageGenerationCreation({
   error_message,
   onRedo,
   onReuse,
+  onEdit,
 }: ImageGenerationCreationProps) {
   // Ref for the Creation container
   const Creation_ref = useRef<HTMLDivElement>(null);
@@ -480,6 +481,15 @@ export default function ImageGenerationCreation({
                       >
                         Share
                       </button>
+                      {typeof onEdit === "function" && (
+                        <button
+                          className="btn btn-xs btn-accent"
+                          onClick={() => onEdit(img, idx)}
+                          aria-label="Edit image"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -509,6 +519,15 @@ export default function ImageGenerationCreation({
                       >
                         Share
                       </button>
+                      {typeof onEdit === "function" && (
+                        <button
+                          className="btn btn-xs btn-accent"
+                          onClick={() => onEdit(img, idx)}
+                          aria-label="Edit image"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </>
                   )}
                 </div>

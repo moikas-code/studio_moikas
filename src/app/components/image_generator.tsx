@@ -354,6 +354,14 @@ export default function Image_generator() {
     set_show_settings(true);
   }, [last_generation]);
 
+  // Handle edit: navigate to image editor with the selected image
+  const handle_edit = useCallback((img: string, idx: number) => {
+    // Store the image in localStorage for the editor to pick up
+    localStorage.setItem('image_editor_image', img);
+    // Navigate to image editor
+    window.location.href = '/tools/image-editor';
+  }, []);
+
   // Handler for enhancing the prompt
   const handle_enhance_prompt = useCallback(async () => {
     if (!prompt_text || !prompt_text.trim()) return;
@@ -878,6 +886,7 @@ export default function Image_generator() {
           enhancement_count={enhancement_count || backend_cost || 0}
           onRedo={handle_redo}
           onReuse={handle_reuse}
+          onEdit={handle_edit}
         />
       )}
       {/* Add this style block for the animation */}
