@@ -28,7 +28,7 @@ import {
 // Hooks and utilities
 import { use_canvas_state } from "@/hooks/use_canvas_state";
 import { use_zoom_pan } from "@/hooks/use_zoom_pan";
-import { calculate_viewport_dimensions, type Canvas_state, type Text_element } from "@/lib/image_editor_utils";
+import { calculate_viewport_dimensions, type Canvas_state, type Text_element, type Image_transform } from "@/lib/image_editor_utils";
 
 // Components
 import { Image_editor_header } from "./image_editor/image_editor_header";
@@ -68,6 +68,23 @@ export default function Image_editor() {
   const [last_pan_position, set_last_pan_position] = useState({ x: 0, y: 0 });
   const [show_grid, set_show_grid] = useState(false);
   
+  // Image selection and transform state
+  const [is_image_selected, set_is_image_selected] = useState(false);
+  const [image_transform, set_image_transform] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+    scale_x: 1,
+    scale_y: 1,
+  });
+  const [is_resizing_image, set_is_resizing_image] = useState(false);
+  const [resize_handle, set_resize_handle] = useState<string | null>(null);
+  const [resize_start, set_resize_start] = useState({ x: 0, y: 0, width: 0, height: 0, original_x: 0, original_y: 0 });
+  const [show_image_panel, set_show_image_panel] = useState(false);
+  const [is_moving_image, set_is_moving_image] = useState(false);
+  const [move_start, set_move_start] = useState({ x: 0, y: 0, image_x: 0, image_y: 0 });
+  
   // Background editing state
   const [show_background_panel, set_show_background_panel] = useState(false);
   const [background_type, set_background_type] = useState<'color' | 'gradient'>('color');
@@ -75,9 +92,6 @@ export default function Image_editor() {
   const [gradient_start, set_gradient_start] = useState('#ff4444');
   const [gradient_end, set_gradient_end] = useState('#cc0000');
   const [gradient_direction, set_gradient_direction] = useState<'horizontal' | 'vertical' | 'diagonal'>('diagonal');
-  
-  // Template color editing state
-  const [show_template_colors_panel, set_show_template_colors_panel] = useState(false);
   
   // Add persistent background settings
   const [user_background_type, set_user_background_type] = useState<'color' | 'gradient'>('color');
@@ -303,9 +317,18 @@ export default function Image_editor() {
       zoom: initial_zoom,
       pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
       pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
+      image_transform: {
+        x: 0,
+        y: 0,
+        width: template.width,
+        height: template.height,
+        scale_x: 1,
+        scale_y: 1,
+      },
     };
 
     set_canvas_state(save_to_history(new_state));
+    set_image_transform(new_state.image_transform);
     set_current_template(template); // Store the current template for future uploads
     set_show_templates(false);
     set_selected_text_id(null);
@@ -391,8 +414,17 @@ export default function Image_editor() {
             ...canvas_state,
             image_base64: resized_image,
             // Keep existing template dimensions and text elements
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: current_template.width,
+              height: current_template.height,
+              scale_x: 1,
+              scale_y: 1,
+            },
           };
           set_canvas_state(save_to_history(new_state));
+          set_image_transform(new_state.image_transform);
           draw_canvas(new_state);
         } else if (has_template && !current_template) {
           // We have text elements but no current_template reference
@@ -402,8 +434,17 @@ export default function Image_editor() {
             ...canvas_state,
             image_base64: uploaded_image_base64,
             // Keep existing canvas dimensions and text elements
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: canvas_state.canvas_width,
+              height: canvas_state.canvas_height,
+              scale_x: 1,
+              scale_y: 1,
+            },
           };
           set_canvas_state(save_to_history(new_state));
+          set_image_transform(new_state.image_transform);
           draw_canvas(new_state);
         } else {
           // No template active - treat as new image upload
@@ -426,8 +467,17 @@ export default function Image_editor() {
             zoom: initial_zoom,
             pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
             pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: img.width,
+              height: img.height,
+              scale_x: 1,
+              scale_y: 1,
+            },
           };
           set_canvas_state(save_to_history(new_state));
+          set_image_transform(new_state.image_transform);
           draw_canvas(new_state);
         }
         
@@ -487,101 +537,7 @@ export default function Image_editor() {
     });
   }, [create_custom_background, canvas_state, save_to_history, background_type, background_color, gradient_start, gradient_end, gradient_direction, current_template, plan]);
 
-  // Template color editing functions
-  const update_template_background_color = useCallback((color: string) => {
-    if (!current_template) return;
-    
-    // Update the template's background color and regenerate background
-    const updated_template = {
-      ...current_template,
-      background_color: color,
-      background_gradient: undefined, // Clear gradient when setting solid color
-    };
-    
-    const background_base64 = create_template_background(updated_template);
-    
-    const new_state = {
-      ...canvas_state,
-      background_base64: background_base64,
-      template_background_settings: {
-        type: 'color' as const,
-        color: color,
-      },
-    };
-    
-    set_canvas_state(save_to_history(new_state));
-    draw_canvas(new_state);
-    
-    track("Template Background Color Updated", {
-      plan: plan || "unknown",
-      template_id: current_template.id,
-      new_color: color,
-    });
-  }, [current_template, canvas_state, save_to_history, plan]);
 
-  const update_template_background_gradient = useCallback((gradient_start: string, gradient_end: string, direction: 'horizontal' | 'vertical' | 'diagonal') => {
-    if (!current_template) return;
-    
-    // Update the template's background gradient and regenerate background
-    const updated_template = {
-      ...current_template,
-      background_gradient: {
-        start: gradient_start,
-        end: gradient_end,
-        direction: direction,
-      },
-    };
-    
-    const background_base64 = create_template_background(updated_template);
-    
-    const new_state = {
-      ...canvas_state,
-      background_base64: background_base64,
-      template_background_settings: {
-        type: 'gradient' as const,
-        gradient: {
-          start: gradient_start,
-          end: gradient_end,
-          direction: direction,
-        },
-      },
-    };
-    
-    set_canvas_state(save_to_history(new_state));
-    draw_canvas(new_state);
-    
-    track("Template Background Gradient Updated", {
-      plan: plan || "unknown",
-      template_id: current_template.id,
-      gradient_start,
-      gradient_end,
-      direction,
-    });
-  }, [current_template, canvas_state, save_to_history, plan]);
-
-  const update_template_text_color = useCallback((element_id: string, color: string) => {
-    const new_state = {
-      ...canvas_state,
-      text_elements: canvas_state.text_elements.map(t => 
-        t.id === element_id ? { ...t, color: color } : t
-      ),
-    };
-    
-    set_canvas_state(save_to_history(new_state));
-    draw_canvas(new_state);
-    
-    track("Template Text Color Updated", {
-      plan: plan || "unknown",
-      template_id: current_template?.id,
-      element_id,
-      new_color: color,
-    });
-  }, [canvas_state, save_to_history, current_template, plan]);
-
-  // Helper to check if we have a template loaded
-  const has_template = useCallback(() => {
-    return !!current_template || canvas_state.text_elements.some(t => t.id.startsWith('template_'));
-  }, [current_template, canvas_state.text_elements]);
 
   // Handle drag and drop
   const handle_drag_enter = useCallback((e: React.DragEvent) => {
@@ -621,7 +577,7 @@ export default function Image_editor() {
   const cached_image_base64 = useRef<string | null>(null);
 
   // Draw canvas with optional custom viewport dimensions
-  const draw_canvas = useCallback((state: Canvas_state, custom_viewport_dimensions?: { width: number; height: number }) => {
+  const draw_canvas = useCallback((state: Canvas_state, custom_viewport_dimensions?: { width: number; height: number }, image_selected: boolean = is_image_selected, moving_image: boolean = is_moving_image) => {
     const canvas = canvas_ref.current;
     if (!canvas) return;
 
@@ -661,7 +617,58 @@ export default function Image_editor() {
       
       // Draw main image on top if exists
       if (img) {
-        ctx.drawImage(img, 0, 0, state.canvas_width, state.canvas_height);
+        const transform = state.image_transform || {
+          x: 0,
+          y: 0,
+          width: state.canvas_width,
+          height: state.canvas_height,
+          scale_x: 1,
+          scale_y: 1,
+        };
+        
+        ctx.save();
+        // Draw image at its position with scaling
+        ctx.drawImage(
+          img, 
+          transform.x, 
+          transform.y, 
+          transform.width * transform.scale_x, 
+          transform.height * transform.scale_y
+        );
+        ctx.restore();
+        
+        // Draw selection box if image is selected
+        if (image_selected) {
+          // Different color when moving
+          ctx.strokeStyle = moving_image ? '#0080ff' : '#00ff00';
+          ctx.lineWidth = 2 / state.zoom;
+          ctx.setLineDash([5 / state.zoom, 5 / state.zoom]);
+          ctx.strokeRect(transform.x, transform.y, transform.width * transform.scale_x, transform.height * transform.scale_y);
+          ctx.setLineDash([]);
+          
+          // Draw resize handles
+          const handle_size = 8 / state.zoom;
+          const handles = [
+            { name: 'tl', x: transform.x, y: transform.y },
+            { name: 'tr', x: transform.x + transform.width * transform.scale_x, y: transform.y },
+            { name: 'bl', x: transform.x, y: transform.y + transform.height * transform.scale_y },
+            { name: 'br', x: transform.x + transform.width * transform.scale_x, y: transform.y + transform.height * transform.scale_y },
+            { name: 'tc', x: transform.x + (transform.width * transform.scale_x) / 2, y: transform.y },
+            { name: 'bc', x: transform.x + (transform.width * transform.scale_x) / 2, y: transform.y + transform.height * transform.scale_y },
+            { name: 'lc', x: transform.x, y: transform.y + (transform.height * transform.scale_y) / 2 },
+            { name: 'rc', x: transform.x + transform.width * transform.scale_x, y: transform.y + (transform.height * transform.scale_y) / 2 },
+          ];
+          
+          ctx.fillStyle = '#00ff00';
+          handles.forEach(handle => {
+            ctx.fillRect(
+              handle.x - handle_size / 2, 
+              handle.y - handle_size / 2, 
+              handle_size, 
+              handle_size
+            );
+          });
+        }
       }
       
       // Draw grid if enabled
@@ -787,7 +794,7 @@ export default function Image_editor() {
     } else {
       check_all_loaded();
     }
-  }, [calculate_viewport_dimensions, show_grid]);
+  }, [calculate_viewport_dimensions, show_grid, is_image_selected, is_moving_image]);
 
   // Add text element
   const add_text_element = useCallback(() => {
@@ -984,6 +991,72 @@ export default function Image_editor() {
     set_drag_over_layer_index(null);
   }, []);
 
+  // Handle canvas double click
+  const handle_canvas_double_click = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvas_ref.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const viewport_x = event.clientX - rect.left;
+    const viewport_y = event.clientY - rect.top;
+    const canvas_coords = viewport_to_canvas(viewport_x, viewport_y);
+
+    // Check if double-clicked on the image
+    if (canvas_state.image_base64 && canvas_state.image_transform) {
+      const transform = canvas_state.image_transform;
+      const within_image = canvas_coords.x >= transform.x && 
+                          canvas_coords.x <= transform.x + transform.width * transform.scale_x &&
+                          canvas_coords.y >= transform.y && 
+                          canvas_coords.y <= transform.y + transform.height * transform.scale_y;
+      
+      if (within_image) {
+        set_is_image_selected(true);
+        set_selected_text_id(null);
+        // Deselect all text elements
+        const new_state = {
+          ...canvas_state,
+          text_elements: canvas_state.text_elements.map(t => ({ ...t, selected: false })),
+        };
+        set_canvas_state(new_state);
+        draw_canvas(new_state);
+        return;
+      }
+    }
+
+    // Check if double-clicked on text element
+    const clicked_text = canvas_state.text_elements.find(text_element => {
+      const distance = Math.sqrt(
+        Math.pow(canvas_coords.x - text_element.x, 2) + Math.pow(canvas_coords.y - text_element.y, 2)
+      );
+      return distance < text_element.font_size;
+    });
+
+    if (clicked_text) {
+      set_is_image_selected(false);
+      set_selected_text_id(clicked_text.id);
+      
+      // Update state to select this text
+      const new_state = {
+        ...canvas_state,
+        text_elements: canvas_state.text_elements.map(t => ({
+          ...t,
+          selected: t.id === clicked_text.id,
+        })),
+      };
+      set_canvas_state(new_state);
+      
+      // Update text panel values
+      set_text_input(clicked_text.text);
+      set_text_color(clicked_text.color);
+      set_text_size(clicked_text.font_size);
+      set_text_font(clicked_text.font_family);
+      set_text_weight(clicked_text.font_weight);
+      set_show_text_panel(true);
+      
+      draw_canvas(new_state);
+    }
+  }, [canvas_state, viewport_to_canvas]);
+
   // Handle canvas mouse down
   const handle_canvas_mouse_down = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvas_ref.current;
@@ -1000,6 +1073,75 @@ export default function Image_editor() {
       return;
     }
 
+    // Check if clicked on a resize handle first
+    if (is_image_selected && canvas_state.image_transform) {
+      const transform = canvas_state.image_transform;
+      const handle_size = 8 / canvas_state.zoom;
+      const handles = [
+        { name: 'tl', x: transform.x, y: transform.y },
+        { name: 'tr', x: transform.x + transform.width * transform.scale_x, y: transform.y },
+        { name: 'bl', x: transform.x, y: transform.y + transform.height * transform.scale_y },
+        { name: 'br', x: transform.x + transform.width * transform.scale_x, y: transform.y + transform.height * transform.scale_y },
+        { name: 'tc', x: transform.x + (transform.width * transform.scale_x) / 2, y: transform.y },
+        { name: 'bc', x: transform.x + (transform.width * transform.scale_x) / 2, y: transform.y + transform.height * transform.scale_y },
+        { name: 'lc', x: transform.x, y: transform.y + (transform.height * transform.scale_y) / 2 },
+        { name: 'rc', x: transform.x + transform.width * transform.scale_x, y: transform.y + (transform.height * transform.scale_y) / 2 },
+      ];
+      
+      const clicked_handle = handles.find(handle => {
+        return Math.abs(canvas_coords.x - handle.x) < handle_size / 2 && 
+               Math.abs(canvas_coords.y - handle.y) < handle_size / 2;
+      });
+      
+      if (clicked_handle) {
+        set_is_resizing_image(true);
+        set_resize_handle(clicked_handle.name);
+        set_resize_start({
+          x: canvas_coords.x,
+          y: canvas_coords.y,
+          width: transform.width * transform.scale_x,
+          height: transform.height * transform.scale_y,
+          original_x: transform.x,
+          original_y: transform.y,
+        });
+        return;
+      }
+    }
+    
+    // Check if clicked on the image
+    if (canvas_state.image_base64 && canvas_state.image_transform) {
+      const transform = canvas_state.image_transform;
+      const within_image = canvas_coords.x >= transform.x && 
+                          canvas_coords.x <= transform.x + transform.width * transform.scale_x &&
+                          canvas_coords.y >= transform.y && 
+                          canvas_coords.y <= transform.y + transform.height * transform.scale_y;
+      
+      if (within_image) {
+        if (is_image_selected) {
+          // Image is already selected, start moving
+          set_is_moving_image(true);
+          set_move_start({
+            x: canvas_coords.x,
+            y: canvas_coords.y,
+            image_x: transform.x,
+            image_y: transform.y,
+          });
+        } else {
+          // Select the image
+          set_is_image_selected(true);
+          set_selected_text_id(null);
+          // Deselect all text elements
+          const new_state = {
+            ...canvas_state,
+            text_elements: canvas_state.text_elements.map(t => ({ ...t, selected: false })),
+          };
+          set_canvas_state(new_state);
+          draw_canvas(new_state);
+        }
+        return;
+      }
+    }
+
     // Check if clicked on text element
     const clicked_text = canvas_state.text_elements.find(text_element => {
       const distance = Math.sqrt(
@@ -1009,34 +1151,36 @@ export default function Image_editor() {
     });
 
     if (clicked_text) {
-      const new_state = {
-        ...canvas_state,
-        text_elements: canvas_state.text_elements.map(t => ({
-          ...t,
-          selected: t.id === clicked_text.id,
-        })),
-      };
-      set_canvas_state(new_state);
-      set_selected_text_id(clicked_text.id);
-      
-      // Update text panel values to match selected text
-      set_text_input(clicked_text.text);
-      set_text_color(clicked_text.color);
-      set_text_size(clicked_text.font_size);
-      set_text_font(clicked_text.font_family);
-      set_text_weight(clicked_text.font_weight);
-      set_show_text_panel(true);
-      
-      // Start dragging if move tool is active
-      if (active_tool === 'move') {
+      if (selected_text_id === clicked_text.id) {
+        // Text is already selected, start dragging
         set_is_dragging_text(true);
         set_drag_offset({
           x: canvas_coords.x - clicked_text.x,
           y: canvas_coords.y - clicked_text.y,
         });
+      } else {
+        // Select the text
+        set_is_image_selected(false);
+        const new_state = {
+          ...canvas_state,
+          text_elements: canvas_state.text_elements.map(t => ({
+            ...t,
+            selected: t.id === clicked_text.id,
+          })),
+        };
+        set_canvas_state(new_state);
+        set_selected_text_id(clicked_text.id);
+        
+        // Update text panel values to match selected text
+        set_text_input(clicked_text.text);
+        set_text_color(clicked_text.color);
+        set_text_size(clicked_text.font_size);
+        set_text_font(clicked_text.font_family);
+        set_text_weight(clicked_text.font_weight);
+        set_show_text_panel(true);
+        
+        draw_canvas(new_state);
       }
-      
-      draw_canvas(new_state);
     } else {
       // Deselect all
       const new_state = {
@@ -1045,6 +1189,7 @@ export default function Image_editor() {
       };
       set_canvas_state(new_state);
       set_selected_text_id(null);
+      set_is_image_selected(false);
       
       // Reset text panel to defaults for new text
       set_text_input("");
@@ -1076,7 +1221,116 @@ export default function Image_editor() {
       return;
     }
 
-    if (!is_dragging_text || !selected_text_id || active_tool !== 'move') return;
+    // Handle image moving
+    if (is_moving_image && canvas_state.image_transform) {
+      const rect = canvas.getBoundingClientRect();
+      const viewport_x = event.clientX - rect.left;
+      const viewport_y = event.clientY - rect.top;
+      const canvas_coords = viewport_to_canvas(viewport_x, viewport_y);
+      
+      const dx = canvas_coords.x - move_start.x;
+      const dy = canvas_coords.y - move_start.y;
+      
+      const new_transform = {
+        ...canvas_state.image_transform,
+        x: move_start.image_x + dx,
+        y: move_start.image_y + dy,
+      };
+      
+      set_image_transform(new_transform);
+      const new_state = {
+        ...canvas_state,
+        image_transform: new_transform,
+      };
+      set_canvas_state(new_state);
+      draw_canvas(new_state);
+      return;
+    }
+
+    // Handle image resizing
+    if (is_resizing_image && resize_handle && canvas_state.image_transform) {
+      const rect = canvas.getBoundingClientRect();
+      const viewport_x = event.clientX - rect.left;
+      const viewport_y = event.clientY - rect.top;
+      const canvas_coords = viewport_to_canvas(viewport_x, viewport_y);
+      
+      const dx = canvas_coords.x - resize_start.x;
+      const dy = canvas_coords.y - resize_start.y;
+      
+      let new_transform = { ...canvas_state.image_transform };
+      const original_x = resize_start.original_x;
+      const original_y = resize_start.original_y;
+      const original_scaled_width = resize_start.width;
+      const original_scaled_height = resize_start.height;
+      
+      switch (resize_handle) {
+        case 'br': // Bottom right - anchor at top-left
+          new_transform.scale_x = Math.max(0.1, (resize_start.width + dx) / new_transform.width);
+          new_transform.scale_y = Math.max(0.1, (resize_start.height + dy) / new_transform.height);
+          break;
+          
+        case 'tl': // Top left - anchor at bottom-right
+          const new_width_tl = Math.max(new_transform.width * 0.1, resize_start.width - dx);
+          const new_height_tl = Math.max(new_transform.height * 0.1, resize_start.height - dy);
+          new_transform.scale_x = new_width_tl / new_transform.width;
+          new_transform.scale_y = new_height_tl / new_transform.height;
+          // Keep bottom-right corner fixed
+          new_transform.x = original_x + original_scaled_width - (new_transform.width * new_transform.scale_x);
+          new_transform.y = original_y + original_scaled_height - (new_transform.height * new_transform.scale_y);
+          break;
+          
+        case 'tr': // Top right - anchor at bottom-left
+          const new_width_tr = Math.max(new_transform.width * 0.1, resize_start.width + dx);
+          const new_height_tr = Math.max(new_transform.height * 0.1, resize_start.height - dy);
+          new_transform.scale_x = new_width_tr / new_transform.width;
+          new_transform.scale_y = new_height_tr / new_transform.height;
+          // Keep bottom-left corner fixed
+          new_transform.y = original_y + original_scaled_height - (new_transform.height * new_transform.scale_y);
+          break;
+          
+        case 'bl': // Bottom left - anchor at top-right
+          const new_width_bl = Math.max(new_transform.width * 0.1, resize_start.width - dx);
+          const new_height_bl = Math.max(new_transform.height * 0.1, resize_start.height + dy);
+          new_transform.scale_x = new_width_bl / new_transform.width;
+          new_transform.scale_y = new_height_bl / new_transform.height;
+          // Keep top-right corner fixed
+          new_transform.x = original_x + original_scaled_width - (new_transform.width * new_transform.scale_x);
+          break;
+          
+        case 'tc': // Top center - anchor at bottom
+          const new_height_tc = Math.max(new_transform.height * 0.1, resize_start.height - dy);
+          new_transform.scale_y = new_height_tc / new_transform.height;
+          // Keep bottom edge fixed
+          new_transform.y = original_y + original_scaled_height - (new_transform.height * new_transform.scale_y);
+          break;
+          
+        case 'bc': // Bottom center - anchor at top
+          new_transform.scale_y = Math.max(0.1, (resize_start.height + dy) / new_transform.height);
+          break;
+          
+        case 'lc': // Left center - anchor at right
+          const new_width_lc = Math.max(new_transform.width * 0.1, resize_start.width - dx);
+          new_transform.scale_x = new_width_lc / new_transform.width;
+          // Keep right edge fixed
+          new_transform.x = original_x + original_scaled_width - (new_transform.width * new_transform.scale_x);
+          break;
+          
+        case 'rc': // Right center - anchor at left
+          new_transform.scale_x = Math.max(0.1, (resize_start.width + dx) / new_transform.width);
+          break;
+      }
+      
+      set_image_transform(new_transform);
+      const new_state = {
+        ...canvas_state,
+        image_transform: new_transform,
+      };
+      set_canvas_state(new_state);
+      draw_canvas(new_state);
+      return;
+    }
+
+    if (!is_dragging_text || !selected_text_id) return;
 
     const rect = canvas.getBoundingClientRect();
     const viewport_x = event.clientX - rect.left;
@@ -1096,7 +1350,7 @@ export default function Image_editor() {
 
     set_canvas_state(new_state);
     draw_canvas(new_state);
-  }, [is_panning, is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset, last_pan_position, viewport_to_canvas]);
+  }, [is_panning, is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset, last_pan_position, viewport_to_canvas, is_resizing_image, resize_handle, resize_start, is_moving_image, move_start]);
 
   // Handle canvas mouse up
   const handle_canvas_mouse_up = useCallback(() => {
@@ -1108,7 +1362,18 @@ export default function Image_editor() {
       // Save to history when drag ends
       set_canvas_state(prev => save_to_history(prev));
     }
-  }, [is_panning, is_dragging_text, save_to_history]);
+    if (is_resizing_image) {
+      set_is_resizing_image(false);
+      set_resize_handle(null);
+      // Save to history when resize ends
+      set_canvas_state(prev => save_to_history(prev));
+    }
+    if (is_moving_image) {
+      set_is_moving_image(false);
+      // Save to history when move ends
+      set_canvas_state(prev => save_to_history(prev));
+    }
+  }, [is_panning, is_dragging_text, is_resizing_image, is_moving_image, save_to_history]);
 
   // Handle wheel zoom
   const handle_wheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
@@ -1155,7 +1420,25 @@ export default function Image_editor() {
 
       // Draw main image layer if exists
       if (canvas_state.image_base64 && cached_image.current) {
-        export_ctx.drawImage(cached_image.current, 0, 0, canvas_state.canvas_width, canvas_state.canvas_height);
+        const transform = canvas_state.image_transform || {
+          x: 0,
+          y: 0,
+          width: canvas_state.canvas_width,
+          height: canvas_state.canvas_height,
+          scale_x: 1,
+          scale_y: 1,
+        };
+        
+        export_ctx.save();
+        // Draw image at its position with scaling
+        export_ctx.drawImage(
+          cached_image.current, 
+          transform.x, 
+          transform.y, 
+          transform.width * transform.scale_x, 
+          transform.height * transform.scale_y
+        );
+        export_ctx.restore();
       }
 
       // Draw text elements on top
@@ -1257,8 +1540,17 @@ export default function Image_editor() {
           zoom: initial_zoom,
           pan_x: (stored_image_viewport.width - img.width * initial_zoom) / 2,
           pan_y: (stored_image_viewport.height - img.height * initial_zoom) / 2,
+          image_transform: {
+            x: 0,
+            y: 0,
+            width: img.width,
+            height: img.height,
+            scale_x: 1,
+            scale_y: 1,
+          },
         };
         set_canvas_state(save_to_history(new_state));
+        set_image_transform(new_state.image_transform);
         draw_canvas(new_state);
       };
       img.src = `data:image/png;base64,${stored_image}`;
@@ -1287,10 +1579,10 @@ export default function Image_editor() {
           show_templates={show_templates}
           show_grid={show_grid}
           show_background_panel={show_background_panel}
-          show_template_colors_panel={show_template_colors_panel}
+          show_image_panel={show_image_panel}
           selected_text_id={selected_text_id}
           has_image={!!canvas_state.image_base64}
-          has_template={has_template()}
+          is_image_selected={is_image_selected}
           on_tool_change={set_active_tool}
           on_toggle_templates={() => {
             set_show_templates(!show_templates);
@@ -1298,7 +1590,7 @@ export default function Image_editor() {
             if (!show_templates) {
               set_show_text_panel(false);
               set_show_background_panel(false);
-              set_show_template_colors_panel(false);
+              set_show_image_panel(false);
             }
           }}
           on_toggle_grid={() => set_show_grid(!show_grid)}
@@ -1308,7 +1600,7 @@ export default function Image_editor() {
             if (!show_text_panel) {
               set_show_templates(false);
               set_show_background_panel(false);
-              set_show_template_colors_panel(false);
+              set_show_image_panel(false);
             }
           }}
           on_toggle_background_panel={() => {
@@ -1317,13 +1609,13 @@ export default function Image_editor() {
             if (!show_background_panel) {
               set_show_templates(false);
               set_show_text_panel(false);
-              set_show_template_colors_panel(false);
+              set_show_image_panel(false);
             }
           }}
-          on_toggle_template_colors_panel={() => {
-            set_show_template_colors_panel(!show_template_colors_panel);
-            // Close other panels when opening template colors panel
-            if (!show_template_colors_panel) {
+          on_toggle_image_panel={() => {
+            set_show_image_panel(!show_image_panel);
+            // Close other panels when opening image panel
+            if (!show_image_panel) {
               set_show_templates(false);
               set_show_text_panel(false);
               set_show_background_panel(false);
@@ -1346,6 +1638,15 @@ export default function Image_editor() {
               set_canvas_state(save_to_history(new_state));
               set_current_template(null); // Clear the current template
               set_selected_text_id(null);
+              set_is_image_selected(false);
+              set_image_transform({
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0,
+                scale_x: 1,
+                scale_y: 1,
+              });
               draw_canvas(new_state);
             }
           }}
@@ -1356,7 +1657,10 @@ export default function Image_editor() {
         {show_templates && (
           <div className="w-80 bg-base-100 border-r border-base-300 p-4 overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Templates</h3>
+              <div>
+                <h3 className="text-lg font-semibold">Templates</h3>
+                <p className="text-xs text-base-content/60 mt-1">Set workspace size for your project</p>
+              </div>
               <button
                 className="btn btn-sm btn-ghost"
                 onClick={() => set_show_templates(false)}
@@ -1469,6 +1773,7 @@ export default function Image_editor() {
                       className={`block ${
                         active_tool === 'pan' ? 'cursor-grab' : 
                         active_tool === 'move' && selected_text_id ? 'cursor-move' : 
+                        is_moving_image || is_dragging_text ? 'cursor-move' :
                         'cursor-pointer'
                       } ${is_panning ? 'cursor-grabbing' : ''}`}
                       style={{
@@ -1476,6 +1781,7 @@ export default function Image_editor() {
                         height: viewport_dimensions.height,
                       }}
                       onMouseDown={handle_canvas_mouse_down}
+                      onDoubleClick={handle_canvas_double_click}
                       onMouseMove={handle_canvas_mouse_move}
                       onMouseUp={handle_canvas_mouse_up}
                       onMouseLeave={handle_canvas_mouse_up}
@@ -1492,8 +1798,10 @@ export default function Image_editor() {
                   <div className="absolute top-2 right-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
                     {active_tool === 'pan' && 'Drag to pan • Scroll to zoom'}
                     {active_tool === 'text' && 'Click to add text'}
-                    {active_tool === 'move' && 'Click and drag text to move'}
-                    {active_tool === 'select' && 'Click to select text'}
+                    {active_tool === 'move' && 'Click and drag elements to move'}
+                    {active_tool === 'select' && 'Click to select • Double-click for quick select • Drag selected to move'}
+                    {is_moving_image && 'Moving image...'}
+                    {is_dragging_text && 'Moving text...'}
                   </div>
                 </div>
               )}
@@ -1927,190 +2235,189 @@ export default function Image_editor() {
             </div>
           )}
 
-          {/* Template Colors Panel */}
-          {show_template_colors_panel && current_template && (
+
+          {/* Image Properties Panel */}
+          {show_image_panel && is_image_selected && canvas_state.image_transform && (
             <div className="w-80 bg-base-100 border-l border-base-300 p-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Template Colors</h3>
+                <h3 className="text-lg font-semibold">Image Properties</h3>
                 <button
                   className="btn btn-sm btn-ghost"
-                  onClick={() => set_show_template_colors_panel(false)}
+                  onClick={() => set_show_image_panel(false)}
                 >
                   ×
                 </button>
               </div>
 
-              <div className="space-y-6">
-                {/* Template Background Section */}
+              <div className="space-y-4">
+                {/* Size Controls */}
                 <div>
-                  <h4 className="font-medium mb-3">Background</h4>
+                  <h4 className="font-medium mb-3">Size</h4>
                   
-                  {/* Background Type Toggle */}
-                  <div className="mb-4">
-                    <label className="label">
-                      <span className="label-text">Background Type</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        className={`btn btn-sm flex-1 ${!current_template.background_gradient ? 'btn-primary' : 'btn-outline'}`}
-                        onClick={() => {
-                          // Convert to solid color
-                          const color = current_template.background_gradient?.start || current_template.background_color;
-                          update_template_background_color(color);
-                        }}
-                      >
-                        Solid Color
-                      </button>
-                      <button
-                        className={`btn btn-sm flex-1 ${current_template.background_gradient ? 'btn-primary' : 'btn-outline'}`}
-                        onClick={() => {
-                          // Convert to gradient if not already
-                          if (!current_template.background_gradient) {
-                            update_template_background_gradient(
-                              current_template.background_color,
-                              '#cc0000',
-                              'diagonal'
-                            );
-                          }
-                        }}
-                      >
-                        Gradient
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Solid Color Controls */}
-                  {!current_template.background_gradient && (
+                  <div className="grid grid-cols-2 gap-2 mb-3">
                     <div>
                       <label className="label">
-                        <span className="label-text">Background Color</span>
+                        <span className="label-text text-xs">Width</span>
                       </label>
                       <input
-                        type="color"
-                        className="w-full h-10 rounded border border-base-300"
-                        value={current_template.background_color}
-                        onChange={(e) => update_template_background_color(e.target.value)}
+                        type="number"
+                        className="input input-bordered input-sm w-full"
+                        value={Math.round(canvas_state.image_transform.width * canvas_state.image_transform.scale_x)}
+                        onChange={(e) => {
+                          const new_width = parseInt(e.target.value) || 1;
+                          const new_scale_x = new_width / canvas_state.image_transform.width;
+                          const new_transform = {
+                            ...canvas_state.image_transform,
+                            scale_x: new_scale_x,
+                          };
+                          set_image_transform(new_transform);
+                          const new_state = {
+                            ...canvas_state,
+                            image_transform: new_transform,
+                          };
+                          set_canvas_state(save_to_history(new_state));
+                          draw_canvas(new_state);
+                        }}
                       />
                     </div>
-                  )}
-
-                  {/* Gradient Controls */}
-                  {current_template.background_gradient && (
-                    <>
-                      <div>
-                        <label className="label">
-                          <span className="label-text">Gradient Start</span>
-                        </label>
-                        <input
-                          type="color"
-                          className="w-full h-10 rounded border border-base-300"
-                          value={current_template.background_gradient.start}
-                          onChange={(e) => update_template_background_gradient(
-                            e.target.value,
-                            current_template.background_gradient!.end,
-                            current_template.background_gradient!.direction
-                          )}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="label">
-                          <span className="label-text">Gradient End</span>
-                        </label>
-                        <input
-                          type="color"
-                          className="w-full h-10 rounded border border-base-300"
-                          value={current_template.background_gradient.end}
-                          onChange={(e) => update_template_background_gradient(
-                            current_template.background_gradient!.start,
-                            e.target.value,
-                            current_template.background_gradient!.direction
-                          )}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="label">
-                          <span className="label-text">Gradient Direction</span>
-                        </label>
-                        <select
-                          className="select select-bordered w-full"
-                          value={current_template.background_gradient.direction}
-                          onChange={(e) => update_template_background_gradient(
-                            current_template.background_gradient!.start,
-                            current_template.background_gradient!.end,
-                            e.target.value as 'horizontal' | 'vertical' | 'diagonal'
-                          )}
-                        >
-                          <option value="horizontal">Horizontal</option>
-                          <option value="vertical">Vertical</option>
-                          <option value="diagonal">Diagonal</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Background Preview */}
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Preview</span>
-                    </label>
-                    <div 
-                      className="w-full h-16 rounded border border-base-300 mb-4"
-                      style={{
-                        background: current_template.background_gradient 
-                          ? `linear-gradient(${
-                              current_template.background_gradient.direction === 'horizontal' ? '90deg' :
-                              current_template.background_gradient.direction === 'vertical' ? '0deg' : '45deg'
-                            }, ${current_template.background_gradient.start}, ${current_template.background_gradient.end})`
-                          : current_template.background_color
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Template Text Elements Section */}
-                {canvas_state.text_elements.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-3">Text Elements</h4>
-                    <div className="space-y-3">
-                      {canvas_state.text_elements.map((element, index) => (
-                        <div key={element.id} className="border border-base-300 rounded p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-4 h-4 rounded-full border flex-shrink-0" 
-                                style={{ backgroundColor: element.color }}
-                              />
-                              <span className="text-sm font-medium truncate max-w-32">
-                                {element.text}
-                              </span>
-                            </div>
-                            <div className="text-xs text-base-content/60">
-                              Layer {canvas_state.text_elements.length - index}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <label className="label">
-                              <span className="label-text text-xs">Color</span>
-                            </label>
-                            <input
-                              type="color"
-                              className="w-full h-8 rounded border border-base-300"
-                              value={element.color}
-                              onChange={(e) => update_template_text_color(element.id, e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                    
+                    <div>
+                      <label className="label">
+                        <span className="label-text text-xs">Height</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm w-full"
+                        value={Math.round(canvas_state.image_transform.height * canvas_state.image_transform.scale_y)}
+                        onChange={(e) => {
+                          const new_height = parseInt(e.target.value) || 1;
+                          const new_scale_y = new_height / canvas_state.image_transform.height;
+                          const new_transform = {
+                            ...canvas_state.image_transform,
+                            scale_y: new_scale_y,
+                          };
+                          set_image_transform(new_transform);
+                          const new_state = {
+                            ...canvas_state,
+                            image_transform: new_transform,
+                          };
+                          set_canvas_state(save_to_history(new_state));
+                          draw_canvas(new_state);
+                        }}
+                      />
                     </div>
                   </div>
-                )}
+                  
+                  {/* Original Size Info */}
+                  <div className="text-xs text-base-content/60 mb-3">
+                    Original: {canvas_state.image_transform.width} × {canvas_state.image_transform.height}
+                  </div>
+                  
+                  {/* Reset Size Button */}
+                  <button
+                    className="btn btn-sm btn-outline w-full"
+                    onClick={() => {
+                      const new_transform = {
+                        ...canvas_state.image_transform,
+                        scale_x: 1,
+                        scale_y: 1,
+                      };
+                      set_image_transform(new_transform);
+                      const new_state = {
+                        ...canvas_state,
+                        image_transform: new_transform,
+                      };
+                      set_canvas_state(save_to_history(new_state));
+                      draw_canvas(new_state);
+                    }}
+                  >
+                    Reset to Original Size
+                  </button>
+                </div>
+
+                {/* Position Controls */}
+                <div>
+                  <h4 className="font-medium mb-3">Position</h4>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <label className="label">
+                        <span className="label-text text-xs">X</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm w-full"
+                        value={Math.round(canvas_state.image_transform.x)}
+                        onChange={(e) => {
+                          const new_x = parseInt(e.target.value) || 0;
+                          const new_transform = {
+                            ...canvas_state.image_transform,
+                            x: new_x,
+                          };
+                          set_image_transform(new_transform);
+                          const new_state = {
+                            ...canvas_state,
+                            image_transform: new_transform,
+                          };
+                          set_canvas_state(save_to_history(new_state));
+                          draw_canvas(new_state);
+                        }}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="label">
+                        <span className="label-text text-xs">Y</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm w-full"
+                        value={Math.round(canvas_state.image_transform.y)}
+                        onChange={(e) => {
+                          const new_y = parseInt(e.target.value) || 0;
+                          const new_transform = {
+                            ...canvas_state.image_transform,
+                            y: new_y,
+                          };
+                          set_image_transform(new_transform);
+                          const new_state = {
+                            ...canvas_state,
+                            image_transform: new_transform,
+                          };
+                          set_canvas_state(save_to_history(new_state));
+                          draw_canvas(new_state);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Center Image Button */}
+                  <button
+                    className="btn btn-sm btn-outline w-full"
+                    onClick={() => {
+                      const centered_x = (canvas_state.canvas_width - canvas_state.image_transform.width * canvas_state.image_transform.scale_x) / 2;
+                      const centered_y = (canvas_state.canvas_height - canvas_state.image_transform.height * canvas_state.image_transform.scale_y) / 2;
+                      const new_transform = {
+                        ...canvas_state.image_transform,
+                        x: centered_x,
+                        y: centered_y,
+                      };
+                      set_image_transform(new_transform);
+                      const new_state = {
+                        ...canvas_state,
+                        image_transform: new_transform,
+                      };
+                      set_canvas_state(save_to_history(new_state));
+                      draw_canvas(new_state);
+                    }}
+                  >
+                    Center Image
+                  </button>
+                </div>
 
                 {/* Help Text */}
                 <div className="text-xs text-base-content/50 p-2 bg-base-200 rounded">
-                  💡 Template color changes are applied instantly. You can edit background colors/gradients and individual text element colors.
+                  💡 Click and drag the resize handles on the image to resize, or use the controls above for precise adjustments.
                 </div>
               </div>
             </div>

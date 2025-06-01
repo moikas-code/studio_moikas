@@ -22,6 +22,15 @@ export interface Template_background_settings {
   };
 }
 
+export interface Image_transform {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scale_x: number;
+  scale_y: number;
+}
+
 export interface Canvas_state {
   image_base64: string | null;
   background_base64?: string | null;
@@ -34,6 +43,7 @@ export interface Canvas_state {
   history: string[];
   history_index: number;
   template_background_settings?: Template_background_settings | null;
+  image_transform?: Image_transform;
 }
 
 export interface Viewport_dimensions {
@@ -104,5 +114,6 @@ export const create_history_entry = (state: Canvas_state): string => {
     image_base64: state.image_base64,
     background_base64: state.background_base64,
     text_elements: state.text_elements,
+    image_transform: state.image_transform,
   });
 }; 

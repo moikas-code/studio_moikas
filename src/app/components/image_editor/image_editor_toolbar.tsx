@@ -9,7 +9,7 @@ import {
   Trash2, 
   RotateCcw,
   Palette,
-  Settings
+  Image
 } from 'lucide-react';
 
 interface Image_editor_toolbar_props {
@@ -17,16 +17,16 @@ interface Image_editor_toolbar_props {
   show_templates: boolean;
   show_grid: boolean;
   show_background_panel: boolean;
-  show_template_colors_panel: boolean;
+  show_image_panel?: boolean;
   selected_text_id: string | null;
   has_image: boolean;
-  has_template: boolean;
+  is_image_selected?: boolean;
   on_tool_change: (tool: 'select' | 'text' | 'move' | 'pan') => void;
   on_toggle_templates: () => void;
   on_toggle_grid: () => void;
   on_toggle_text_panel: () => void;
   on_toggle_background_panel: () => void;
-  on_toggle_template_colors_panel: () => void;
+  on_toggle_image_panel?: () => void;
   on_delete_selected: () => void;
   on_clear_canvas: () => void;
   on_file_upload: () => void;
@@ -37,16 +37,16 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
   show_templates,
   show_grid,
   show_background_panel,
-  show_template_colors_panel,
+  show_image_panel,
   selected_text_id,
   has_image,
-  has_template,
+  is_image_selected,
   on_tool_change,
   on_toggle_templates,
   on_toggle_grid,
   on_toggle_text_panel,
   on_toggle_background_panel,
-  on_toggle_template_colors_panel,
+  on_toggle_image_panel,
   on_delete_selected,
   on_clear_canvas,
   on_file_upload,
@@ -63,7 +63,7 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
       
       <button
         className={`btn btn-sm btn-square ${show_templates ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-        data-tip="Templates"
+        data-tip="Canvas Templates"
         onClick={on_toggle_templates}
       >
         <Layers className="w-4 h-4" />
@@ -112,13 +112,13 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
         <Palette className="w-4 h-4" />
       </button>
       
-      {has_template && (
+      {is_image_selected && on_toggle_image_panel && (
         <button
-          className={`btn btn-sm btn-square ${show_template_colors_panel ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-          data-tip="Template Colors"
-          onClick={on_toggle_template_colors_panel}
+          className={`btn btn-sm btn-square ${show_image_panel ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
+          data-tip="Image Properties"
+          onClick={on_toggle_image_panel}
         >
-          <Settings className="w-4 h-4" />
+          <Image className="w-4 h-4" />
         </button>
       )}
       
