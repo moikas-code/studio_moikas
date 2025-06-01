@@ -24,6 +24,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  MousePointer,
 } from "lucide-react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
@@ -1027,7 +1028,7 @@ export default function Image_editor() {
             data-tip="Move Text"
             onClick={() => set_active_tool('move')}
           >
-            <Settings className="w-4 h-4" />
+            <MousePointer className="w-4 h-4" />
           </button>
           {selected_text_id && (
             <button
