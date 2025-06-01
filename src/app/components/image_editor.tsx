@@ -194,9 +194,16 @@ export default function Image_editor() {
     };
   }, []);
 
-  const viewport_dimensions = get_viewport_dimensions();
+  // State to track current viewport dimensions
+  const [viewport_dimensions, set_viewport_dimensions] = useState(() => get_viewport_dimensions());
   const VIEWPORT_WIDTH = viewport_dimensions.width;
   const VIEWPORT_HEIGHT = viewport_dimensions.height;
+
+  // Update viewport dimensions when canvas state changes
+  useEffect(() => {
+    const new_dimensions = get_viewport_dimensions();
+    set_viewport_dimensions(new_dimensions);
+  }, [canvas_state.canvas_width, canvas_state.canvas_height, get_viewport_dimensions]);
 
   // Font options
   const font_options = [
@@ -310,7 +317,8 @@ export default function Image_editor() {
     set_canvas_state(save_to_history(new_state));
     set_show_templates(false);
     set_selected_text_id(null);
-    draw_canvas(new_state);
+    // Draw canvas with the template's viewport dimensions
+    draw_canvas(new_state, template_viewport);
 
     track("Image Editor Template Loaded", {
       template_id: template.id,
@@ -353,8 +361,9 @@ export default function Image_editor() {
       set_pending_template(template);
       set_show_template_modal(true);
     } else {
-      // No existing image or user has disabled confirmations - apply template with background
-      const use_template_background = !canvas_state.image_base64 || get_skip_template_confirmation();
+      // No existing image: use template background
+      // Existing image but confirmations disabled: keep the image (since checkbox says "always keep my image")
+      const use_template_background = !canvas_state.image_base64;
       apply_template_with_background(template, use_template_background);
     }
   }, [canvas_state.image_base64, apply_template_with_background, get_skip_template_confirmation]);
@@ -459,17 +468,27 @@ export default function Image_editor() {
   const cached_image = useRef<HTMLImageElement | null>(null);
   const cached_image_base64 = useRef<string | null>(null);
 
-  // Draw canvas
-  const draw_canvas = useCallback((state: Canvas_state) => {
+  // Draw canvas with optional custom viewport dimensions
+  const draw_canvas = useCallback((state: Canvas_state, custom_viewport_dimensions?: { width: number; height: number }) => {
     const canvas = canvas_ref.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas dimensions to fixed viewport size
-    canvas.width = VIEWPORT_WIDTH;
-    canvas.height = VIEWPORT_HEIGHT;
+    // Use custom dimensions if provided, otherwise calculate based on state
+    const viewport_dims = custom_viewport_dimensions || get_viewport_dimensions_for_canvas(state.canvas_width, state.canvas_height);
+    const current_viewport_width = viewport_dims.width;
+    const current_viewport_height = viewport_dims.height;
+
+    // Update the component's viewport dimensions if they've changed
+    if (current_viewport_width !== VIEWPORT_WIDTH || current_viewport_height !== VIEWPORT_HEIGHT) {
+      set_viewport_dimensions({ width: current_viewport_width, height: current_viewport_height });
+    }
+
+    // Set canvas dimensions to calculated viewport size
+    canvas.width = current_viewport_width;
+    canvas.height = current_viewport_height;
 
     // Function to draw everything
     const draw_all = (img?: HTMLImageElement) => {
@@ -540,7 +559,7 @@ export default function Image_editor() {
       // No image, just draw text elements
       draw_all();
     }
-  }, []);
+  }, [get_viewport_dimensions_for_canvas, VIEWPORT_WIDTH, VIEWPORT_HEIGHT]);
 
   // Add text element
   const add_text_element = useCallback(() => {
