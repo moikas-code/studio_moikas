@@ -69,6 +69,8 @@ export default function Image_editor() {
   const [selected_text_id, set_selected_text_id] = useState<string | null>(null);
   const [show_text_panel, set_show_text_panel] = useState(false);
   const [drag_over, set_drag_over] = useState(false);
+  const [is_dragging_text, set_is_dragging_text] = useState(false);
+  const [drag_offset, set_drag_offset] = useState({ x: 0, y: 0 });
 
   // Text editing state
   const [text_input, set_text_input] = useState("");
@@ -311,8 +313,23 @@ export default function Image_editor() {
     draw_canvas(new_state);
   }, [selected_text_id, canvas_state, save_to_history]);
 
-  // Handle canvas click
-  const handle_canvas_click = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+  // Update selected text properties
+  const update_selected_text = useCallback((updates: Partial<Text_element>) => {
+    if (!selected_text_id) return;
+
+    const new_state = {
+      ...canvas_state,
+      text_elements: canvas_state.text_elements.map(t => 
+        t.id === selected_text_id ? { ...t, ...updates } : t
+      ),
+    };
+
+    set_canvas_state(save_to_history(new_state));
+    draw_canvas(new_state);
+  }, [canvas_state, selected_text_id, save_to_history]);
+
+  // Handle canvas mouse down for text dragging
+  const handle_canvas_mouse_down = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvas_ref.current;
     if (!canvas) return;
 
@@ -338,6 +355,24 @@ export default function Image_editor() {
       };
       set_canvas_state(new_state);
       set_selected_text_id(clicked_text.id);
+      
+      // Update text panel values to match selected text
+      set_text_input(clicked_text.text);
+      set_text_color(clicked_text.color);
+      set_text_size(clicked_text.font_size);
+      set_text_font(clicked_text.font_family);
+      set_text_weight(clicked_text.font_weight);
+      set_show_text_panel(true);
+      
+      // Start dragging if move tool is active
+      if (active_tool === 'move') {
+        set_is_dragging_text(true);
+        set_drag_offset({
+          x: x - clicked_text.x,
+          y: y - clicked_text.y,
+        });
+      }
+      
       draw_canvas(new_state);
     } else {
       // Deselect all
@@ -347,9 +382,52 @@ export default function Image_editor() {
       };
       set_canvas_state(new_state);
       set_selected_text_id(null);
+      
+      // Reset text panel to defaults for new text
+      set_text_input("");
+      set_text_color("#ffffff");
+      set_text_size(48);
+      set_text_font("Arial");
+      set_text_weight("normal");
+      
       draw_canvas(new_state);
     }
-  }, [canvas_state]);
+  }, [canvas_state, active_tool]);
+
+  // Handle canvas mouse move for text dragging
+  const handle_canvas_mouse_move = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!is_dragging_text || !selected_text_id || active_tool !== 'move') return;
+
+    const canvas = canvas_ref.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * canvas_state.canvas_width;
+    const y = ((event.clientY - rect.top) / rect.height) * canvas_state.canvas_height;
+
+    const new_x = x - drag_offset.x;
+    const new_y = y - drag_offset.y;
+
+    // Update text position
+    const new_state = {
+      ...canvas_state,
+      text_elements: canvas_state.text_elements.map(t => 
+        t.id === selected_text_id ? { ...t, x: new_x, y: new_y } : t
+      ),
+    };
+
+    set_canvas_state(new_state);
+    draw_canvas(new_state);
+  }, [is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset]);
+
+  // Handle canvas mouse up for text dragging
+  const handle_canvas_mouse_up = useCallback(() => {
+    if (is_dragging_text) {
+      set_is_dragging_text(false);
+      // Save to history when drag ends
+      set_canvas_state(prev => save_to_history(prev));
+    }
+  }, [is_dragging_text, save_to_history]);
 
   // Export image
   const export_image = useCallback(async () => {
@@ -551,14 +629,17 @@ export default function Image_editor() {
                   <div className="border border-base-300 shadow-lg rounded overflow-hidden">
                     <canvas
                       ref={canvas_ref}
-                      className="max-w-full max-h-full cursor-pointer block"
+                      className={`max-w-full max-h-full block ${active_tool === 'move' && selected_text_id ? 'cursor-move' : 'cursor-pointer'}`}
                       style={{
                         maxWidth: '90vw',
                         maxHeight: '70vh',
                         width: 'auto',
                         height: 'auto',
                       }}
-                      onClick={handle_canvas_click}
+                      onMouseDown={handle_canvas_mouse_down}
+                      onMouseMove={handle_canvas_mouse_move}
+                      onMouseUp={handle_canvas_mouse_up}
+                      onMouseLeave={handle_canvas_mouse_up}
                     />
                   </div>
                 )}
@@ -590,22 +671,35 @@ export default function Image_editor() {
                       type="text"
                       className="input input-bordered flex-1"
                       value={text_input}
-                      onChange={(e) => set_text_input(e.target.value)}
+                      onChange={(e) => {
+                        set_text_input(e.target.value);
+                        // Update selected text content immediately
+                        if (selected_text_id) {
+                          update_selected_text({ text: e.target.value });
+                        }
+                      }}
                       placeholder="Enter text..."
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
+                        if (e.key === 'Enter' && !selected_text_id) {
                           add_text_element();
                         }
                       }}
                     />
-                    <button
-                      className="btn btn-primary"
-                      onClick={add_text_element}
-                      disabled={!text_input.trim()}
-                    >
-                      Add
-                    </button>
+                    {!selected_text_id && (
+                      <button
+                        className="btn btn-primary"
+                        onClick={add_text_element}
+                        disabled={!text_input.trim()}
+                      >
+                        Add
+                      </button>
+                    )}
                   </div>
+                  {selected_text_id && (
+                    <div className="text-xs text-base-content opacity-70 mt-1">
+                      Editing selected text
+                    </div>
+                  )}
                 </div>
 
                 {/* Font Family */}
@@ -616,7 +710,12 @@ export default function Image_editor() {
                   <select
                     className="select select-bordered w-full"
                     value={text_font}
-                    onChange={(e) => set_text_font(e.target.value)}
+                    onChange={(e) => {
+                      set_text_font(e.target.value);
+                      if (selected_text_id) {
+                        update_selected_text({ font_family: e.target.value });
+                      }
+                    }}
                   >
                     {font_options.map((font) => (
                       <option key={font.value} value={font.value}>
@@ -637,7 +736,13 @@ export default function Image_editor() {
                     min="12"
                     max="200"
                     value={text_size}
-                    onChange={(e) => set_text_size(parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const new_size = parseInt(e.target.value);
+                      set_text_size(new_size);
+                      if (selected_text_id) {
+                        update_selected_text({ font_size: new_size });
+                      }
+                    }}
                   />
                 </div>
 
@@ -649,7 +754,12 @@ export default function Image_editor() {
                   <select
                     className="select select-bordered w-full"
                     value={text_weight}
-                    onChange={(e) => set_text_weight(e.target.value)}
+                    onChange={(e) => {
+                      set_text_weight(e.target.value);
+                      if (selected_text_id) {
+                        update_selected_text({ font_weight: e.target.value });
+                      }
+                    }}
                   >
                     {weight_options.map((weight) => (
                       <option key={weight.value} value={weight.value}>
@@ -668,7 +778,12 @@ export default function Image_editor() {
                     type="color"
                     className="w-full h-12 rounded cursor-pointer"
                     value={text_color}
-                    onChange={(e) => set_text_color(e.target.value)}
+                    onChange={(e) => {
+                      set_text_color(e.target.value);
+                      if (selected_text_id) {
+                        update_selected_text({ color: e.target.value });
+                      }
+                    }}
                   />
                 </div>
 
@@ -683,7 +798,12 @@ export default function Image_editor() {
                         key={color}
                         className="w-8 h-8 rounded border-2 border-base-300"
                         style={{ backgroundColor: color }}
-                        onClick={() => set_text_color(color)}
+                        onClick={() => {
+                          set_text_color(color);
+                          if (selected_text_id) {
+                            update_selected_text({ color: color });
+                          }
+                        }}
                       />
                     ))}
                   </div>
