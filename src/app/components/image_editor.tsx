@@ -268,7 +268,7 @@ export default function Image_editor() {
   const cached_image = useRef<HTMLImageElement | null>(null);
   const cached_image_base64 = useRef<string | null>(null);
 
-  // Draw canvas with optional custom viewport dimensions
+  // Draw canvas with full page viewport
   const draw_canvas = useCallback((state: Canvas_state, custom_viewport_dimensions?: { width: number; height: number }, image_selected: boolean = is_image_selected, moving_image: boolean = is_moving_image) => {
     const canvas = canvas_ref.current;
     if (!canvas) return;
@@ -276,19 +276,19 @@ export default function Image_editor() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Use custom dimensions if provided, otherwise calculate based on state
-    const viewport_dims = custom_viewport_dimensions || calculate_viewport_dimensions(state.canvas_width, state.canvas_height);
-    const current_viewport_width = viewport_dims.width;
-    const current_viewport_height = viewport_dims.height;
+    // Get the full available canvas size from the DOM element
+    const rect = canvas.getBoundingClientRect();
+    const current_viewport_width = rect.width;
+    const current_viewport_height = rect.height;
+
+    // Set canvas dimensions to full available space
+    canvas.width = current_viewport_width;
+    canvas.height = current_viewport_height;
 
     // Update the component's viewport dimensions if they've changed
     if (current_viewport_width !== viewport_dimensions.width || current_viewport_height !== viewport_dimensions.height) {
       set_viewport_dimensions({ width: current_viewport_width, height: current_viewport_height });
     }
-
-    // Set canvas dimensions to calculated viewport size
-    canvas.width = current_viewport_width;
-    canvas.height = current_viewport_height;
 
     // Function to draw everything
     const draw_all = (img?: HTMLImageElement, background_img?: HTMLImageElement) => {
@@ -363,22 +363,56 @@ export default function Image_editor() {
         }
       }
       
-      // Always draw canvas border to show editing boundary
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0, 150, 255, 0.4)'; // Blue border, slightly transparent
-      ctx.lineWidth = Math.max(2, 2 / state.zoom); // Slightly thicker for visibility
-      ctx.setLineDash([]); // Solid line
+      // Always draw project boundaries to show editing/export area
+      // This should be drawn within the transformed coordinate system
+      const has_selection = image_selected || state.text_elements.some(t => t.selected);
+      ctx.strokeStyle = has_selection ? 'rgba(0, 150, 255, 0.8)' : 'rgba(0, 150, 255, 0.6)';
+      ctx.lineWidth = Math.max(has_selection ? 3 : 2, (has_selection ? 3 : 2) / state.zoom);
+      ctx.setLineDash(has_selection ? [] : [10 / state.zoom, 5 / state.zoom]);
       
-      // Draw canvas border
+      // Draw project boundaries at the canvas edges (within transformed space)
       ctx.beginPath();
       ctx.rect(0, 0, state.canvas_width, state.canvas_height);
       ctx.stroke();
-      ctx.restore();
+      
+      // Add corner indicators when selected for better visibility
+      if (has_selection) {
+        const corner_size = 20 / state.zoom;
+        ctx.strokeStyle = 'rgba(0, 150, 255, 1)';
+        ctx.lineWidth = Math.max(2, 2 / state.zoom);
+        ctx.setLineDash([]);
+        
+        // Top-left corner
+        ctx.beginPath();
+        ctx.moveTo(0, corner_size);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(corner_size, 0);
+        ctx.stroke();
+        
+        // Top-right corner
+        ctx.beginPath();
+        ctx.moveTo(state.canvas_width - corner_size, 0);
+        ctx.lineTo(state.canvas_width, 0);
+        ctx.lineTo(state.canvas_width, corner_size);
+        ctx.stroke();
+        
+        // Bottom-left corner
+        ctx.beginPath();
+        ctx.moveTo(0, state.canvas_height - corner_size);
+        ctx.lineTo(0, state.canvas_height);
+        ctx.lineTo(corner_size, state.canvas_height);
+        ctx.stroke();
+        
+        // Bottom-right corner
+        ctx.beginPath();
+        ctx.moveTo(state.canvas_width - corner_size, state.canvas_height);
+        ctx.lineTo(state.canvas_width, state.canvas_height);
+        ctx.lineTo(state.canvas_width, state.canvas_height - corner_size);
+        ctx.stroke();
+      }
       
       // Draw internal grid lines if enabled
       if (show_grid) {
-        ctx.save();
-        
         // Use a more visible color with higher opacity for grid lines
         ctx.strokeStyle = 'rgba(0, 150, 255, 0.3)'; // Lighter blue for internal lines
         ctx.lineWidth = Math.max(1, 1 / state.zoom); // Thinner than border
@@ -386,7 +420,7 @@ export default function Image_editor() {
         
         const grid_size = 50; // Grid spacing in pixels
         
-        // Vertical lines (skip the border lines at x=0 and x=canvas_width)
+        // Vertical lines (within project boundaries)
         for (let x = grid_size; x < state.canvas_width; x += grid_size) {
           ctx.beginPath();
           ctx.moveTo(x, 0);
@@ -394,7 +428,7 @@ export default function Image_editor() {
           ctx.stroke();
         }
         
-        // Horizontal lines (skip the border lines at y=0 and y=canvas_height)
+        // Horizontal lines (within project boundaries)
         for (let y = grid_size; y < state.canvas_height; y += grid_size) {
           ctx.beginPath();
           ctx.moveTo(0, y);
@@ -402,11 +436,9 @@ export default function Image_editor() {
           ctx.stroke();
         }
         
-        // Add a subtle background overlay to make grid more visible
+        // Add a subtle background overlay within project boundaries
         ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
         ctx.fillRect(0, 0, state.canvas_width, state.canvas_height);
-        
-        ctx.restore();
       }
       
       // Draw text elements
@@ -516,14 +548,14 @@ export default function Image_editor() {
       selected: false,
     }));
 
-    // Calculate optimal zoom to fit template nicely in the dynamic viewport
-    const template_viewport = calculate_viewport_dimensions(template.width, template.height);
+    // Use current actual viewport dimensions for full-page canvas
+    const current_viewport = viewport_dimensions;
     
-    // Fit the template with some padding (90% of viewport)
+    // Fit the template with some padding (70% of viewport for better visibility)
     const initial_zoom = Math.min(
-      (template_viewport.width * 0.9) / template.width,
-      (template_viewport.height * 0.9) / template.height,
-      1 // Don't zoom in beyond actual size
+      (current_viewport.width * 0.7) / template.width,
+      (current_viewport.height * 0.7) / template.height,
+      2 // Allow zooming in up to 200% for better visibility
     );
 
     // Determine what to do with layers
@@ -559,8 +591,8 @@ export default function Image_editor() {
       canvas_height: template.height,
       text_elements,
       zoom: initial_zoom,
-      pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
-      pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
+      pan_x: (current_viewport.width - template.width * initial_zoom) / 2,
+      pan_y: (current_viewport.height - template.height * initial_zoom) / 2,
       image_transform: canvas_state.image_transform || {
         x: 0,
         y: 0,
@@ -576,8 +608,8 @@ export default function Image_editor() {
     set_current_template(template); // Store the current template for future uploads
     set_show_templates(false);
     set_selected_text_id(null);
-    // Draw canvas with the template's viewport dimensions
-    draw_canvas(new_state, template_viewport);
+    // Draw canvas with the current viewport dimensions
+    draw_canvas(new_state);
 
     track("Image Editor Template Loaded", {
       template_id: template.id,
@@ -692,14 +724,14 @@ export default function Image_editor() {
           draw_canvas(new_state);
         } else {
           // No template active - treat as new image upload
-          // Calculate viewport dimensions for the uploaded image
-          const image_viewport = calculate_viewport_dimensions(img.width, img.height);
+          // Use current full-page viewport dimensions
+          const current_viewport = viewport_dimensions;
           
-          // Auto-fit zoom to viewport with padding (90% of viewport)
+          // Auto-fit zoom to viewport with padding (70% of viewport for better visibility)
           const initial_zoom = Math.min(
-            (image_viewport.width * 0.9) / img.width,
-            (image_viewport.height * 0.9) / img.height,
-            1 // Don't zoom in beyond 100%
+            (current_viewport.width * 0.7) / img.width,
+            (current_viewport.height * 0.7) / img.height,
+            2 // Allow zooming up to 200% for better visibility
           );
 
           const new_state = {
@@ -709,8 +741,8 @@ export default function Image_editor() {
             canvas_height: img.height,
             text_elements: [],
             zoom: initial_zoom,
-            pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
-            pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
+            pan_x: (current_viewport.width - img.width * initial_zoom) / 2,
+            pan_y: (current_viewport.height - img.height * initial_zoom) / 2,
             image_transform: {
               x: 0,
               y: 0,
@@ -1551,19 +1583,45 @@ export default function Image_editor() {
     return () => window.removeEventListener('keydown', handle_keydown);
   }, [save_session]);
 
+  // Center project area on initial load or viewport change
+  useEffect(() => {
+    if (viewport_dimensions.width > 0 && viewport_dimensions.height > 0 && 
+        canvas_state.zoom === 1 && canvas_state.pan_x === 0 && canvas_state.pan_y === 0) {
+      // Only center if we're at default zoom/pan (initial state)
+      const initial_zoom = Math.min(
+        (viewport_dimensions.width * 0.7) / canvas_state.canvas_width,
+        (viewport_dimensions.height * 0.7) / canvas_state.canvas_height,
+        2 // Max zoom
+      );
+      
+      // Center the project area
+      const centered_pan_x = (viewport_dimensions.width - canvas_state.canvas_width * initial_zoom) / 2;
+      const centered_pan_y = (viewport_dimensions.height - canvas_state.canvas_height * initial_zoom) / 2;
+      
+      const updated_state = {
+        ...canvas_state,
+        zoom: initial_zoom,
+        pan_x: centered_pan_x,
+        pan_y: centered_pan_y,
+      };
+      set_canvas_state(updated_state);
+      draw_canvas(updated_state);
+    }
+  }, [viewport_dimensions.width, viewport_dimensions.height]);
+
   // Initialize canvas and load image from localStorage if available
   useEffect(() => {
     const stored_image = localStorage.getItem('image_editor_image');
     if (stored_image) {
       const img = new window.Image();
       img.onload = () => {
-        // Calculate viewport dimensions for the stored image
-        const stored_image_viewport = calculate_viewport_dimensions(img.width, img.height);
+        // Use current full-page viewport dimensions for stored image
+        const current_viewport = viewport_dimensions;
         
         const initial_zoom = Math.min(
-          (stored_image_viewport.width * 0.9) / img.width,
-          (stored_image_viewport.height * 0.9) / img.height,
-          1
+          (current_viewport.width * 0.7) / img.width,
+          (current_viewport.height * 0.7) / img.height,
+          2
         );
 
         const new_state = {
@@ -1573,8 +1631,8 @@ export default function Image_editor() {
           canvas_height: img.height,
           text_elements: [],
           zoom: initial_zoom,
-          pan_x: (stored_image_viewport.width - img.width * initial_zoom) / 2,
-          pan_y: (stored_image_viewport.height - img.height * initial_zoom) / 2,
+          pan_x: (current_viewport.width - img.width * initial_zoom) / 2,
+          pan_y: (current_viewport.height - img.height * initial_zoom) / 2,
           image_transform: {
             x: 0,
             y: 0,
@@ -1597,7 +1655,7 @@ export default function Image_editor() {
   }, []);
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-screen w-full flex flex-col">
       <Image_editor_header
         canvas_state={canvas_state}
         on_undo={undo}
@@ -1666,7 +1724,7 @@ export default function Image_editor() {
         }}
       />
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         <Image_editor_toolbar
           active_tool={active_tool}
           show_templates={show_templates}
@@ -1805,15 +1863,15 @@ export default function Image_editor() {
         )}
 
         {/* Main Canvas Area */}
-        <div className="flex-1 flex">
+        <div className="flex-1 flex min-h-0">
           <div 
-            className="flex-1 p-4 overflow-hidden flex items-center justify-center"
+            className="flex-1 min-h-0 p-4 overflow-hidden flex  h-full w-full"
             onDragEnter={handle_drag_enter}
             onDragLeave={handle_drag_leave}
             onDragOver={handle_drag_over}
             onDrop={handle_drop}
           >
-            <div className={`relative ${drag_over ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+            <div className={`relative w-full h-full ${drag_over ? 'ring-2 ring-primary ring-offset-2' : 'flex items-center justify-center'}`}>
               {is_loading && (
                 <div className="absolute inset-0 bg-base-100 bg-opacity-75 flex items-center justify-center z-10 rounded">
                   <div className="loading loading-spinner loading-lg"></div>
@@ -1823,9 +1881,8 @@ export default function Image_editor() {
               {!canvas_state.image_base64 ? (
                 // Upload prompt when no image
                 <div 
-                  className={`border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
+                  className={`w-full h-full max-h-[500px] max-w-[500px] mx-auto border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
                   onClick={() => file_input_ref.current?.click()}
-                  style={{ width: viewport_dimensions.width, height: viewport_dimensions.height }}
                 >
                   <div className="text-center space-y-4 flex flex-col items-center justify-center h-full">
                     <Upload className="w-12 h-12 mx-auto text-base-content opacity-50" />
@@ -1851,28 +1908,22 @@ export default function Image_editor() {
                   </div>
                 </div>
               ) : (
-                // Fixed-size canvas viewport
-                <div className="relative">
-                  <div className="border border-base-300 shadow-lg rounded overflow-hidden bg-base-200">
-                    <canvas
-                      ref={canvas_ref}
-                      className={`block ${
-                        active_tool === 'pan' ? 'cursor-grab' : 
-                        is_moving_image || is_dragging_text ? 'cursor-move' :
-                        'cursor-pointer'
-                      } ${is_panning ? 'cursor-grabbing' : ''}`}
-                      style={{
-                        width: viewport_dimensions.width,
-                        height: viewport_dimensions.height,
-                      }}
-                      onMouseDown={handle_canvas_mouse_down}
-                      onDoubleClick={handle_canvas_double_click}
-                      onMouseMove={handle_canvas_mouse_move}
-                      onMouseUp={handle_canvas_mouse_up}
-                      onMouseLeave={handle_canvas_mouse_up}
-                      onWheel={handle_wheel}
-                    />
-                  </div>
+                // Full-page canvas
+                <div className="relative w-full h-full min-h-[400px]">
+                  <canvas
+                    ref={canvas_ref}
+                    className={`block w-full h-full min-h-[400px] ${
+                      active_tool === 'pan' ? 'cursor-grab' : 
+                      is_moving_image || is_dragging_text ? 'cursor-move' :
+                      'cursor-pointer'
+                    } ${is_panning ? 'cursor-grabbing' : ''}`}
+                    onMouseDown={handle_canvas_mouse_down}
+                    onDoubleClick={handle_canvas_double_click}
+                    onMouseMove={handle_canvas_mouse_move}
+                    onMouseUp={handle_canvas_mouse_up}
+                    onMouseLeave={handle_canvas_mouse_up}
+                    onWheel={handle_wheel}
+                  />
                   
                   {/* Zoom indicator */}
                   <div className="absolute top-2 left-2 bg-base-100 text-base-content px-2 py-1 rounded text-xs border border-base-300">
@@ -2321,7 +2372,13 @@ export default function Image_editor() {
 
 
           {/* Image Properties Panel */}
-          {show_image_panel && is_image_selected && canvas_state.image_transform && (
+          {show_image_panel && is_image_selected && canvas_state.image_transform && 
+           canvas_state.image_transform.x !== undefined && 
+           canvas_state.image_transform.y !== undefined && 
+           canvas_state.image_transform.width !== undefined && 
+           canvas_state.image_transform.height !== undefined && 
+           canvas_state.image_transform.scale_x !== undefined && 
+           canvas_state.image_transform.scale_y !== undefined && (
             <div className="w-80 bg-base-100 border-l border-base-300 p-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Image Properties</h3>
@@ -2346,13 +2403,18 @@ export default function Image_editor() {
                       <input
                         type="number"
                         className="input input-bordered input-sm w-full"
-                        value={Math.round(canvas_state.image_transform.width * canvas_state.image_transform.scale_x)}
+                        value={canvas_state.image_transform ? Math.round(canvas_state.image_transform.width * canvas_state.image_transform.scale_x) : 0}
                         onChange={(e) => {
+                          if (!canvas_state.image_transform) return;
                           const new_width = parseInt(e.target.value) || 1;
                           const new_scale_x = new_width / canvas_state.image_transform.width;
                           const new_transform = {
-                            ...canvas_state.image_transform,
+                            x: canvas_state.image_transform.x,
+                            y: canvas_state.image_transform.y,
+                            width: canvas_state.image_transform.width,
+                            height: canvas_state.image_transform.height,
                             scale_x: new_scale_x,
+                            scale_y: canvas_state.image_transform.scale_y,
                           };
                           // Transform is updated via canvas_state
                           const new_state = {
@@ -2372,8 +2434,9 @@ export default function Image_editor() {
                       <input
                         type="number"
                         className="input input-bordered input-sm w-full"
-                        value={Math.round(canvas_state.image_transform.height * canvas_state.image_transform.scale_y)}
+                        value={canvas_state.image_transform ? Math.round(canvas_state.image_transform.height * canvas_state.image_transform.scale_y) : 0}
                         onChange={(e) => {
+                          if (!canvas_state.image_transform) return;
                           const new_height = parseInt(e.target.value) || 1;
                           const new_scale_y = new_height / canvas_state.image_transform.height;
                           const new_transform = {
@@ -2401,6 +2464,7 @@ export default function Image_editor() {
                   <button
                     className="btn btn-sm btn-outline w-full"
                     onClick={() => {
+                      if (!canvas_state.image_transform) return;
                       const new_transform = {
                         ...canvas_state.image_transform,
                         scale_x: 1,
@@ -2433,10 +2497,15 @@ export default function Image_editor() {
                         className="input input-bordered input-sm w-full"
                         value={Math.round(canvas_state.image_transform.x)}
                         onChange={(e) => {
+                          if (!canvas_state.image_transform) return;
                           const new_x = parseInt(e.target.value) || 0;
                           const new_transform = {
-                            ...canvas_state.image_transform,
                             x: new_x,
+                            y: canvas_state.image_transform.y,
+                            width: canvas_state.image_transform.width,
+                            height: canvas_state.image_transform.height,
+                            scale_x: canvas_state.image_transform.scale_x,
+                            scale_y: canvas_state.image_transform.scale_y,
                           };
                           // Transform is updated via canvas_state
                           const new_state = {
@@ -2458,10 +2527,15 @@ export default function Image_editor() {
                         className="input input-bordered input-sm w-full"
                         value={Math.round(canvas_state.image_transform.y)}
                         onChange={(e) => {
+                          if (!canvas_state.image_transform) return;
                           const new_y = parseInt(e.target.value) || 0;
                           const new_transform = {
-                            ...canvas_state.image_transform,
+                            x: canvas_state.image_transform.x,
                             y: new_y,
+                            width: canvas_state.image_transform.width,
+                            height: canvas_state.image_transform.height,
+                            scale_x: canvas_state.image_transform.scale_x,
+                            scale_y: canvas_state.image_transform.scale_y,
                           };
                           // Transform is updated via canvas_state
                           const new_state = {
@@ -2479,12 +2553,16 @@ export default function Image_editor() {
                   <button
                     className="btn btn-sm btn-outline w-full"
                     onClick={() => {
+                      if (!canvas_state.image_transform) return;
                       const centered_x = (canvas_state.canvas_width - canvas_state.image_transform.width * canvas_state.image_transform.scale_x) / 2;
                       const centered_y = (canvas_state.canvas_height - canvas_state.image_transform.height * canvas_state.image_transform.scale_y) / 2;
                       const new_transform = {
-                        ...canvas_state.image_transform,
                         x: centered_x,
                         y: centered_y,
+                        width: canvas_state.image_transform.width,
+                        height: canvas_state.image_transform.height,
+                        scale_x: canvas_state.image_transform.scale_x,
+                        scale_y: canvas_state.image_transform.scale_y,
                       };
                       // Transform is updated via canvas_state
                       const new_state = {
