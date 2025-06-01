@@ -21,9 +21,21 @@ import {
   Redo,
   Trash2,
   Settings,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from "lucide-react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
+import { 
+  templates, 
+  template_categories, 
+  get_templates_by_category, 
+  get_categories_with_counts,
+  create_template_background,
+  type Template,
+  type Template_text_element 
+} from "@/lib/image_editor_templates";
 
 interface Text_element {
   id: string;
@@ -44,6 +56,8 @@ interface Canvas_state {
   canvas_width: number;
   canvas_height: number;
   zoom: number;
+  pan_x: number;
+  pan_y: number;
   history: string[];
   history_index: number;
 }
@@ -58,6 +72,8 @@ export default function Image_editor() {
     canvas_width: 400,
     canvas_height: 300,
     zoom: 1,
+    pan_x: 0,
+    pan_y: 0,
     history: [],
     history_index: -1,
   });
@@ -65,12 +81,18 @@ export default function Image_editor() {
   // UI state
   const [is_loading, set_is_loading] = useState(false);
   const [error_message, set_error_message] = useState<string | null>(null);
-  const [active_tool, set_active_tool] = useState<'select' | 'text' | 'move'>('select');
+  const [active_tool, set_active_tool] = useState<'select' | 'text' | 'move' | 'pan'>('select');
   const [selected_text_id, set_selected_text_id] = useState<string | null>(null);
   const [show_text_panel, set_show_text_panel] = useState(false);
+  const [show_templates, set_show_templates] = useState(false);
+  const [selected_category, set_selected_category] = useState('youtube');
+  const [show_template_modal, set_show_template_modal] = useState(false);
+  const [pending_template, set_pending_template] = useState<Template | null>(null);
   const [drag_over, set_drag_over] = useState(false);
   const [is_dragging_text, set_is_dragging_text] = useState(false);
+  const [is_panning, set_is_panning] = useState(false);
   const [drag_offset, set_drag_offset] = useState({ x: 0, y: 0 });
+  const [last_pan_position, set_last_pan_position] = useState({ x: 0, y: 0 });
 
   // Text editing state
   const [text_input, set_text_input] = useState("");
@@ -81,7 +103,12 @@ export default function Image_editor() {
 
   // Refs
   const canvas_ref = useRef<HTMLCanvasElement>(null);
+  const viewport_ref = useRef<HTMLDivElement>(null);
   const file_input_ref = useRef<HTMLInputElement>(null);
+
+  // Fixed viewport dimensions (prevents layout shifts)
+  const VIEWPORT_WIDTH = 800;
+  const VIEWPORT_HEIGHT = 600;
 
   // Font options
   const font_options = [
@@ -117,6 +144,130 @@ export default function Image_editor() {
     };
   }, []);
 
+  // Zoom functions
+  const zoom_in = useCallback(() => {
+    set_canvas_state(prev => ({
+      ...prev,
+      zoom: Math.min(prev.zoom * 1.2, 5)
+    }));
+  }, []);
+
+  const zoom_out = useCallback(() => {
+    set_canvas_state(prev => ({
+      ...prev,
+      zoom: Math.max(prev.zoom / 1.2, 0.1)
+    }));
+  }, []);
+
+  const reset_zoom = useCallback(() => {
+    set_canvas_state(prev => ({
+      ...prev,
+      zoom: 1,
+      pan_x: 0,
+      pan_y: 0
+    }));
+  }, []);
+
+  // Convert viewport coordinates to canvas coordinates
+  const viewport_to_canvas = useCallback((viewport_x: number, viewport_y: number) => {
+    const canvas_x = (viewport_x - canvas_state.pan_x) / canvas_state.zoom;
+    const canvas_y = (viewport_y - canvas_state.pan_y) / canvas_state.zoom;
+    return { x: canvas_x, y: canvas_y };
+  }, [canvas_state.zoom, canvas_state.pan_x, canvas_state.pan_y]);
+
+  // Apply template with specified background choice
+  const apply_template_with_background = useCallback((template: Template, use_template_background: boolean) => {
+    // Convert template text elements to our format
+    const text_elements: Text_element[] = template.text_elements.map((element, index) => ({
+      id: `template_${Date.now()}_${index}`,
+      text: element.text,
+      x: element.x,
+      y: element.y,
+      font_size: element.font_size,
+      color: element.color,
+      font_family: element.font_family,
+      font_weight: element.font_weight,
+      rotation: element.rotation,
+      selected: false,
+    }));
+
+    // Calculate initial zoom to fit template in viewport
+    const initial_zoom = Math.min(
+      VIEWPORT_WIDTH / template.width,
+      VIEWPORT_HEIGHT / template.height,
+      1
+    );
+
+    // Determine what background to use
+    let final_background = canvas_state.image_base64;
+    
+    if (use_template_background || !canvas_state.image_base64) {
+      final_background = create_template_background(template);
+    }
+
+    const new_state = {
+      ...canvas_state,
+      image_base64: final_background,
+      canvas_width: template.width,
+      canvas_height: template.height,
+      text_elements,
+      zoom: initial_zoom,
+      pan_x: (VIEWPORT_WIDTH - template.width * initial_zoom) / 2,
+      pan_y: (VIEWPORT_HEIGHT - template.height * initial_zoom) / 2,
+    };
+
+    set_canvas_state(save_to_history(new_state));
+    set_show_templates(false);
+    set_selected_text_id(null);
+    draw_canvas(new_state);
+
+    track("Image Editor Template Loaded", {
+      template_id: template.id,
+      template_name: template.name,
+      category: template.category,
+      has_existing_image: !!canvas_state.image_base64,
+      used_template_background: use_template_background,
+      plan: plan || "unknown",
+    });
+  }, [canvas_state, save_to_history, plan]);
+
+  // Check if user has disabled template confirmations
+  const get_skip_template_confirmation = useCallback(() => {
+    return localStorage.getItem('image_editor_skip_template_confirmation') === 'true';
+  }, []);
+
+  // Set skip template confirmation preference
+  const set_skip_template_confirmation = useCallback((skip: boolean) => {
+    localStorage.setItem('image_editor_skip_template_confirmation', skip.toString());
+  }, []);
+
+  // Handle template modal confirmation
+  const handle_template_confirmation = useCallback((keep_image: boolean, dont_show_again: boolean) => {
+    if (dont_show_again) {
+      set_skip_template_confirmation(true);
+    }
+    
+    if (pending_template) {
+      apply_template_with_background(pending_template, !keep_image);
+    }
+    
+    set_show_template_modal(false);
+    set_pending_template(null);
+  }, [pending_template, apply_template_with_background, set_skip_template_confirmation]);
+
+  // Load template (with confirmation if image exists)
+  const load_template = useCallback((template: Template) => {
+    // If there's an existing image and user hasn't disabled confirmations
+    if (canvas_state.image_base64 && !get_skip_template_confirmation()) {
+      set_pending_template(template);
+      set_show_template_modal(true);
+    } else {
+      // No existing image or user has disabled confirmations - apply template with background
+      const use_template_background = !canvas_state.image_base64 || get_skip_template_confirmation();
+      apply_template_with_background(template, use_template_background);
+    }
+  }, [canvas_state.image_base64, apply_template_with_background, get_skip_template_confirmation]);
+
   // Process uploaded file
   const process_file = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -135,22 +286,22 @@ export default function Image_editor() {
       const base64 = e.target?.result as string;
       const img = new window.Image();
       img.onload = () => {
-        // Limit maximum dimensions to keep UI responsive
-        let { width, height } = img;
-        const max_dimension = 1920;
-        
-        if (width > max_dimension || height > max_dimension) {
-          const scale = max_dimension / Math.max(width, height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
+        // Keep original dimensions, but auto-fit zoom to viewport initially
+        const initial_zoom = Math.min(
+          VIEWPORT_WIDTH / img.width,
+          VIEWPORT_HEIGHT / img.height,
+          1 // Don't zoom in beyond 100%
+        );
 
         const new_state = {
           ...canvas_state,
           image_base64: base64.split(',')[1], // Remove data:image/... prefix
-          canvas_width: width,
-          canvas_height: height,
+          canvas_width: img.width,
+          canvas_height: img.height,
           text_elements: [],
+          zoom: initial_zoom,
+          pan_x: (VIEWPORT_WIDTH - img.width * initial_zoom) / 2,
+          pan_y: (VIEWPORT_HEIGHT - img.height * initial_zoom) / 2,
         };
         set_canvas_state(save_to_history(new_state));
         draw_canvas(new_state);
@@ -210,6 +361,10 @@ export default function Image_editor() {
     }
   }, [process_file]);
 
+  // Cache the loaded image to avoid reloading
+  const cached_image = useRef<HTMLImageElement | null>(null);
+  const cached_image_base64 = useRef<string | null>(null);
+
   // Draw canvas
   const draw_canvas = useCallback((state: Canvas_state) => {
     const canvas = canvas_ref.current;
@@ -218,49 +373,78 @@ export default function Image_editor() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas dimensions
-    canvas.width = state.canvas_width;
-    canvas.height = state.canvas_height;
+    // Set canvas dimensions to fixed viewport size
+    canvas.width = VIEWPORT_WIDTH;
+    canvas.height = VIEWPORT_HEIGHT;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Function to draw everything
+    const draw_all = (img?: HTMLImageElement) => {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Save context for transforms
+      ctx.save();
+      
+      // Apply pan and zoom transforms
+      ctx.translate(state.pan_x, state.pan_y);
+      ctx.scale(state.zoom, state.zoom);
+      
+      // Draw background image if exists
+      if (img) {
+        ctx.drawImage(img, 0, 0, state.canvas_width, state.canvas_height);
+      }
+      
+      // Draw text elements
+      state.text_elements.forEach((text_element) => {
+        ctx.save();
+        ctx.translate(text_element.x, text_element.y);
+        ctx.rotate((text_element.rotation * Math.PI) / 180);
+        ctx.fillStyle = text_element.color;
+        ctx.font = `${text_element.font_weight} ${text_element.font_size}px ${text_element.font_family}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Add text stroke for better visibility
+        ctx.strokeStyle = text_element.color === '#ffffff' ? '#000000' : '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.strokeText(text_element.text, 0, 0);
+        ctx.fillText(text_element.text, 0, 0);
+        
+        // Draw selection indicator
+        if (text_element.selected) {
+          ctx.strokeStyle = '#00ff00';
+          ctx.lineWidth = 2;
+          const metrics = ctx.measureText(text_element.text);
+          const width = metrics.width;
+          const height = text_element.font_size;
+          ctx.strokeRect(-width/2 - 5, -height/2 - 5, width + 10, height + 10);
+        }
+        
+        ctx.restore();
+      });
+
+      // Restore context
+      ctx.restore();
+    };
 
     // Draw background image if exists
     if (state.image_base64) {
-      const img = new window.Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, state.canvas_width, state.canvas_height);
-        
-        // Draw text elements
-        state.text_elements.forEach((text_element) => {
-          ctx.save();
-          ctx.translate(text_element.x, text_element.y);
-          ctx.rotate((text_element.rotation * Math.PI) / 180);
-          ctx.fillStyle = text_element.color;
-          ctx.font = `${text_element.font_weight} ${text_element.font_size}px ${text_element.font_family}`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          
-          // Add text stroke for better visibility
-          ctx.strokeStyle = text_element.color === '#ffffff' ? '#000000' : '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.strokeText(text_element.text, 0, 0);
-          ctx.fillText(text_element.text, 0, 0);
-          
-          // Draw selection indicator
-          if (text_element.selected) {
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 2;
-            const metrics = ctx.measureText(text_element.text);
-            const width = metrics.width;
-            const height = text_element.font_size;
-            ctx.strokeRect(-width/2 - 5, -height/2 - 5, width + 10, height + 10);
-          }
-          
-          ctx.restore();
-        });
-      };
-      img.src = `data:image/png;base64,${state.image_base64}`;
+      // Check if we can use cached image
+      if (cached_image.current && cached_image_base64.current === state.image_base64) {
+        draw_all(cached_image.current);
+      } else {
+        // Load new image
+        const img = new window.Image();
+        img.onload = () => {
+          cached_image.current = img;
+          cached_image_base64.current = state.image_base64;
+          draw_all(img);
+        };
+        img.src = `data:image/png;base64,${state.image_base64}`;
+      }
+    } else {
+      // No image, just draw text elements
+      draw_all();
     }
   }, []);
 
@@ -268,11 +452,16 @@ export default function Image_editor() {
   const add_text_element = useCallback(() => {
     if (!text_input.trim()) return;
 
+    // Place text at center of visible viewport
+    const viewport_center_x = VIEWPORT_WIDTH / 2;
+    const viewport_center_y = VIEWPORT_HEIGHT / 2;
+    const canvas_coords = viewport_to_canvas(viewport_center_x, viewport_center_y);
+
     const new_text_element: Text_element = {
       id: Date.now().toString(),
       text: text_input,
-      x: canvas_state.canvas_width / 2,
-      y: canvas_state.canvas_height / 2,
+      x: canvas_coords.x,
+      y: canvas_coords.y,
       font_size: text_size,
       color: text_color,
       font_family: text_font,
@@ -297,7 +486,7 @@ export default function Image_editor() {
       font_size: text_size,
       font_family: text_font,
     });
-  }, [text_input, text_size, text_color, text_font, text_weight, canvas_state, save_to_history, plan]);
+  }, [text_input, text_size, text_color, text_font, text_weight, canvas_state, save_to_history, plan, viewport_to_canvas]);
 
   // Delete selected text element
   const delete_selected_text = useCallback(() => {
@@ -313,8 +502,23 @@ export default function Image_editor() {
     draw_canvas(new_state);
   }, [selected_text_id, canvas_state, save_to_history]);
 
-  // Update selected text properties
-  const update_selected_text = useCallback((updates: Partial<Text_element>) => {
+  // Update selected text properties (for live editing - no history save)
+  const update_selected_text_live = useCallback((updates: Partial<Text_element>) => {
+    if (!selected_text_id) return;
+
+    const new_state = {
+      ...canvas_state,
+      text_elements: canvas_state.text_elements.map(t => 
+        t.id === selected_text_id ? { ...t, ...updates } : t
+      ),
+    };
+
+    set_canvas_state(new_state);
+    draw_canvas(new_state);
+  }, [canvas_state, selected_text_id]);
+
+  // Update selected text properties and save to history (for final changes)
+  const update_selected_text_final = useCallback((updates: Partial<Text_element>) => {
     if (!selected_text_id) return;
 
     const new_state = {
@@ -328,19 +532,26 @@ export default function Image_editor() {
     draw_canvas(new_state);
   }, [canvas_state, selected_text_id, save_to_history]);
 
-  // Handle canvas mouse down for text dragging
+  // Handle canvas mouse down
   const handle_canvas_mouse_down = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvas_ref.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * canvas_state.canvas_width;
-    const y = ((event.clientY - rect.top) / rect.height) * canvas_state.canvas_height;
+    const viewport_x = event.clientX - rect.left;
+    const viewport_y = event.clientY - rect.top;
+    const canvas_coords = viewport_to_canvas(viewport_x, viewport_y);
+
+    if (active_tool === 'pan') {
+      set_is_panning(true);
+      set_last_pan_position({ x: event.clientX, y: event.clientY });
+      return;
+    }
 
     // Check if clicked on text element
     const clicked_text = canvas_state.text_elements.find(text_element => {
       const distance = Math.sqrt(
-        Math.pow(x - text_element.x, 2) + Math.pow(y - text_element.y, 2)
+        Math.pow(canvas_coords.x - text_element.x, 2) + Math.pow(canvas_coords.y - text_element.y, 2)
       );
       return distance < text_element.font_size;
     });
@@ -368,8 +579,8 @@ export default function Image_editor() {
       if (active_tool === 'move') {
         set_is_dragging_text(true);
         set_drag_offset({
-          x: x - clicked_text.x,
-          y: y - clicked_text.y,
+          x: canvas_coords.x - clicked_text.x,
+          y: canvas_coords.y - clicked_text.y,
         });
       }
       
@@ -392,21 +603,36 @@ export default function Image_editor() {
       
       draw_canvas(new_state);
     }
-  }, [canvas_state, active_tool]);
+  }, [canvas_state, active_tool, viewport_to_canvas]);
 
-  // Handle canvas mouse move for text dragging
+  // Handle canvas mouse move
   const handle_canvas_mouse_move = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!is_dragging_text || !selected_text_id || active_tool !== 'move') return;
-
     const canvas = canvas_ref.current;
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * canvas_state.canvas_width;
-    const y = ((event.clientY - rect.top) / rect.height) * canvas_state.canvas_height;
+    if (is_panning) {
+      const delta_x = event.clientX - last_pan_position.x;
+      const delta_y = event.clientY - last_pan_position.y;
+      
+      set_canvas_state(prev => ({
+        ...prev,
+        pan_x: prev.pan_x + delta_x,
+        pan_y: prev.pan_y + delta_y,
+      }));
+      
+      set_last_pan_position({ x: event.clientX, y: event.clientY });
+      return;
+    }
 
-    const new_x = x - drag_offset.x;
-    const new_y = y - drag_offset.y;
+    if (!is_dragging_text || !selected_text_id || active_tool !== 'move') return;
+
+    const rect = canvas.getBoundingClientRect();
+    const viewport_x = event.clientX - rect.left;
+    const viewport_y = event.clientY - rect.top;
+    const canvas_coords = viewport_to_canvas(viewport_x, viewport_y);
+
+    const new_x = canvas_coords.x - drag_offset.x;
+    const new_y = canvas_coords.y - drag_offset.y;
 
     // Update text position
     const new_state = {
@@ -418,24 +644,83 @@ export default function Image_editor() {
 
     set_canvas_state(new_state);
     draw_canvas(new_state);
-  }, [is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset]);
+  }, [is_panning, is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset, last_pan_position, viewport_to_canvas]);
 
-  // Handle canvas mouse up for text dragging
+  // Handle canvas mouse up
   const handle_canvas_mouse_up = useCallback(() => {
+    if (is_panning) {
+      set_is_panning(false);
+    }
     if (is_dragging_text) {
       set_is_dragging_text(false);
       // Save to history when drag ends
       set_canvas_state(prev => save_to_history(prev));
     }
-  }, [is_dragging_text, save_to_history]);
+  }, [is_panning, is_dragging_text, save_to_history]);
+
+  // Handle wheel zoom
+  const handle_wheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    
+    const zoom_factor = event.deltaY > 0 ? 0.9 : 1.1;
+    const new_zoom = Math.min(Math.max(canvas_state.zoom * zoom_factor, 0.1), 5);
+    
+    // Zoom towards mouse position
+    const canvas = canvas_ref.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouse_x = event.clientX - rect.left;
+    const mouse_y = event.clientY - rect.top;
+    
+    const zoom_ratio = new_zoom / canvas_state.zoom;
+    const new_pan_x = mouse_x - (mouse_x - canvas_state.pan_x) * zoom_ratio;
+    const new_pan_y = mouse_y - (mouse_y - canvas_state.pan_y) * zoom_ratio;
+    
+    set_canvas_state(prev => ({
+      ...prev,
+      zoom: new_zoom,
+      pan_x: new_pan_x,
+      pan_y: new_pan_y,
+    }));
+  }, [canvas_state.zoom, canvas_state.pan_x, canvas_state.pan_y]);
 
   // Export image
   const export_image = useCallback(async () => {
-    const canvas = canvas_ref.current;
-    if (!canvas) return;
+    // Create a temporary canvas for export at original resolution
+    const export_canvas = document.createElement('canvas');
+    const export_ctx = export_canvas.getContext('2d');
+    if (!export_ctx) return;
+
+    export_canvas.width = canvas_state.canvas_width;
+    export_canvas.height = canvas_state.canvas_height;
 
     try {
-      const data_url = canvas.toDataURL('image/png');
+      // Draw background image if exists
+      if (canvas_state.image_base64 && cached_image.current) {
+        export_ctx.drawImage(cached_image.current, 0, 0, canvas_state.canvas_width, canvas_state.canvas_height);
+      }
+
+      // Draw text elements
+      canvas_state.text_elements.forEach((text_element) => {
+        export_ctx.save();
+        export_ctx.translate(text_element.x, text_element.y);
+        export_ctx.rotate((text_element.rotation * Math.PI) / 180);
+        export_ctx.fillStyle = text_element.color;
+        export_ctx.font = `${text_element.font_weight} ${text_element.font_size}px ${text_element.font_family}`;
+        export_ctx.textAlign = 'center';
+        export_ctx.textBaseline = 'middle';
+        
+        // Add text stroke for better visibility
+        export_ctx.strokeStyle = text_element.color === '#ffffff' ? '#000000' : '#ffffff';
+        export_ctx.lineWidth = 2;
+        export_ctx.strokeText(text_element.text, 0, 0);
+        export_ctx.fillText(text_element.text, 0, 0);
+        
+        export_ctx.restore();
+      });
+
+      const data_url = export_canvas.toDataURL('image/png');
       const a = document.createElement('a');
       a.href = data_url;
       a.download = `edited_image_${Date.now()}.png`;
@@ -484,18 +769,32 @@ export default function Image_editor() {
     }
   }, [canvas_state]);
 
+  // Redraw canvas when state changes
+  useEffect(() => {
+    draw_canvas(canvas_state);
+  }, [canvas_state, draw_canvas]);
+
   // Initialize canvas and load image from localStorage if available
   useEffect(() => {
     const stored_image = localStorage.getItem('image_editor_image');
     if (stored_image) {
       const img = new window.Image();
       img.onload = () => {
+        const initial_zoom = Math.min(
+          VIEWPORT_WIDTH / img.width,
+          VIEWPORT_HEIGHT / img.height,
+          1
+        );
+
         const new_state = {
           ...canvas_state,
           image_base64: stored_image,
           canvas_width: img.width,
           canvas_height: img.height,
           text_elements: [],
+          zoom: initial_zoom,
+          pan_x: (VIEWPORT_WIDTH - img.width * initial_zoom) / 2,
+          pan_y: (VIEWPORT_HEIGHT - img.height * initial_zoom) / 2,
         };
         set_canvas_state(save_to_history(new_state));
         draw_canvas(new_state);
@@ -532,6 +831,29 @@ export default function Image_editor() {
               <Redo className="w-4 h-4" />
             </button>
             <button
+              className="btn btn-sm btn-ghost"
+              onClick={zoom_in}
+              disabled={canvas_state.zoom >= 5}
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={zoom_out}
+              disabled={canvas_state.zoom <= 0.1}
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={reset_zoom}
+              title="Reset Zoom"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
               className="btn btn-sm btn-primary"
               onClick={export_image}
               disabled={!canvas_state.image_base64}
@@ -561,6 +883,20 @@ export default function Image_editor() {
             <Upload className="w-4 h-4" />
           </button>
           <button
+            className={`btn btn-sm btn-square ${show_templates ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
+            data-tip="Templates"
+            onClick={() => set_show_templates(!show_templates)}
+          >
+            <Layers className="w-4 h-4" />
+          </button>
+          <button
+            className={`btn btn-sm btn-square ${active_tool === 'pan' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
+            data-tip="Pan Tool"
+            onClick={() => set_active_tool('pan')}
+          >
+            <Move className="w-4 h-4" />
+          </button>
+          <button
             className={`btn btn-sm btn-square ${active_tool === 'text' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
             data-tip="Add Text"
             onClick={() => {
@@ -572,10 +908,10 @@ export default function Image_editor() {
           </button>
           <button
             className={`btn btn-sm btn-square ${active_tool === 'move' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-            data-tip="Move Tool"
+            data-tip="Move Text"
             onClick={() => set_active_tool('move')}
           >
-            <Move className="w-4 h-4" />
+            <Settings className="w-4 h-4" />
           </button>
           {selected_text_id && (
             <button
@@ -586,72 +922,186 @@ export default function Image_editor() {
               <Trash2 className="w-4 h-4" />
             </button>
           )}
+          {canvas_state.image_base64 && (
+            <button
+              className="btn btn-sm btn-square btn-warning tooltip tooltip-right"
+              data-tip="Clear Canvas"
+              onClick={() => {
+                if (confirm('Are you sure you want to clear the canvas? This will remove the image and all text elements.')) {
+                  const new_state = {
+                    ...canvas_state,
+                    image_base64: null,
+                    text_elements: [],
+                    canvas_width: 400,
+                    canvas_height: 300,
+                    zoom: 1,
+                    pan_x: 0,
+                    pan_y: 0,
+                  };
+                  set_canvas_state(save_to_history(new_state));
+                  set_selected_text_id(null);
+                  draw_canvas(new_state);
+                }
+              }}
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
         </div>
+
+        {/* Templates Panel */}
+        {show_templates && (
+          <div className="w-80 bg-base-100 border-r border-base-300 p-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Templates</h3>
+              <button
+                className="btn btn-sm btn-ghost"
+                onClick={() => set_show_templates(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Category Tabs */}
+            <div className="mb-4">
+              <div className="flex flex-wrap gap-1">
+                {template_categories.map((category) => (
+                  <button
+                    key={category.id}
+                    className={`btn btn-xs ${
+                      selected_category === category.id ? 'btn-primary' : 'btn-ghost'
+                    }`}
+                    onClick={() => set_selected_category(category.id)}
+                  >
+                    {category.icon} {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Template Grid */}
+            <div className="space-y-3">
+              {get_templates_by_category(selected_category).map((template) => (
+                <div
+                  key={template.id}
+                  className="border border-base-300 rounded-lg p-3 cursor-pointer hover:border-primary hover:shadow-md transition-all"
+                  onClick={() => load_template(template)}
+                >
+                  {/* Template Preview */}
+                  <div 
+                    className="w-full h-16 rounded border border-base-300 mb-2 flex items-center justify-center text-xs font-medium"
+                    style={{
+                      background: template.background_gradient 
+                        ? `linear-gradient(45deg, ${template.background_gradient.start}, ${template.background_gradient.end})`
+                        : template.background_color,
+                      color: '#ffffff'
+                    }}
+                  >
+                    {template.width} × {template.height}
+                  </div>
+                  
+                  {/* Template Info */}
+                  <div>
+                    <h4 className="font-medium text-sm truncate">{template.name}</h4>
+                    <p className="text-xs text-base-content/60 mt-1">{template.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Main Canvas Area */}
         <div className="flex-1 flex">
           <div 
-            className="flex-1 p-4 overflow-auto"
+            className="flex-1 p-4 overflow-hidden flex items-center justify-center"
             onDragEnter={handle_drag_enter}
             onDragLeave={handle_drag_leave}
             onDragOver={handle_drag_over}
             onDrop={handle_drop}
           >
-            <div className="flex justify-center items-center min-h-full">
-              <div className={`relative ${drag_over ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
-                {is_loading && (
-                  <div className="absolute inset-0 bg-base-100 bg-opacity-75 flex items-center justify-center z-10 rounded">
-                    <div className="loading loading-spinner loading-lg"></div>
-                  </div>
-                )}
-                
-                {!canvas_state.image_base64 ? (
-                  // Upload prompt when no image
-                  <div 
-                    className={`border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
-                    onClick={() => file_input_ref.current?.click()}
-                  >
-                    <div className="text-center space-y-4">
-                      <Upload className="w-12 h-12 mx-auto text-base-content opacity-50" />
-                      <div>
-                        <p className="text-lg font-medium">Upload an image to start editing</p>
-                        <p className="text-sm text-base-content opacity-70">
-                          Click here or drag and drop your image
-                        </p>
-                        <p className="text-xs text-base-content opacity-50 mt-2">
-                          JPG, PNG, WEBP up to 10MB
-                        </p>
-                      </div>
+            <div className={`relative ${drag_over ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+              {is_loading && (
+                <div className="absolute inset-0 bg-base-100 bg-opacity-75 flex items-center justify-center z-10 rounded">
+                  <div className="loading loading-spinner loading-lg"></div>
+                </div>
+              )}
+              
+              {!canvas_state.image_base64 ? (
+                // Upload prompt when no image
+                <div 
+                  className={`border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
+                  onClick={() => file_input_ref.current?.click()}
+                  style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
+                >
+                  <div className="text-center space-y-4 flex flex-col items-center justify-center h-full">
+                    <Upload className="w-12 h-12 mx-auto text-base-content opacity-50" />
+                    <div>
+                      <p className="text-lg font-medium">Upload an image or choose a template</p>
+                      <p className="text-sm text-base-content opacity-70">
+                        Click here to upload or use the Templates panel
+                      </p>
+                      <p className="text-xs text-base-content opacity-50 mt-2">
+                        JPG, PNG, WEBP up to 10MB
+                      </p>
+                      <button
+                        className="btn btn-primary btn-sm mt-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          set_show_templates(true);
+                        }}
+                      >
+                        <Layers className="w-4 h-4 mr-2" />
+                        Browse Templates
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  // Canvas when image is loaded
-                  <div className="border border-base-300 shadow-lg rounded overflow-hidden">
+                </div>
+              ) : (
+                // Fixed-size canvas viewport
+                <div className="relative">
+                  <div className="border border-base-300 shadow-lg rounded overflow-hidden bg-base-200">
                     <canvas
                       ref={canvas_ref}
-                      className={`max-w-full max-h-full block ${active_tool === 'move' && selected_text_id ? 'cursor-move' : 'cursor-pointer'}`}
+                      className={`block ${
+                        active_tool === 'pan' ? 'cursor-grab' : 
+                        active_tool === 'move' && selected_text_id ? 'cursor-move' : 
+                        'cursor-pointer'
+                      } ${is_panning ? 'cursor-grabbing' : ''}`}
                       style={{
-                        maxWidth: '90vw',
-                        maxHeight: '70vh',
-                        width: 'auto',
-                        height: 'auto',
+                        width: VIEWPORT_WIDTH,
+                        height: VIEWPORT_HEIGHT,
                       }}
                       onMouseDown={handle_canvas_mouse_down}
                       onMouseMove={handle_canvas_mouse_move}
                       onMouseUp={handle_canvas_mouse_up}
                       onMouseLeave={handle_canvas_mouse_up}
+                      onWheel={handle_wheel}
                     />
                   </div>
-                )}
-              </div>
+                  
+                  {/* Zoom indicator */}
+                  <div className="absolute top-2 left-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
+                    {Math.round(canvas_state.zoom * 100)}%
+                  </div>
+                  
+                  {/* Tool instruction */}
+                  <div className="absolute top-2 right-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
+                    {active_tool === 'pan' && 'Drag to pan • Scroll to zoom'}
+                    {active_tool === 'text' && 'Click to add text'}
+                    {active_tool === 'move' && 'Click and drag text to move'}
+                    {active_tool === 'select' && 'Click to select text'}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Text Panel */}
           {show_text_panel && (
-            <div className="w-80 bg-base-200 border-l border-base-300 p-4">
+            <div className="w-80 bg-base-100 border-l border-base-300 p-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Text Properties</h3>
+                <h3 className="text-lg font-semibold">Text Properties</h3>
                 <button
                   className="btn btn-sm btn-ghost"
                   onClick={() => set_show_text_panel(false)}
@@ -673,33 +1123,25 @@ export default function Image_editor() {
                       value={text_input}
                       onChange={(e) => {
                         set_text_input(e.target.value);
-                        // Update selected text content immediately
                         if (selected_text_id) {
-                          update_selected_text({ text: e.target.value });
+                          update_selected_text_live({ text: e.target.value });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (selected_text_id && text_input.trim()) {
+                          update_selected_text_final({ text: text_input });
                         }
                       }}
                       placeholder="Enter text..."
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !selected_text_id) {
-                          add_text_element();
-                        }
-                      }}
                     />
-                    {!selected_text_id && (
-                      <button
-                        className="btn btn-primary"
-                        onClick={add_text_element}
-                        disabled={!text_input.trim()}
-                      >
-                        Add
-                      </button>
-                    )}
+                    <button
+                      className="btn btn-primary"
+                      onClick={add_text_element}
+                      disabled={!text_input.trim()}
+                    >
+                      Add
+                    </button>
                   </div>
-                  {selected_text_id && (
-                    <div className="text-xs text-base-content opacity-70 mt-1">
-                      Editing selected text
-                    </div>
-                  )}
                 </div>
 
                 {/* Font Family */}
@@ -713,7 +1155,7 @@ export default function Image_editor() {
                     onChange={(e) => {
                       set_text_font(e.target.value);
                       if (selected_text_id) {
-                        update_selected_text({ font_family: e.target.value });
+                        update_selected_text_final({ font_family: e.target.value });
                       }
                     }}
                   >
@@ -740,7 +1182,14 @@ export default function Image_editor() {
                       const new_size = parseInt(e.target.value);
                       set_text_size(new_size);
                       if (selected_text_id) {
-                        update_selected_text({ font_size: new_size });
+                        update_selected_text_live({ font_size: new_size });
+                      }
+                    }}
+                    onMouseUp={(e) => {
+                      // Save to history when slider is released
+                      if (selected_text_id) {
+                        const new_size = parseInt((e.target as HTMLInputElement).value);
+                        update_selected_text_final({ font_size: new_size });
                       }
                     }}
                   />
@@ -757,7 +1206,7 @@ export default function Image_editor() {
                     onChange={(e) => {
                       set_text_weight(e.target.value);
                       if (selected_text_id) {
-                        update_selected_text({ font_weight: e.target.value });
+                        update_selected_text_final({ font_weight: e.target.value });
                       }
                     }}
                   >
@@ -776,45 +1225,146 @@ export default function Image_editor() {
                   </label>
                   <input
                     type="color"
-                    className="w-full h-12 rounded cursor-pointer"
+                    className="w-full h-10 rounded border border-base-300"
                     value={text_color}
                     onChange={(e) => {
                       set_text_color(e.target.value);
                       if (selected_text_id) {
-                        update_selected_text({ color: e.target.value });
+                        update_selected_text_live({ color: e.target.value });
+                      }
+                    }}
+                    onBlur={() => {
+                      if (selected_text_id) {
+                        update_selected_text_final({ color: text_color });
                       }
                     }}
                   />
                 </div>
 
-                {/* Color Presets */}
-                <div>
-                  <label className="label">
-                    <span className="label-text">Quick Colors</span>
-                  </label>
-                  <div className="grid grid-cols-6 gap-2">
-                    {['#ffffff', '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].map((color) => (
-                      <button
-                        key={color}
-                        className="w-8 h-8 rounded border-2 border-base-300"
-                        style={{ backgroundColor: color }}
-                        onClick={() => {
-                          set_text_color(color);
-                          if (selected_text_id) {
-                            update_selected_text({ color: color });
-                          }
-                        }}
-                      />
-                    ))}
+                {/* Text Elements List */}
+                {canvas_state.text_elements.length > 0 && (
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Text Elements</span>
+                    </label>
+                    <div className="space-y-2">
+                      {canvas_state.text_elements.map((element) => (
+                        <div
+                          key={element.id}
+                          className={`p-2 rounded border cursor-pointer ${
+                            element.selected ? 'border-primary bg-primary/10' : 'border-base-300'
+                          }`}
+                          onClick={() => {
+                            const new_state = {
+                              ...canvas_state,
+                              text_elements: canvas_state.text_elements.map(t => ({
+                                ...t,
+                                selected: t.id === element.id,
+                              })),
+                            };
+                            set_canvas_state(new_state);
+                            set_selected_text_id(element.id);
+                            
+                            // Update text panel values to match selected text
+                            set_text_input(element.text);
+                            set_text_color(element.color);
+                            set_text_size(element.font_size);
+                            set_text_font(element.font_family);
+                            set_text_weight(element.font_weight);
+                            
+                            draw_canvas(new_state);
+                          }}
+                        >
+                          <div className="text-sm font-medium truncate">
+                            {element.text}
+                          </div>
+                          <div className="text-xs text-base-content/60">
+                            {element.font_family} • {element.font_size}px
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Error Message */}
+      {/* Template Confirmation Modal */}
+      {show_template_modal && pending_template && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+          <div className="bg-base-100 rounded-lg shadow-xl p-6 w-full max-w-md mx-4 border border-base-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Layers className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">Apply Template</h3>
+                <p className="text-sm text-base-content/70">{pending_template.name}</p>
+              </div>
+            </div>
+            
+            <p className="text-base-content/80 mb-6">
+              You have an existing image. What would you like to do?
+            </p>
+
+            <div className="space-y-3 mb-6">
+              <button
+                className="w-full btn btn-outline btn-primary justify-start p-4 h-auto"
+                onClick={() => handle_template_confirmation(true, false)}
+              >
+                <div className="text-left py-2">
+                  <div className="font-medium">Keep my image</div>
+                  <div className="text-xs opacity-70">Apply template layout to current image</div>
+                </div>
+              </button>
+              
+              <button
+                className="w-full btn btn-outline justify-start p-4 h-auto"
+                onClick={() => handle_template_confirmation(false, false)}
+              >
+                <div className="text-left py-2">
+                  <div className="font-medium">Use template background</div>
+                  <div className="text-xs opacity-70">Replace with template's background design</div>
+                </div>
+              </button>
+            </div>
+
+            <div className="border-t border-base-300 pt-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      // If checked, apply the default behavior (keep image) and don't show again
+                      handle_template_confirmation(true, true);
+                    }
+                  }}
+                />
+                <span className="text-sm text-base-content/70">
+                  Don't show this again (always keep my image)
+                </span>
+              </label>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                className="btn btn-ghost btn-sm flex-1"
+                onClick={() => {
+                  set_show_template_modal(false);
+                  set_pending_template(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error_message && (
         <div className="toast toast-end">
           <div className="alert alert-error">
