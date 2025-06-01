@@ -55,8 +55,8 @@ export default function Image_editor() {
   const [canvas_state, set_canvas_state] = useState<Canvas_state>({
     image_base64: null,
     text_elements: [],
-    canvas_width: 1024,
-    canvas_height: 1024,
+    canvas_width: 400,
+    canvas_height: 300,
     zoom: 1,
     history: [],
     history_index: -1,
@@ -68,6 +68,7 @@ export default function Image_editor() {
   const [active_tool, set_active_tool] = useState<'select' | 'text' | 'move'>('select');
   const [selected_text_id, set_selected_text_id] = useState<string | null>(null);
   const [show_text_panel, set_show_text_panel] = useState(false);
+  const [drag_over, set_drag_over] = useState(false);
 
   // Text editing state
   const [text_input, set_text_input] = useState("");
@@ -114,35 +115,98 @@ export default function Image_editor() {
     };
   }, []);
 
-  // Handle file upload
-  const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  // Process uploaded file
+  const process_file = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
       set_error_message("Please select a valid image file");
       return;
     }
 
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      set_error_message("File size too large. Please choose an image under 10MB");
+      return;
+    }
+
+    set_is_loading(true);
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64 = e.target?.result as string;
       const img = new window.Image();
       img.onload = () => {
+        // Limit maximum dimensions to keep UI responsive
+        let { width, height } = img;
+        const max_dimension = 1920;
+        
+        if (width > max_dimension || height > max_dimension) {
+          const scale = max_dimension / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+
         const new_state = {
           ...canvas_state,
           image_base64: base64.split(',')[1], // Remove data:image/... prefix
-          canvas_width: img.width,
-          canvas_height: img.height,
+          canvas_width: width,
+          canvas_height: height,
           text_elements: [],
         };
         set_canvas_state(save_to_history(new_state));
         draw_canvas(new_state);
+        set_is_loading(false);
+        set_error_message(null);
+      };
+      img.onerror = () => {
+        set_error_message("Failed to load image");
+        set_is_loading(false);
       };
       img.src = base64;
     };
+    reader.onerror = () => {
+      set_error_message("Failed to read file");
+      set_is_loading(false);
+    };
     reader.readAsDataURL(file);
   }, [canvas_state, save_to_history]);
+
+  // Handle file upload
+  const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    process_file(file);
+  }, [process_file]);
+
+  // Handle drag and drop
+  const handle_drag_enter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(true);
+  }, []);
+
+  const handle_drag_leave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(false);
+  }, []);
+
+  const handle_drag_over = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handle_drop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    set_drag_over(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const image_file = files.find(file => file.type.startsWith('image/'));
+    
+    if (image_file) {
+      process_file(image_file);
+    } else {
+      set_error_message("Please drop an image file");
+    }
+  }, [process_file]);
 
   // Draw canvas
   const draw_canvas = useCallback((state: Canvas_state) => {
@@ -195,14 +259,6 @@ export default function Image_editor() {
         });
       };
       img.src = `data:image/png;base64,${state.image_base64}`;
-    } else {
-      // Draw placeholder
-      ctx.fillStyle = '#f3f4f6';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('Upload an image to start editing', canvas.width / 2, canvas.height / 2);
     }
   }, []);
 
@@ -456,18 +512,56 @@ export default function Image_editor() {
 
         {/* Main Canvas Area */}
         <div className="flex-1 flex">
-          <div className="flex-1 p-4 overflow-auto">
-            <div className="flex justify-center">
-              <div className="border border-base-300 shadow-lg">
-                <canvas
-                  ref={canvas_ref}
-                  className="max-w-full max-h-full cursor-pointer"
-                  style={{
-                    width: `${Math.min(800, canvas_state.canvas_width)}px`,
-                    height: `${Math.min(600, (canvas_state.canvas_height * Math.min(800, canvas_state.canvas_width)) / canvas_state.canvas_width)}px`,
-                  }}
-                  onClick={handle_canvas_click}
-                />
+          <div 
+            className="flex-1 p-4 overflow-auto"
+            onDragEnter={handle_drag_enter}
+            onDragLeave={handle_drag_leave}
+            onDragOver={handle_drag_over}
+            onDrop={handle_drop}
+          >
+            <div className="flex justify-center items-center min-h-full">
+              <div className={`relative ${drag_over ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                {is_loading && (
+                  <div className="absolute inset-0 bg-base-100 bg-opacity-75 flex items-center justify-center z-10 rounded">
+                    <div className="loading loading-spinner loading-lg"></div>
+                  </div>
+                )}
+                
+                {!canvas_state.image_base64 ? (
+                  // Upload prompt when no image
+                  <div 
+                    className={`border-2 border-dashed border-base-300 p-8 rounded-lg cursor-pointer hover:border-primary transition-colors ${drag_over ? 'border-primary bg-primary bg-opacity-5' : ''}`}
+                    onClick={() => file_input_ref.current?.click()}
+                  >
+                    <div className="text-center space-y-4">
+                      <Upload className="w-12 h-12 mx-auto text-base-content opacity-50" />
+                      <div>
+                        <p className="text-lg font-medium">Upload an image to start editing</p>
+                        <p className="text-sm text-base-content opacity-70">
+                          Click here or drag and drop your image
+                        </p>
+                        <p className="text-xs text-base-content opacity-50 mt-2">
+                          JPG, PNG, WEBP up to 10MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Canvas when image is loaded
+                  <div className="border border-base-300 shadow-lg rounded overflow-hidden">
+                    <canvas
+                      ref={canvas_ref}
+                      className="max-w-full max-h-full cursor-pointer block"
+                      style={{
+                        maxWidth: '90vw',
+                        maxHeight: '70vh',
+                        width: 'auto',
+                        height: 'auto',
+                      }}
+                      onClick={handle_canvas_click}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
