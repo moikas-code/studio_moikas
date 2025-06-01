@@ -15,6 +15,7 @@ interface Image_grid_props {
   enhancement_count?: number;
   onRedo?: () => void;
   onReuse?: () => void;
+  onEdit?: (img: string) => void;
 }
 
 export default function Image_grid({
@@ -29,6 +30,7 @@ export default function Image_grid({
   enhancement_count,
   onRedo,
   onReuse,
+  onEdit,
 }: Image_grid_props) {
   const [toast_message, set_toast_message] = useState<string | null>(null);
   const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(
@@ -286,6 +288,17 @@ export default function Image_grid({
                     Copy
                   </button>
                 </div>
+                {onEdit && (
+                  <div className="relative w-full">
+                    <button
+                      className="btn btn-sm btn-accent w-full"
+                      onClick={() => onEdit(image_base64[0])}
+                      aria-label="Edit image"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -347,6 +360,15 @@ export default function Image_grid({
                     >
                       Copy
                     </button>
+                    {onEdit && (
+                      <button
+                        className="btn btn-xs btn-accent w-full"
+                        onClick={() => onEdit(img)}
+                        aria-label="Edit image"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

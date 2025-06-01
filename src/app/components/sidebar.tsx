@@ -66,12 +66,23 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                   <span className="text-base font-medium text-md">Create</span>
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/tools/image-editor"
+                  className="justify-start"
+                  aria-label="Image Editor tool"
+                >
+                  <span className="text-base font-medium text-md">
+                    Image Editor
+                  </span>
+                </Link>
+              </li>
               {/* Add more tool links here as needed */}
               <li>
                 <Link
                   href="/tools/text-analyzer"
                   className="justify-start"
-                  aria-label="Image Generator tool"
+                  aria-label="Text Analyzer tool"
                 >
                   <span className="text-base font-medium text-md">
                     Text Analyzer

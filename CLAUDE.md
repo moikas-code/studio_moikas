@@ -86,3 +86,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Client components should use `useAuth()` from Clerk for user context
 - Use Snake Case
 - Follow DRY Programming
+- Build Code that helps the world grow, and help people be more creative
