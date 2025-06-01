@@ -25,6 +25,7 @@ import {
   ZoomOut,
   RotateCcw,
   MousePointer,
+  Grid,
 } from "lucide-react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
@@ -94,6 +95,7 @@ export default function Image_editor() {
   const [is_panning, set_is_panning] = useState(false);
   const [drag_offset, set_drag_offset] = useState({ x: 0, y: 0 });
   const [last_pan_position, set_last_pan_position] = useState({ x: 0, y: 0 });
+  const [show_grid, set_show_grid] = useState(false);
 
   // Text editing state
   const [text_input, set_text_input] = useState("");
@@ -508,6 +510,40 @@ export default function Image_editor() {
         ctx.drawImage(img, 0, 0, state.canvas_width, state.canvas_height);
       }
       
+      // Draw grid if enabled
+      if (show_grid) {
+        ctx.save();
+        
+        // Use a more visible color with higher opacity
+        ctx.strokeStyle = 'rgba(0, 150, 255, 0.6)'; // Blue grid lines
+        ctx.lineWidth = Math.max(1, 1 / state.zoom); // Ensure minimum line width
+        ctx.setLineDash([]); // Solid lines for better visibility
+        
+        const grid_size = 50; // Grid spacing in pixels
+        
+        // Vertical lines
+        for (let x = 0; x <= state.canvas_width; x += grid_size) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, state.canvas_height);
+          ctx.stroke();
+        }
+        
+        // Horizontal lines
+        for (let y = 0; y <= state.canvas_height; y += grid_size) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(state.canvas_width, y);
+          ctx.stroke();
+        }
+        
+        // Add a subtle background overlay to make grid more visible
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.02)';
+        ctx.fillRect(0, 0, state.canvas_width, state.canvas_height);
+        
+        ctx.restore();
+      }
+      
       // Draw text elements
       state.text_elements.forEach((text_element) => {
         ctx.save();
@@ -560,7 +596,7 @@ export default function Image_editor() {
       // No image, just draw text elements
       draw_all();
     }
-  }, [get_viewport_dimensions_for_canvas, VIEWPORT_WIDTH, VIEWPORT_HEIGHT]);
+  }, [get_viewport_dimensions_for_canvas, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, show_grid]);
 
   // Add text element
   const add_text_element = useCallback(() => {
@@ -886,7 +922,7 @@ export default function Image_editor() {
   // Redraw canvas when state changes
   useEffect(() => {
     draw_canvas(canvas_state);
-  }, [canvas_state, draw_canvas]);
+  }, [canvas_state, draw_canvas, show_grid]);
 
   // Initialize canvas and load image from localStorage if available
   useEffect(() => {
@@ -1029,6 +1065,13 @@ export default function Image_editor() {
             onClick={() => set_active_tool('move')}
           >
             <MousePointer className="w-4 h-4" />
+          </button>
+          <button
+            className={`btn btn-sm btn-square ${show_grid ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
+            data-tip="Toggle Grid"
+            onClick={() => set_show_grid(!show_grid)}
+          >
+            <Grid className="w-4 h-4" />
           </button>
           {selected_text_id && (
             <button
