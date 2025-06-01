@@ -4,7 +4,6 @@ import {
   Type, 
   Layers, 
   Move, 
-  MousePointer, 
   Grid, 
   Trash2, 
   RotateCcw,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react';
 
 interface Image_editor_toolbar_props {
-  active_tool: 'select' | 'text' | 'move' | 'pan';
+  active_tool: 'select' | 'text' | 'pan';
   show_templates: boolean;
   show_grid: boolean;
   show_background_panel: boolean;
@@ -21,7 +20,7 @@ interface Image_editor_toolbar_props {
   selected_text_id: string | null;
   has_image: boolean;
   is_image_selected?: boolean;
-  on_tool_change: (tool: 'select' | 'text' | 'move' | 'pan') => void;
+  on_tool_change: (tool: 'select' | 'text' | 'pan') => void;
   on_toggle_templates: () => void;
   on_toggle_grid: () => void;
   on_toggle_text_panel: () => void;
@@ -86,14 +85,6 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
         }}
       >
         <Type className="w-4 h-4" />
-      </button>
-      
-      <button
-        className={`btn btn-sm btn-square ${active_tool === 'move' ? 'btn-primary' : 'btn-ghost'} tooltip tooltip-right`}
-        data-tip="Move Text"
-        onClick={() => on_tool_change('move')}
-      >
-        <MousePointer className="w-4 h-4" />
       </button>
       
       <button

@@ -54,7 +54,7 @@ export default function Image_editor() {
   // UI state
   const [is_loading, set_is_loading] = useState(false);
   const [error_message, set_error_message] = useState<string | null>(null);
-  const [active_tool, set_active_tool] = useState<'select' | 'text' | 'move' | 'pan'>('select');
+  const [active_tool, set_active_tool] = useState<'select' | 'text' | 'pan'>('select');
   const [selected_text_id, set_selected_text_id] = useState<string | null>(null);
   const [show_text_panel, set_show_text_panel] = useState(false);
   const [show_templates, set_show_templates] = useState(false);
@@ -1073,7 +1073,49 @@ export default function Image_editor() {
       return;
     }
 
-    // Check if clicked on a resize handle first
+    // Check if clicked on text element first (priority over image)
+    const clicked_text = canvas_state.text_elements.find(text_element => {
+      const distance = Math.sqrt(
+        Math.pow(canvas_coords.x - text_element.x, 2) + Math.pow(canvas_coords.y - text_element.y, 2)
+      );
+      return distance < text_element.font_size;
+    });
+
+    if (clicked_text) {
+      if (selected_text_id === clicked_text.id) {
+        // Text is already selected, start dragging
+        set_is_dragging_text(true);
+        set_drag_offset({
+          x: canvas_coords.x - clicked_text.x,
+          y: canvas_coords.y - clicked_text.y,
+        });
+      } else {
+        // Select the text
+        set_is_image_selected(false);
+        const new_state = {
+          ...canvas_state,
+          text_elements: canvas_state.text_elements.map(t => ({
+            ...t,
+            selected: t.id === clicked_text.id,
+          })),
+        };
+        set_canvas_state(new_state);
+        set_selected_text_id(clicked_text.id);
+        
+        // Update text panel values to match selected text
+        set_text_input(clicked_text.text);
+        set_text_color(clicked_text.color);
+        set_text_size(clicked_text.font_size);
+        set_text_font(clicked_text.font_family);
+        set_text_weight(clicked_text.font_weight);
+        set_show_text_panel(true);
+        
+        draw_canvas(new_state);
+      }
+      return;
+    }
+
+    // Check if clicked on a resize handle
     if (is_image_selected && canvas_state.image_transform) {
       const transform = canvas_state.image_transform;
       const handle_size = 8 / canvas_state.zoom;
@@ -1142,65 +1184,24 @@ export default function Image_editor() {
       }
     }
 
-    // Check if clicked on text element
-    const clicked_text = canvas_state.text_elements.find(text_element => {
-      const distance = Math.sqrt(
-        Math.pow(canvas_coords.x - text_element.x, 2) + Math.pow(canvas_coords.y - text_element.y, 2)
-      );
-      return distance < text_element.font_size;
-    });
-
-    if (clicked_text) {
-      if (selected_text_id === clicked_text.id) {
-        // Text is already selected, start dragging
-        set_is_dragging_text(true);
-        set_drag_offset({
-          x: canvas_coords.x - clicked_text.x,
-          y: canvas_coords.y - clicked_text.y,
-        });
-      } else {
-        // Select the text
-        set_is_image_selected(false);
-        const new_state = {
-          ...canvas_state,
-          text_elements: canvas_state.text_elements.map(t => ({
-            ...t,
-            selected: t.id === clicked_text.id,
-          })),
-        };
-        set_canvas_state(new_state);
-        set_selected_text_id(clicked_text.id);
-        
-        // Update text panel values to match selected text
-        set_text_input(clicked_text.text);
-        set_text_color(clicked_text.color);
-        set_text_size(clicked_text.font_size);
-        set_text_font(clicked_text.font_family);
-        set_text_weight(clicked_text.font_weight);
-        set_show_text_panel(true);
-        
-        draw_canvas(new_state);
-      }
-    } else {
-      // Deselect all
-      const new_state = {
-        ...canvas_state,
-        text_elements: canvas_state.text_elements.map(t => ({ ...t, selected: false })),
-      };
-      set_canvas_state(new_state);
-      set_selected_text_id(null);
-      set_is_image_selected(false);
-      
-      // Reset text panel to defaults for new text
-      set_text_input("");
-      set_text_color("#ffffff");
-      set_text_size(48);
-      set_text_font("Arial");
-      set_text_weight("normal");
-      
-      draw_canvas(new_state);
-    }
-  }, [canvas_state, active_tool, viewport_to_canvas]);
+    // Deselect all if clicked on empty space
+    const new_state = {
+      ...canvas_state,
+      text_elements: canvas_state.text_elements.map(t => ({ ...t, selected: false })),
+    };
+    set_canvas_state(new_state);
+    set_selected_text_id(null);
+    set_is_image_selected(false);
+    
+    // Reset text panel to defaults for new text
+    set_text_input("");
+    set_text_color("#ffffff");
+    set_text_size(48);
+    set_text_font("Arial");
+    set_text_weight("normal");
+    
+    draw_canvas(new_state);
+  }, [canvas_state, active_tool, viewport_to_canvas, is_image_selected, selected_text_id]);
 
   // Handle canvas mouse move
   const handle_canvas_mouse_move = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1772,7 +1773,6 @@ export default function Image_editor() {
                       ref={canvas_ref}
                       className={`block ${
                         active_tool === 'pan' ? 'cursor-grab' : 
-                        active_tool === 'move' && selected_text_id ? 'cursor-move' : 
                         is_moving_image || is_dragging_text ? 'cursor-move' :
                         'cursor-pointer'
                       } ${is_panning ? 'cursor-grabbing' : ''}`}
@@ -1798,7 +1798,6 @@ export default function Image_editor() {
                   <div className="absolute top-2 right-2 bg-base-800 text-base-100 px-2 py-1 rounded text-xs">
                     {active_tool === 'pan' && 'Drag to pan • Scroll to zoom'}
                     {active_tool === 'text' && 'Click to add text'}
-                    {active_tool === 'move' && 'Click and drag elements to move'}
                     {active_tool === 'select' && 'Click to select • Double-click for quick select • Drag selected to move'}
                     {is_moving_image && 'Moving image...'}
                     {is_dragging_text && 'Moving text...'}
