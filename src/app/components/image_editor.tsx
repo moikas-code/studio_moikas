@@ -106,9 +106,97 @@ export default function Image_editor() {
   const viewport_ref = useRef<HTMLDivElement>(null);
   const file_input_ref = useRef<HTMLInputElement>(null);
 
-  // Fixed viewport dimensions (prevents layout shifts)
-  const VIEWPORT_WIDTH = 800;
-  const VIEWPORT_HEIGHT = 600;
+  // Dynamic viewport dimensions based on canvas content
+  const MAX_VIEWPORT_WIDTH = 1000;
+  const MAX_VIEWPORT_HEIGHT = 700;
+  const MIN_VIEWPORT_WIDTH = 400;
+  const MIN_VIEWPORT_HEIGHT = 300;
+  
+  // Calculate optimal viewport size based on canvas dimensions
+  const get_viewport_dimensions = useCallback(() => {
+    if (!canvas_state.canvas_width || !canvas_state.canvas_height) {
+      return { width: MIN_VIEWPORT_WIDTH, height: MIN_VIEWPORT_HEIGHT };
+    }
+
+    // Calculate aspect ratio
+    const aspect_ratio = canvas_state.canvas_width / canvas_state.canvas_height;
+    
+    // Start with canvas dimensions
+    let viewport_width = canvas_state.canvas_width;
+    let viewport_height = canvas_state.canvas_height;
+    
+    // Scale down if too large
+    if (viewport_width > MAX_VIEWPORT_WIDTH) {
+      viewport_width = MAX_VIEWPORT_WIDTH;
+      viewport_height = viewport_width / aspect_ratio;
+    }
+    
+    if (viewport_height > MAX_VIEWPORT_HEIGHT) {
+      viewport_height = MAX_VIEWPORT_HEIGHT;
+      viewport_width = viewport_height * aspect_ratio;
+    }
+    
+    // Ensure minimum size
+    if (viewport_width < MIN_VIEWPORT_WIDTH) {
+      viewport_width = MIN_VIEWPORT_WIDTH;
+      viewport_height = viewport_width / aspect_ratio;
+    }
+    
+    if (viewport_height < MIN_VIEWPORT_HEIGHT) {
+      viewport_height = MIN_VIEWPORT_HEIGHT;
+      viewport_width = viewport_height * aspect_ratio;
+    }
+    
+    return {
+      width: Math.round(viewport_width),
+      height: Math.round(viewport_height)
+    };
+  }, [canvas_state.canvas_width, canvas_state.canvas_height]);
+
+  // Helper function to calculate viewport dimensions for any canvas size
+  const get_viewport_dimensions_for_canvas = useCallback((canvas_width: number, canvas_height: number) => {
+    if (!canvas_width || !canvas_height) {
+      return { width: MIN_VIEWPORT_WIDTH, height: MIN_VIEWPORT_HEIGHT };
+    }
+
+    // Calculate aspect ratio
+    const aspect_ratio = canvas_width / canvas_height;
+    
+    // Start with canvas dimensions
+    let viewport_width = canvas_width;
+    let viewport_height = canvas_height;
+    
+    // Scale down if too large
+    if (viewport_width > MAX_VIEWPORT_WIDTH) {
+      viewport_width = MAX_VIEWPORT_WIDTH;
+      viewport_height = viewport_width / aspect_ratio;
+    }
+    
+    if (viewport_height > MAX_VIEWPORT_HEIGHT) {
+      viewport_height = MAX_VIEWPORT_HEIGHT;
+      viewport_width = viewport_height * aspect_ratio;
+    }
+    
+    // Ensure minimum size
+    if (viewport_width < MIN_VIEWPORT_WIDTH) {
+      viewport_width = MIN_VIEWPORT_WIDTH;
+      viewport_height = viewport_width / aspect_ratio;
+    }
+    
+    if (viewport_height < MIN_VIEWPORT_HEIGHT) {
+      viewport_height = MIN_VIEWPORT_HEIGHT;
+      viewport_width = viewport_height * aspect_ratio;
+    }
+    
+    return {
+      width: Math.round(viewport_width),
+      height: Math.round(viewport_height)
+    };
+  }, []);
+
+  const viewport_dimensions = get_viewport_dimensions();
+  const VIEWPORT_WIDTH = viewport_dimensions.width;
+  const VIEWPORT_HEIGHT = viewport_dimensions.height;
 
   // Font options
   const font_options = [
@@ -191,11 +279,14 @@ export default function Image_editor() {
       selected: false,
     }));
 
-    // Calculate initial zoom to fit template in viewport
+    // Calculate optimal zoom to fit template nicely in the dynamic viewport
+    const template_viewport = get_viewport_dimensions_for_canvas(template.width, template.height);
+    
+    // Fit the template with some padding (90% of viewport)
     const initial_zoom = Math.min(
-      VIEWPORT_WIDTH / template.width,
-      VIEWPORT_HEIGHT / template.height,
-      1
+      (template_viewport.width * 0.9) / template.width,
+      (template_viewport.height * 0.9) / template.height,
+      1 // Don't zoom in beyond actual size
     );
 
     // Determine what background to use
@@ -205,15 +296,15 @@ export default function Image_editor() {
       final_background = create_template_background(template);
     }
 
-    const new_state = {
+        const new_state = {
       ...canvas_state,
       image_base64: final_background,
       canvas_width: template.width,
       canvas_height: template.height,
       text_elements,
       zoom: initial_zoom,
-      pan_x: (VIEWPORT_WIDTH - template.width * initial_zoom) / 2,
-      pan_y: (VIEWPORT_HEIGHT - template.height * initial_zoom) / 2,
+      pan_x: (template_viewport.width - template.width * initial_zoom) / 2,
+      pan_y: (template_viewport.height - template.height * initial_zoom) / 2,
     };
 
     set_canvas_state(save_to_history(new_state));
@@ -229,7 +320,7 @@ export default function Image_editor() {
       used_template_background: use_template_background,
       plan: plan || "unknown",
     });
-  }, [canvas_state, save_to_history, plan]);
+  }, [canvas_state, save_to_history, plan, get_viewport_dimensions_for_canvas]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -286,10 +377,13 @@ export default function Image_editor() {
       const base64 = e.target?.result as string;
       const img = new window.Image();
       img.onload = () => {
-        // Keep original dimensions, but auto-fit zoom to viewport initially
+        // Calculate viewport dimensions for the uploaded image
+        const image_viewport = get_viewport_dimensions_for_canvas(img.width, img.height);
+        
+        // Auto-fit zoom to viewport with padding (90% of viewport)
         const initial_zoom = Math.min(
-          VIEWPORT_WIDTH / img.width,
-          VIEWPORT_HEIGHT / img.height,
+          (image_viewport.width * 0.9) / img.width,
+          (image_viewport.height * 0.9) / img.height,
           1 // Don't zoom in beyond 100%
         );
 
@@ -300,8 +394,8 @@ export default function Image_editor() {
           canvas_height: img.height,
           text_elements: [],
           zoom: initial_zoom,
-          pan_x: (VIEWPORT_WIDTH - img.width * initial_zoom) / 2,
-          pan_y: (VIEWPORT_HEIGHT - img.height * initial_zoom) / 2,
+          pan_x: (image_viewport.width - img.width * initial_zoom) / 2,
+          pan_y: (image_viewport.height - img.height * initial_zoom) / 2,
         };
         set_canvas_state(save_to_history(new_state));
         draw_canvas(new_state);
@@ -319,7 +413,7 @@ export default function Image_editor() {
       set_is_loading(false);
     };
     reader.readAsDataURL(file);
-  }, [canvas_state, save_to_history]);
+  }, [canvas_state, save_to_history, get_viewport_dimensions_for_canvas]);
 
   // Handle file upload
   const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -780,9 +874,12 @@ export default function Image_editor() {
     if (stored_image) {
       const img = new window.Image();
       img.onload = () => {
+        // Calculate viewport dimensions for the stored image
+        const stored_image_viewport = get_viewport_dimensions_for_canvas(img.width, img.height);
+        
         const initial_zoom = Math.min(
-          VIEWPORT_WIDTH / img.width,
-          VIEWPORT_HEIGHT / img.height,
+          (stored_image_viewport.width * 0.9) / img.width,
+          (stored_image_viewport.height * 0.9) / img.height,
           1
         );
 
@@ -793,8 +890,8 @@ export default function Image_editor() {
           canvas_height: img.height,
           text_elements: [],
           zoom: initial_zoom,
-          pan_x: (VIEWPORT_WIDTH - img.width * initial_zoom) / 2,
-          pan_y: (VIEWPORT_HEIGHT - img.height * initial_zoom) / 2,
+          pan_x: (stored_image_viewport.width - img.width * initial_zoom) / 2,
+          pan_y: (stored_image_viewport.height - img.height * initial_zoom) / 2,
         };
         set_canvas_state(save_to_history(new_state));
         draw_canvas(new_state);
