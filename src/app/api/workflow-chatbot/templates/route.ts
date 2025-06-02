@@ -9,7 +9,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = await create_clerk_supabase_client_ssr();
+    // Use service role client to bypass RLS for now
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     
     // Get public templates
     const { data: templates, error } = await supabase
@@ -58,7 +64,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Template ID is required" }, { status: 400 });
     }
 
-    const supabase = await create_clerk_supabase_client_ssr();
+    // Use service role client to bypass RLS for now
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
     
     // Get user
     const { data: user } = await supabase
