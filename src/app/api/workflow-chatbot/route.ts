@@ -106,9 +106,13 @@ export async function POST(req: NextRequest) {
           connections: node.connections
         }));
 
-        await supabase
+        const { error: template_nodes_error } = await supabase
           .from("workflow_nodes")
           .insert(new_nodes);
+
+        if (template_nodes_error) {
+          console.error("Error copying template nodes:", template_nodes_error);
+        }
       }
     } else {
       // Create default nodes for new workflow
@@ -143,9 +147,14 @@ export async function POST(req: NextRequest) {
         }
       ];
 
-      await supabase
+      const { error: nodes_error } = await supabase
         .from("workflow_nodes")
         .insert(default_nodes);
+
+      if (nodes_error) {
+        console.error("Error creating default nodes:", nodes_error);
+        // Continue anyway - workflow is created, just without default nodes
+      }
     }
 
     return NextResponse.json({ workflow });

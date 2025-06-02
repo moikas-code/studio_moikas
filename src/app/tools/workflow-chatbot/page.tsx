@@ -35,6 +35,10 @@ export default function Workflow_chatbot_page() {
   const [show_workflow_panel, set_show_workflow_panel] = useState(false);
   const [show_templates, set_show_templates] = useState(false);
   const [templates, set_templates] = useState<any>({});
+  const [show_new_workflow_modal, set_show_new_workflow_modal] = useState(false);
+  const [new_workflow_name, set_new_workflow_name] = useState("");
+  const [new_workflow_description, set_new_workflow_description] = useState("");
+  const [creating_workflow, set_creating_workflow] = useState(false);
   
   const messages_end_ref = useRef<HTMLDivElement>(null);
   const text_area_ref = useRef<HTMLTextAreaElement>(null);
@@ -136,23 +140,35 @@ export default function Workflow_chatbot_page() {
   };
 
   const create_new_workflow = async () => {
-    const name = prompt("Enter workflow name:");
-    if (!name) return;
+    if (!new_workflow_name.trim()) return;
     
+    set_creating_workflow(true);
     try {
       const response = await fetch("/api/workflow-chatbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ 
+          name: new_workflow_name.trim(),
+          description: new_workflow_description.trim() || null
+        })
       });
       
       if (response.ok) {
         const data = await response.json();
         await load_workflows();
         set_selected_workflow(data.workflow.id);
+        set_show_new_workflow_modal(false);
+        set_new_workflow_name("");
+        set_new_workflow_description("");
+      } else {
+        const error_data = await response.json();
+        set_error(error_data.error || "Failed to create workflow");
       }
     } catch (error) {
       console.error("Failed to create workflow:", error);
+      set_error("Failed to create workflow");
+    } finally {
+      set_creating_workflow(false);
     }
   };
 
@@ -201,7 +217,7 @@ export default function Workflow_chatbot_page() {
                 <FileText className="w-4 h-4" />
               </button>
               <button
-                onClick={create_new_workflow}
+                onClick={() => set_show_new_workflow_modal(true)}
                 className="btn btn-sm btn-circle btn-ghost"
                 title="Create new workflow"
               >
@@ -394,6 +410,77 @@ export default function Workflow_chatbot_page() {
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => set_show_templates(false)} />
+        </div>
+      )}
+
+      {/* New Workflow Modal */}
+      {show_new_workflow_modal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">Create New Workflow</h3>
+            
+            <div className="space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Workflow Name</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="My Awesome Workflow"
+                  className="input input-bordered w-full"
+                  value={new_workflow_name}
+                  onChange={(e) => set_new_workflow_name(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Description (optional)</span>
+                </label>
+                <textarea
+                  placeholder="What does this workflow do?"
+                  className="textarea textarea-bordered w-full"
+                  rows={3}
+                  value={new_workflow_description}
+                  onChange={(e) => set_new_workflow_description(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="modal-action">
+              <button 
+                onClick={() => {
+                  set_show_new_workflow_modal(false);
+                  set_new_workflow_name("");
+                  set_new_workflow_description("");
+                }} 
+                className="btn"
+                disabled={creating_workflow}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={create_new_workflow} 
+                className="btn btn-primary"
+                disabled={!new_workflow_name.trim() || creating_workflow}
+              >
+                {creating_workflow ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Creating...
+                  </>
+                ) : (
+                  "Create Workflow"
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => {
+            set_show_new_workflow_modal(false);
+            set_new_workflow_name("");
+            set_new_workflow_description("");
+          }} />
         </div>
       )}
     </div>
