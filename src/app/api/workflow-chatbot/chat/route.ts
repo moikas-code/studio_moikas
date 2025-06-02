@@ -10,8 +10,8 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// Token costs per 100 tokens
-const TEXT_TOKENS_PER_100 = 1; // 1 MP per 100 tokens for text
+// Token costs per 3000 tokens
+const TEXT_TOKENS_PER_3000 = 1; // 1 MP per 3000 tokens for text
 const MIN_TEXT_COST = 1; // Minimum 1 MP per message
 
 // Model costs (from existing system)
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
       const total_tokens = token_usage.input + token_usage.output;
       const text_token_cost = Math.max(
         MIN_TEXT_COST,
-        Math.ceil(total_tokens / 100) * TEXT_TOKENS_PER_100
+        Math.ceil(total_tokens / 3000) * TEXT_TOKENS_PER_3000
       );
       actual_token_cost = text_token_cost + workflow_model_costs;
       

@@ -349,7 +349,7 @@ export default function Workflow_chatbot_page() {
               </button>
             </div>
             <div className="text-xs text-base-content/60 mt-2">
-              {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 100 tokens (min 1 MP)
+              {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 3000 tokens (min 1 MP)
             </div>
           </div>
         </form>
