@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { Protect, useUser } from "@clerk/nextjs";
 import { MpContext } from "../components/../context/mp_context";
-import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit } from "react-icons/fa";
+import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot } from "react-icons/fa";
 import Link from "next/link";
 
 export default function Tools_home_page() {
@@ -41,6 +41,14 @@ export default function Tools_home_page() {
       icon: FaFileAlt,
       href: "/tools/text-analyzer",
       color: "from-green-500 to-teal-500",
+      available: true
+    },
+    {
+      title: "Workflow Chatbot",
+      description: "Create and run AI workflows with a visual editor",
+      icon: FaRobot,
+      href: "/tools/workflow-chatbot",
+      color: "from-indigo-500 to-purple-500",
       available: true
     }
   ];

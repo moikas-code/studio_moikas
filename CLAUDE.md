@@ -87,3 +87,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use Snake Case
 - Follow DRY Programming
 - Build Code that helps the world grow, and help people be more creative
+- Keep Hooks, Helper, and Utility max 60 lines
+- Avoid Recursion
