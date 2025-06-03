@@ -129,7 +129,7 @@ export class workflow_engine {
     
     const model = new ChatXAI({
       apiKey: process.env.XAI_API_KEY,
-      model: node.data.model || "grok-3-mini-latest",
+      model: (node.data.model as string) || "grok-3-mini-latest",
     });
     
     const messages = [
@@ -162,12 +162,12 @@ export class workflow_engine {
     
     return {
       ...input,
-      [node.data.output_key || "llm_response"]: result
+      [(node.data.output_key as string) || "llm_response"]: result
     };
   }
 
   private async execute_image_node(node: workflow_node, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const model = node.data.model || "fal-ai/flux/schnell";
+    const model = (node.data.model as string) || "fal-ai/flux/schnell";
     const model_costs = {
       "fal-ai/recraft-v3": 6,
       "fal-ai/flux-lora": 6,
@@ -183,17 +183,17 @@ export class workflow_engine {
     
     // Track model cost
     if (this.context.model_costs !== undefined) {
-      this.context.model_costs += model_costs[model] || 4;
+      this.context.model_costs += model_costs[model as keyof typeof model_costs] || 4;
     }
     
     // TODO: Implement actual image generation call
     return {
       ...input,
-      [node.data.output_key || "generated_image"]: {
+      [(node.data.output_key as string) || "generated_image"]: {
         url: "placeholder_image_url",
         prompt: node.data.prompt,
         model: model,
-        cost: model_costs[model] || 4
+        cost: model_costs[model as keyof typeof model_costs] || 4
       }
     };
   }
@@ -202,17 +202,17 @@ export class workflow_engine {
     // This would call the text analyzer API
     return {
       ...input,
-      [node.data.output_key || "analysis"]: {
+      [(node.data.output_key as string) || "analysis"]: {
         summary: "Text analysis placeholder"
       }
     };
   }
 
   private async execute_conditional_node(node: workflow_node, input: Record<string, unknown>, execution_id: string): Promise<Record<string, unknown>> {
-    const condition = node.data.condition;
+    const condition = node.data.condition as string;
     const value = this.evaluate_condition(condition, input);
     
-    const branch_id = value ? node.data.true_branch : node.data.false_branch;
+    const branch_id = value ? (node.data.true_branch as string) : (node.data.false_branch as string);
     const branch_node = this.workflow.nodes.find(n => n.id === branch_id);
     
     if (branch_node) {
@@ -229,7 +229,7 @@ export class workflow_engine {
 
   private interpolate_template(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return data[key] || match;
+      return String(data[key] || match);
     });
   }
 
