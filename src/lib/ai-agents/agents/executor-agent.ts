@@ -70,7 +70,7 @@ export class executor_agent {
    * @param state - Current agent state
    * @returns Execution result
    */
-  private async execute_single_step(step: { tool_name: string; parameters: Record<string, unknown> }, state: agent_state): Promise<execution_result> {
+  private async execute_single_step(step: { tool_name: string; parameters: Record<string, unknown> }): Promise<execution_result> {
     const tool_id = step.tool_name?.replace(/^.*_/, '');
     const tool = this.tools_registry.get(tool_id);
     

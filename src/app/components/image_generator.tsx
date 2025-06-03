@@ -330,6 +330,7 @@ export default function Image_generator() {
       seed,
       style_name,
       set_guidance_scale,
+      guidance_scale,
     ]
   );
 

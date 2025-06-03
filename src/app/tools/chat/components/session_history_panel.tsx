@@ -25,7 +25,7 @@ function SessionHistoryPanel({
   delete_session
 }: SessionHistoryPanelProps) {
   const [confirm_delete, set_confirm_delete] = useState<string | null>(null);
-  const { user } = useUser();
+  const { } = useUser();
 
   const handle_delete_click = (session_id: string, e: React.MouseEvent) => {
     e.stopPropagation();

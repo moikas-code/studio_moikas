@@ -9,7 +9,7 @@ describe("executor-agent", () => {
     type: "test",
     name: `test_tool_${id}`,
     description: "Test tool",
-    parameters: {} as any,
+    parameters: {} as Record<string, unknown>,
     execute: mock(() => Promise.resolve({
       result: "success",
       token_usage: { input: 10, output: 20 },

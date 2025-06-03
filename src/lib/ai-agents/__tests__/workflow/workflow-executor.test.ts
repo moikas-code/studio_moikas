@@ -1,6 +1,5 @@
-import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "bun:test";
 import { workflow_executor } from "../../workflow/workflow-executor";
-import { HumanMessage } from "@langchain/core/messages";
 import { workflow_node } from "../../types";
 
 // Mock the xAI API key
@@ -27,8 +26,6 @@ describe("workflow-executor", () => {
 
   describe("execute", () => {
     it("should execute workflow with minimal parameters", async () => {
-      const messages = [new HumanMessage("Test message")];
-      
       // Note: This is an integration test that would require mocking the model
       // In a real test environment, you would mock the ChatXAI constructor
       // For now, we just test that the method structure is correct
@@ -40,13 +37,6 @@ describe("workflow-executor", () => {
     it("should return correct result structure", async () => {
       // This test would require mocking the entire workflow graph
       // which is complex due to LangGraph internals
-      
-      const expected_properties = [
-        "response",
-        "token_usage",
-        "model_costs",
-        "execution_history"
-      ];
       
       // Just verify the method signature for now
       const method = executor.execute;

@@ -4,7 +4,7 @@ import { create_clerk_supabase_client_ssr } from '@/lib/supabase_server';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { session_id: string } }
+  { params }: { params: Promise<{ session_id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -13,7 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { session_id } = params;
+    const { session_id } = await params;
 
     if (!session_id) {
       return NextResponse.json({ error: "Session ID is required" }, { status: 400 });

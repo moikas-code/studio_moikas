@@ -1,9 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { MpContext } from "@/app/context/mp_context";
-import { useAuth } from "@clerk/nextjs";
 import Workflow_editor, { node_data } from "../components/workflow_editor";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
@@ -13,8 +11,6 @@ export default function Workflow_editor_page() {
   const router = useRouter();
   const workflow_id = searchParams.get("id");
   
-  const { mp_tokens, refresh_mp } = useContext(MpContext);
-  const { userId } = useAuth();
   
   const [loading, set_loading] = useState(true);
   const [saving, set_saving] = useState(false);
@@ -30,7 +26,7 @@ export default function Workflow_editor_page() {
       set_workflow_name("New Workflow");
       set_loading(false);
     }
-  }, [workflow_id]);
+  }, [workflow_id, load_workflow]);
   
   const load_workflow = async () => {
     try {

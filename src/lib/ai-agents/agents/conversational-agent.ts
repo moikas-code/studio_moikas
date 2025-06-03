@@ -22,8 +22,8 @@ export class conversational_agent {
     const latest_message = state.messages[state.messages.length - 1];
     const user_input = extract_message_content(latest_message.content);
 
-    const personality = state.variables.personality || "friendly and helpful";
-    const context = state.variables.context || "";
+    const personality = (typeof state.variables.personality === 'string' ? state.variables.personality : null) || "friendly and helpful";
+    const context = (typeof state.variables.context === 'string' ? state.variables.context : null) || "";
 
     const system_prompt = this.build_conversational_prompt(personality, context, conversation_history);
     
@@ -47,7 +47,7 @@ export class conversational_agent {
       variables: {
         ...state.variables,
         last_response: extract_message_content(response.content),
-        conversation_turn: (state.variables.conversation_turn || 0) + 1
+        conversation_turn: (typeof state.variables.conversation_turn === 'number' ? state.variables.conversation_turn : 0) + 1
       },
       token_usage: state.token_usage,
       model_costs: state.model_costs
@@ -104,7 +104,7 @@ export class conversational_agent {
 
     const history_messages = messages.slice(0, -1); // Exclude the current message
     const formatted_history = history_messages
-      .map((msg, index) => {
+      .map((msg) => {
         const content = extract_message_content(msg.content);
         const role = msg.constructor.name === "HumanMessage" ? "User" : "Assistant";
         return `${role}: ${content}`;

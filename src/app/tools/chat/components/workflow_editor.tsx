@@ -12,7 +12,6 @@ import {
 import { v4 as uuidv4 } from "uuid";
 
 interface workflow_editor_props {
-  workflow_id?: string;
   initial_nodes?: node_data[];
   on_save?: (nodes: node_data[], connections: connection[]) => void;
   on_run?: () => void;
@@ -29,12 +28,8 @@ interface drag_state {
   offset: { x: number; y: number };
 }
 
-export default function Workflow_editor({
-  workflow_id,
-  initial_nodes = [],
-  on_save,
-  on_run
-}: workflow_editor_props) {
+export default function Workflow_editor(props: workflow_editor_props) {
+  const { initial_nodes = [], on_save, on_run } = props;
   const [nodes, set_nodes] = useState<node_data[]>(initial_nodes);
   const [connections, set_connections] = useState<connection[]>([]);
   const [selected_node, set_selected_node] = useState<string | null>(null);

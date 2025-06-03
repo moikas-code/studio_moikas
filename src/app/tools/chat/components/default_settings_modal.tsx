@@ -78,7 +78,7 @@ function DefaultSettingsModal({
     }
   };
 
-  const update_field = (field: keyof default_chat_settings, value: any) => {
+  const update_field = (field: keyof default_chat_settings, value: string | number | boolean) => {
     set_form_data(prev => ({
       ...prev,
       [field]: value

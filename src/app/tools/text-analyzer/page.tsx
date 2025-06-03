@@ -26,7 +26,7 @@ export default function Text_analyzer_page() {
   const [link_or_topic, set_link_or_topic] = useState("");
   const [out_of_tokens, set_out_of_tokens] = useState(false);
   const [file_content, set_file_content] = useState<string>("");
-  const { mp_tokens, is_loading_tokens, token_error, refresh_mp } = useContext(MpContext);
+  const { refresh_mp } = useContext(MpContext);
 
   // Get content for token estimation
   const get_content_for_estimation = () => {

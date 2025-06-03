@@ -1,4 +1,4 @@
-import { BaseMessage } from "@langchain/core/messages";
+// Message utility functions for handling message content
 
 /**
  * Utility functions for handling messages

@@ -1,7 +1,5 @@
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { workflow_executor } from "../../workflow/workflow-executor";
-import { HumanMessage } from "@langchain/core/messages";
-import { workflow_node } from "../../types";
 
 // Mock environment variable
 process.env.XAI_API_KEY = "test-key";
@@ -27,16 +25,6 @@ describe("workflow integration", () => {
   });
 
   it("should handle basic workflow execution", async () => {
-    const nodes: workflow_node[] = [
-      {
-        id: "test-node",
-        type: "llm",
-        data: { prompt: "Test prompt" }
-      }
-    ];
-
-    const messages = [new HumanMessage("Test message")];
-
     // This test verifies the structure is correct
     // In a real test, you'd mock the model responses
     expect(executor.execute).toBeDefined();

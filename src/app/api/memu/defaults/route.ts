@@ -20,11 +20,11 @@ function validate_chat_defaults(data: Record<string, unknown>) {
     errors.push('system_prompt must be a string');
   }
 
-  if (data.system_prompt && data.system_prompt.length > 2000) {
+  if (data.system_prompt && typeof data.system_prompt === 'string' && data.system_prompt.length > 2000) {
     errors.push('system_prompt must be less than 2000 characters');
   }
 
-  if (data.response_style && !VALID_RESPONSE_STYLES.includes(data.response_style)) {
+  if (data.response_style && typeof data.response_style === 'string' && !VALID_RESPONSE_STYLES.includes(data.response_style)) {
     errors.push(`response_style must be one of: ${VALID_RESPONSE_STYLES.join(', ')}`);
   }
 
@@ -49,7 +49,7 @@ function validate_chat_defaults(data: Record<string, unknown>) {
     }
   }
 
-  if (data.model_preference && !VALID_MODELS.includes(data.model_preference)) {
+  if (data.model_preference && typeof data.model_preference === 'string' && !VALID_MODELS.includes(data.model_preference)) {
     errors.push(`model_preference must be one of: ${VALID_MODELS.join(', ')}`);
   }
 
@@ -57,14 +57,14 @@ function validate_chat_defaults(data: Record<string, unknown>) {
     errors.push('custom_instructions must be a string');
   }
 
-  if (data.custom_instructions && data.custom_instructions.length > 1000) {
+  if (data.custom_instructions && typeof data.custom_instructions === 'string' && data.custom_instructions.length > 1000) {
     errors.push('custom_instructions must be less than 1000 characters');
   }
 
   return errors;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -305,7 +305,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(_req: NextRequest) {
+export async function DELETE() {
   try {
     const { userId } = await auth();
     if (!userId) {

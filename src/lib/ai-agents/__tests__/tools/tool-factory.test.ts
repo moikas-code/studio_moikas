@@ -67,7 +67,7 @@ describe("tool-factory", () => {
     it("should return null for unsupported node type", () => {
       const node: workflow_node = {
         id: "unknown-1",
-        type: "unsupported" as any,
+        type: "unsupported" as never,
         data: {}
       };
 
@@ -98,7 +98,7 @@ describe("tool-factory", () => {
     it("should skip unsupported nodes", () => {
       const nodes: workflow_node[] = [
         { id: "img-1", type: "image_generator", data: {} },
-        { id: "unknown-1", type: "unsupported" as any, data: {} }
+        { id: "unknown-1", type: "unsupported" as never, data: {} }
       ];
 
       const tools_map = tool_factory.create_tools_from_nodes(nodes, mock_model);

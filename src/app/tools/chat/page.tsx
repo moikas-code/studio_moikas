@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { MpContext } from "@/app/context/mp_context";
-import { useAuth } from "@clerk/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { message, workflow, chat_state, default_chat_settings, chat_session, workflow_template, workflow_limits } from "./types";
@@ -20,8 +19,7 @@ import DefaultSettingsModal from "./components/default_settings_modal";
 import SessionHistoryPanel from "./components/session_history_panel";
 
 export default function Workflow_chatbot_page() {
-  const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
-  const { userId } = useAuth();
+  const { refresh_mp, plan } = useContext(MpContext);
   
   const [messages, set_messages] = useState<message[]>([]);
   const [input, set_input] = useState("");
@@ -111,7 +109,7 @@ export default function Workflow_chatbot_page() {
     handlers.load_templates();
     handlers.load_workflow_limits();
     handlers.load_default_settings();
-  }, []);
+  }, [handlers]);
 
   useEffect(() => {
     // Scroll to bottom when messages update

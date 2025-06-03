@@ -9,7 +9,7 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {

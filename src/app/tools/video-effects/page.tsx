@@ -66,7 +66,7 @@ export default function Video_effects_page() {
     if (parsed && parsed.job_id && !job_id && !video_url) {
       set_job_id(parsed.job_id);
     }
-  }, []);
+  }, [job_id, video_url]);
 
   useEffect(() => {
     // Persist job_id if job in progress
@@ -159,7 +159,7 @@ export default function Video_effects_page() {
     if (savedVideoUrl && !video_url) {
       set_video_url(savedVideoUrl);
     }
-  }, []);
+  }, [video_url]);
 
   // Persist video_url to localStorage when it changes
   useEffect(() => {

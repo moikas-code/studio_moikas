@@ -64,7 +64,7 @@ export default function MessageDisplay({ messages, loading }: MessageDisplayProp
               `}>
                 {format_time(message.created_at)}
               </span>
-              {message.metadata?.feature && (
+              {message.metadata?.feature && typeof message.metadata.feature === 'string' && (
                 <span className={`
                   text-xs px-2 py-1 rounded-full
                   ${message.role === 'user' 
