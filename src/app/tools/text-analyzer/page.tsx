@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useContext } from "react";
-import { MpContext } from "../../components/../context/mp_context";
+import { MpContext } from "../../context/mp_context";
 import jsPDF from "jspdf";
 
 const FEATURES = [

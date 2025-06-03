@@ -100,6 +100,17 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                   </span>
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/tools/chat"
+                  className="justify-start"
+                  aria-label="Chat tool"
+                >
+                  <span className="text-base font-medium text-md">
+                    Chat
+                  </span>
+                </Link>
+              </li>
             </ul>
           </nav>
           <div className="p-6 border-b border-base-300">

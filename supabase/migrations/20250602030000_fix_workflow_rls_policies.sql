@@ -22,7 +22,7 @@ CREATE POLICY "Users can view their own workflows"
   ON workflows FOR SELECT
   USING (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -30,7 +30,7 @@ CREATE POLICY "Users can create workflows"
   ON workflows FOR INSERT
   WITH CHECK (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -38,7 +38,7 @@ CREATE POLICY "Users can update their own workflows"
   ON workflows FOR UPDATE
   USING (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -46,7 +46,7 @@ CREATE POLICY "Users can delete their own workflows"
   ON workflows FOR DELETE
   USING (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -55,7 +55,7 @@ CREATE POLICY "Users can view their own sessions"
   ON workflow_sessions FOR SELECT
   USING (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -63,7 +63,7 @@ CREATE POLICY "Users can create sessions"
   ON workflow_sessions FOR INSERT
   WITH CHECK (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -71,7 +71,7 @@ CREATE POLICY "Users can update their own sessions"
   ON workflow_sessions FOR UPDATE
   USING (
     user_id IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -83,7 +83,7 @@ CREATE POLICY "Users can view messages from their sessions"
       SELECT 1 FROM workflow_sessions
       WHERE workflow_sessions.id = workflow_messages.session_id
       AND workflow_sessions.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -95,7 +95,7 @@ CREATE POLICY "Users can create messages in their sessions"
       SELECT 1 FROM workflow_sessions
       WHERE workflow_sessions.id = workflow_messages.session_id
       AND workflow_sessions.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -108,7 +108,7 @@ CREATE POLICY "Users can view nodes from their workflows"
       SELECT 1 FROM workflows
       WHERE workflows.id = workflow_nodes.workflow_id
       AND workflows.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -120,7 +120,7 @@ CREATE POLICY "Users can manage nodes in their workflows"
       SELECT 1 FROM workflows
       WHERE workflows.id = workflow_nodes.workflow_id
       AND workflows.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -133,7 +133,7 @@ CREATE POLICY "Users can view executions from their sessions"
       SELECT 1 FROM workflow_sessions
       WHERE workflow_sessions.id = workflow_executions.session_id
       AND workflow_sessions.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -145,7 +145,7 @@ CREATE POLICY "Users can create executions in their sessions"
       SELECT 1 FROM workflow_sessions
       WHERE workflow_sessions.id = workflow_executions.session_id
       AND workflow_sessions.user_id IN (
-        SELECT id FROM users WHERE clerk_id = auth.uid()
+        SELECT id FROM users WHERE clerk_id = auth.uid()::text
       )
     )
   );
@@ -160,7 +160,7 @@ CREATE POLICY "Users can view their own templates"
   ON workflow_templates FOR SELECT
   USING (
     created_by IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -168,7 +168,7 @@ CREATE POLICY "Users can create templates"
   ON workflow_templates FOR INSERT
   WITH CHECK (
     created_by IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -176,7 +176,7 @@ CREATE POLICY "Users can update their own templates"
   ON workflow_templates FOR UPDATE
   USING (
     created_by IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );
 
@@ -184,6 +184,6 @@ CREATE POLICY "Users can delete their own templates"
   ON workflow_templates FOR DELETE
   USING (
     created_by IN (
-      SELECT id FROM users WHERE clerk_id = auth.uid()
+      SELECT id FROM users WHERE clerk_id = auth.uid()::text
     )
   );

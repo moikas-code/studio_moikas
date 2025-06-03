@@ -34,7 +34,7 @@ export default function Workflow_editor_page() {
   
   const load_workflow = async () => {
     try {
-      const response = await fetch(`/api/workflow-chatbot?id=${workflow_id}`);
+      const response = await fetch(`/api/chat?id=${workflow_id}`);
       if (!response.ok) throw new Error("Failed to load workflow");
       
       const data = await response.json();
@@ -68,7 +68,7 @@ export default function Workflow_editor_page() {
         body.id = workflow_id;
       }
       
-      const response = await fetch("/api/workflow-chatbot", {
+      const response = await fetch("/api/chat", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -80,7 +80,7 @@ export default function Workflow_editor_page() {
       
       if (!workflow_id && data.workflow) {
         // If it was a new workflow, update URL to include the ID
-        router.push(`/tools/workflow-chatbot/editor?id=${data.workflow.id}`);
+        router.push(`/tools/chat/editor?id=${data.workflow.id}`);
       }
       
       // Show success message
@@ -95,7 +95,7 @@ export default function Workflow_editor_page() {
   
   const handle_run = () => {
     if (workflow_id) {
-      router.push(`/tools/workflow-chatbot?workflow=${workflow_id}`);
+      router.push(`/tools/chat?workflow=${workflow_id}`);
     }
   };
   
@@ -112,7 +112,7 @@ export default function Workflow_editor_page() {
       {/* Header */}
       <div className="navbar bg-base-100 border-b">
         <div className="flex-none">
-          <Link href="/tools/workflow-chatbot" className="btn btn-square btn-ghost">
+          <Link href="/tools/chat" className="btn btn-square btn-ghost">
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </div>

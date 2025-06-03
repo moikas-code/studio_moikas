@@ -47,7 +47,7 @@ export default function Tools_home_page() {
       title: "Workflow Chatbot",
       description: "Create and run AI workflows with a visual editor",
       icon: FaRobot,
-      href: "/tools/workflow-chatbot",
+      href: "/tools/chat",
       color: "from-indigo-500 to-purple-500",
       available: true
     }
