@@ -103,8 +103,7 @@ export default function Workflow_chatbot_page() {
   };
 
   // Get handlers with useMemo to prevent recreating on every render
-  const handlers = useMemo(() => 
-    create_chat_handlers(state, setters, refresh_mp),
+  const handlers = useMemo(() => create_chat_handlers(state, setters, refresh_mp),
     // Only recreate handlers when refresh_mp changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [refresh_mp]
