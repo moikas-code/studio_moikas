@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Star } from "lucide-react";
+import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import Image from "next/image";
@@ -15,6 +15,7 @@ import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
 export default function Sidebar({ open = false, on_close }: { open?: boolean; on_close?: () => void }) {
   const [feedback_open, set_feedback_open] = useState(false);
   const [report_bug_open, set_report_bug_open] = useState(false);
+  const [is_minimized, set_is_minimized] = useState(false);
 
   return (
     <>
@@ -29,90 +30,118 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
         aria-hidden={!open}
       />
       <aside
-        className={`hidden md:flex flex-col justify-between min-h-screen w-45 lg:w-64 max-w-full bg-base-200 border-r border-base-300 flex-col z-40 transition-transform duration-200  overflow-y-auto`}
+        className={`hidden md:flex flex-col justify-between min-h-screen ${is_minimized ? 'w-16' : 'w-64'} max-w-full bg-base-200 border-r border-base-300 flex-col z-40 transition-all duration-200 overflow-y-auto`}
         aria-label="Sidebar navigation"
       >
         <div className="p-3 border-b border-base-300">
-          <h2 className="text-base font-medium text-center p-4 font-mono">
-            Studio Moikas
-          </h2>
-          <nav className=" border-base-300 p-4" aria-label="Main navigation">
-            <ul className="menu menu-xs rounded-box w-full">
+          <div className="flex items-center justify-between">
+            <h2 className={`text-base font-medium text-center p-4 font-mono ${is_minimized ? 'hidden' : 'block'}`}>
+              Studio Moikas
+            </h2>
+            <button
+              onClick={() => set_is_minimized(!is_minimized)}
+              className="btn btn-ghost btn-sm"
+              aria-label={is_minimized ? "Expand sidebar" : "Minimize sidebar"}
+            >
+              {is_minimized ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            </button>
+          </div>
+          <nav className={`border-base-300 ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Main navigation">
+            <ul className={`menu menu-xs rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
               <li>
                 <Link
                   href="/tools"
-                  className="justify-start font-bold"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} font-bold flex items-center gap-2`}
                   aria-label="Tools Home"
+                  title={is_minimized ? "Home" : undefined}
                 >
-                  <span className="text-base font-medium">Home</span>
+                  <Home className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Home</span>}
                 </Link>
               </li>
               {/* Add more tool links here as needed */}
             </ul>
           </nav>
-          <div className="p-6 border-b border-base-300">
-            <p className="text-sm font-bold tracking-tight text-primary">
-              Tools
-            </p>
+          <div className={`${is_minimized ? 'py-2' : 'p-6'} border-b border-base-300`}>
+            {!is_minimized && (
+              <p className="text-sm font-bold tracking-tight text-primary">
+                Tools
+              </p>
+            )}
           </div>
-          <nav className="flex flec-col p-4" aria-label="Main tools">
-            <ul className="menu menu-lg rounded-box w-full">
+          <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Main tools">
+            <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+              <li>
+                <Link
+                  href="/tools/memu"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
+                  aria-label="MEMU tool"
+                  title={is_minimized ? "MEMU" : undefined}
+                >
+                  <MessageSquare className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">MEMU</span>}
+                </Link>
+              </li>
               <li>
                 <Link
                   href="/tools/create"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
                   aria-label="Image Generator tool"
+                  title={is_minimized ? "Create" : undefined}
                 >
-                  <span className="text-base font-medium text-md">Create</span>
+                  <ImageIcon className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Create</span>}
                 </Link>
               </li>
               <li>
                 <Link
                   href="/tools/image-editor"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
                   aria-label="Image Editor tool"
+                  title={is_minimized ? "Image Editor" : undefined}
                 >
-                  <span className="text-base font-medium text-md">
-                    Image Editor
-                  </span>
+                  <Edit className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Image Editor</span>}
                 </Link>
               </li>
               {/* Add more tool links here as needed */}
               <li>
                 <Link
                   href="/tools/text-analyzer"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
                   aria-label="Text Analyzer tool"
+                  title={is_minimized ? "Text Analyzer" : undefined}
                 >
-                  <span className="text-base font-medium text-md">
-                    Text Analyzer
-                  </span>
+                  <FileText className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Text Analyzer</span>}
                 </Link>
               </li>
               <li>
                 <Link
                   href="/tools/video-effects"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
                   aria-label="Video Generator tool"
+                  title={is_minimized ? "Video Generator" : undefined}
                 >
-                  <span className="text-base font-medium text-md">
-                    Video Generator
-                  </span>
+                  <Video className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Video Generator</span>}
                 </Link>
               </li>
             </ul>
           </nav>
-          <div className="p-6 border-b border-base-300">
-            <p className="text-sm font-bold tracking-tight text-primary">
-              Support
-            </p>
+          <div className={`${is_minimized ? 'p-2' : 'p-6'} border-b border-base-300`}>
+            {!is_minimized && (
+              <p className="text-sm font-bold tracking-tight text-primary">
+                Support
+              </p>
+            )}
           </div>
-          <nav className="flex flex-col p-4" aria-label="Main tools">
-            <ul className="menu menu-lg rounded-box w-full">
+          <nav className={`flex flex-col ${is_minimized ? 'hidden' : 'p-4'}`} aria-label="Support tools">
+           < ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
               <li>
                 <a
                   href="https://discord.gg/DnbkrC8"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center mb-4' : 'justify-start'} flex items-center`}
                   aria-label="Community Discord"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -122,22 +151,22 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                     })
                   }
                 >
-                  <span className="flex items-center gap-2 text-md">
+                  <span className="flex items-center gap-2 text-md" title={is_minimized ? "Community" : undefined}>
                     {/* Discord icon */}
                     <Image
                       src="/Discord.svg"
                       alt="Discord"
-                      width={24}
-                      height={24}
+                      width={!is_minimized?24:18}
+                      height={!is_minimized?24:18}
                     />
-                    Community
+                    {!is_minimized && "Community"}
                   </span>
                 </a>
               </li>
               <li>
                 <Link
                   href="https://x.com/moikas_official"
-                  className="justify-start"
+                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center`}
                   aria-label="Help and News"
                   onClick={() =>
                     track("Sidebar Help/News Clicked", {
@@ -145,36 +174,39 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                     })
                   }
                 >
-                  <span className="flex items-center gap-2 text-md">
-                    {/* Question mark icon */}
-                    <Bell />
-                    News
+                  <span className="flex items-center gap-2 text-md" title={is_minimized ? "News" : undefined}>
+                    <Bell className="w-5 h-5 flex-shrink-0" />
+                    {!is_minimized && <span className="whitespace-nowrap">News</span>}
                   </span>
                 </Link>
               </li>
               <li>
                 <button
-                  className="w-full text-left rounded text-md px-4 py-2 font-medium bg-base hover:bg-base-100 transition-colors duration-150"
+                  className={`w-full text-left rounded text-md px-4 py-2 font-medium bg-base hover:bg-base-100 transition-colors duration-150 flex items-center gap-2 ${is_minimized ? 'justify-center' : ''}`}
                   aria-label="Send Feedback"
                   onClick={() => set_feedback_open(true)}
+                  title={is_minimized ? "Feedback" : undefined}
                 >
-                  Feedback
+                  <Star className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="whitespace-nowrap">Feedback</span>}
                 </button>
               </li>
               <li>
                 <button
-                  className="w-full text-left rounded text-md px-4 py-2 font-medium bg-base hover:bg-base-100 transition-colors duration-150"
+                  className={`w-full text-left rounded text-md px-4 py-2 font-medium bg-base hover:bg-base-100 transition-colors duration-150 flex items-center gap-2 ${is_minimized ? 'justify-center' : ''}`}
                   aria-label="Report Bug"
                   onClick={() => set_report_bug_open(true)}
+                  title={is_minimized ? "Report Bug" : undefined}
                 >
-                  Report Bug
+                  <Bug className="w-5 h-5 flex-shrink-0" />
+                  {!is_minimized && <span className="whitespace-nowrap">Report Bug</span>}
                 </button>
               </li>
               {/* Add more tool links here as needed */}
             </ul>
           </nav>
         </div>
-        <div className="p-6 flex justify-center border-b border-base-300">
+        <div className={`${is_minimized ? 'p-2' : 'p-6'} flex justify-center border-b border-base-300`}>
           <SignedIn>
             <UserButton afterSignOutUrl="/" />
           </SignedIn>

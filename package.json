@@ -28,6 +28,7 @@
     "@fal-ai/client": "^1.4.0",
     "@fal-ai/server-proxy": "^1.1.1",
     "@langchain/core": "^0.3.57",
+    "@langchain/langgraph": "^0.3.0",
     "@langchain/xai": "^0.0.2",
     "@supabase/supabase-js": "^2.49.8",
     "@types/bun": "^1.2.14",
@@ -64,7 +65,7 @@
     "eslint": "^9.27.0",
     "eslint-config-next": "15.3.2",
     "postcss": "^8.5.3",
-    "supabase": "^2.23.4",
+    "supabase": "^2.24.3",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3"
   }

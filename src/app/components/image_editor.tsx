@@ -262,7 +262,7 @@ export default function Image_editor() {
       set_background_type('color');
       set_background_color(current_template.background_color);
     }
-  }, [current_template, has_user_background_settings, user_background_type, user_background_color, user_gradient_start, user_gradient_end, user_gradient_direction]);
+  }, [background_type, canvas_state.canvas_width, canvas_state.canvas_height, current_template, has_user_background_settings, user_background_type, user_background_color, user_gradient_start, user_gradient_end, user_gradient_direction]);
 
   // Cache the loaded image to avoid reloading
   const cached_image = useRef<HTMLImageElement | null>(null);
@@ -530,7 +530,7 @@ export default function Image_editor() {
     } else {
       check_all_loaded();
     }
-  }, [calculate_viewport_dimensions, show_grid, is_image_selected, is_moving_image]);
+  }, [show_grid, is_image_selected, is_moving_image, viewport_dimensions, set_viewport_dimensions]);
 
   // Apply template with specified background choice
   const apply_template_with_background = useCallback(async (template: Template, use_template_background: boolean) => {
@@ -621,7 +621,7 @@ export default function Image_editor() {
       canvas_width: template.width,
       canvas_height: template.height,
     });
-  }, [canvas_state, save_to_history, plan, calculate_viewport_dimensions, resize_image_to_template, has_user_background_settings, create_custom_background, create_template_background, draw_canvas, set_canvas_state]);
+  }, [canvas_state, save_to_history, plan, has_user_background_settings, draw_canvas, set_canvas_state, viewport_dimensions]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -787,7 +787,7 @@ export default function Image_editor() {
       set_is_loading(false);
     };
     reader.readAsDataURL(file);
-  }, [canvas_state, save_to_history, calculate_viewport_dimensions, current_template, resize_image_to_template, draw_canvas, set_canvas_state]);
+  }, [canvas_state, save_to_history, current_template, resize_image_to_template, draw_canvas, set_canvas_state, plan, viewport_dimensions]);
 
   // Handle file upload
   const handle_file_upload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -902,7 +902,7 @@ export default function Image_editor() {
       font_size: text_size,
       font_family: text_font,
     });
-  }, [text_input, text_size, text_color, text_font, text_weight, canvas_state, save_to_history, plan, viewport_to_canvas]);
+  }, [text_input, text_size, text_color, text_font, text_weight, canvas_state, save_to_history, plan, viewport_to_canvas, draw_canvas, set_canvas_state, viewport_dimensions.height, viewport_dimensions.width]);
 
   // Delete selected text element
   const delete_selected_text = useCallback(() => {
@@ -1005,7 +1005,7 @@ export default function Image_editor() {
     };
     set_canvas_state(save_to_history(new_state));
     draw_canvas(new_state);
-  }, [canvas_state, save_to_history]);
+  }, [canvas_state, save_to_history, draw_canvas, set_canvas_state]);
 
   const send_to_back = useCallback((element_id: string) => {
     const element = canvas_state.text_elements.find(t => t.id === element_id);
@@ -1022,7 +1022,7 @@ export default function Image_editor() {
     };
     set_canvas_state(save_to_history(new_state));
     draw_canvas(new_state);
-  }, [canvas_state, save_to_history]);
+  }, [canvas_state, save_to_history, draw_canvas, set_canvas_state]);
 
   // Handle drag and drop reordering of text elements
   const handle_layer_drag_start = useCallback((e: React.DragEvent, index: number) => {

@@ -5,6 +5,15 @@
 import { Redis } from "@upstash/redis";
 import crypto from "crypto";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { 
+  ALL_IMAGE_MODELS, 
+  VIDEO_MODELS, 
+  FREE_MODEL_IDS,
+  STANDARD_MODEL_IDS,
+  get_image_model_config,
+  type image_model_config,
+  type video_model_config 
+} from "./ai_models";
 
 /**
  * Calculate required tokens (megapixels) for a given image size.
@@ -25,260 +34,19 @@ export function get_plan_limit(plan: string): number {
   return 125; // default to free
 }
 
-const FREE_MODELS = [
-  {
-    value: "fal-ai/sana",
-    name: "SANA Base",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.001,
-    is_image_to_image: false,
-    is_size_configurable: true,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/sana/sprint",
-    name: "SANA Fast",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.0025,
-    is_image_to_image: false,
-    is_size_configurable: true,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/flux/schnell",
-    name: "FLUX.1 [schnell]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.003,
-    is_image_to_image: false,
-    is_size_configurable: true,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 0,
-    max_steps: 0,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/luma-photon/flash",
-    name: "Luma Photon Flash",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.005,
-    is_image_to_image: false,
-    is_size_configurable: true,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 0,
-    max_steps: 0,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-];
-
-// Export free model IDs for use elsewhere
-export const FREE_MODEL_IDS = FREE_MODELS.map((m) => m.value);
-
-// Centralized model options and cost logic
-export const MODEL_OPTIONS = [
-  ...FREE_MODELS,
-  {
-    value: "fal-ai/recraft/v3/text-to-image",
-    name: "Recraft v3",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.04,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/flux/dev",
-    name: "FLUX.1 [dev]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.025,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/flux-pro/v1.1-ultra",
-    name: "FLUX.1.1 Ultra",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.06,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/imagen4/preview",
-    name: "Imagen 4 [preview]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.05,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/flux-pro/kontext/text-to-image",
-    name: "FLUX.1.1 Pro Kontext",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.04,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: [
-      "1:1",
-      "16:9",
-      "9:16",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "21:9",
-      "9:21",
-    ],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/flux-pro/kontext/max/text-to-image",
-    name: "FLUX.1.1 Pro Kontext Max",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.08,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: [
-      "1:1",
-      "16:9",
-      "9:16",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "21:9",
-      "9:21",
-    ],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
-];
-
-export const VIDEO_MODELS = [
-  {
-    value: "fal-ai/veo2",
-    name: "VEO2",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.5,
-    is_image_to_video: false,
-  },
-  {
-    value: "fal-ai/veo2/pro",
-    name: "VEO2 Pro",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.9,
-    is_image_to_video: false,
-  },
-  {
-    value: "fal-ai/kling-video/v1.6/standard/text-to-video",
-    name: "Kling Video v1.6",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.045,
-    is_image_to_video: false,
-  },
-  {
-    value: "fal-ai/kling-video/v1.6/pro/text-to-video",
-    name: "Kling Video v1.6 Pro",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.09,
-    is_image_to_video: false,
-  },
-  {
-    value: "fal-ai/kling-video/v2.1/standard/image-to-video",
-    name: "Kling Video v2.1 [image]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.05,
-    is_image_to_video: true,
-  },
-  {
-    value: "fal-ai/kling-video/v2.1/pro/image-to-video",
-    name: "Kling Video v2.1 Pro [image]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.09,
-    is_image_to_video: true,
-  },
-  {
-    value: "fal-ai/kling-video/v2.1/master/text-to-video",
-    name: "Kling Video v2.1 Premium",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.28,
-    is_image_to_video: false,
-    plans: ["free", "standard"],
-  },
-  {
-    value: "fal-ai/kling-video/v2.1/master/image-to-video",
-    name: "Kling Video v2.1 Premium [image]",
-    manaPoints: 1,
-    costPerMP: 0.001,
-    customCost: 0.28,
-    is_image_to_video: true,
-    plans: ["free", "standard"],
-  },
-];
-
-// Export standard model IDs for use elsewhere
-export const STANDARD_MODEL_IDS = MODEL_OPTIONS.filter((m) =>
-  m.plans.includes("standard")
-).map((m) => m.value);
+// Re-export models from ai_models.ts for backward compatibility
+export const MODEL_OPTIONS = ALL_IMAGE_MODELS;
+export { FREE_MODEL_IDS, STANDARD_MODEL_IDS, VIDEO_MODELS };
 
 /**
  * Get the cost of a model
  */
 export function get_model_cost(model_id: string): number {
-  const model = MODEL_OPTIONS.find((m) => m.value === model_id);
+  const model = get_image_model_config(model_id);
   // If model not found, return 1 token
   if (!model) return 1;
 
-  return calculateGenerationMP(model);
+  return calculate_generation_mp(model);
 }
 
 /**
@@ -458,11 +226,11 @@ export function log_event(
   event_type: string,
   details: Record<string, unknown>
 ) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[${new Date().toISOString()}] [${event_type}]`, details);
 }
 
-// Define types for clarity and type safety
+// Legacy Model interface for backward compatibility
 export interface Model {
   name: string;
   manaPoints: number; // MP required per generation
@@ -473,14 +241,54 @@ export interface Model {
   is_image_to_video?: boolean;
 }
 
-// Renamed to clarify it returns MP, not $
+// Calculate generation MP cost for new model config
+export function calculate_generation_mp(model: image_model_config): number {
+  if (model.custom_cost !== undefined) {
+    // Convert custom_cost ($) to MP (integer)
+    return Math.ceil(Math.round((model.custom_cost / model.cost_per_mp) * 1.6));
+  }
+  // Return MP directly for non-custom cost
+  return model.mana_points;
+}
+
+// Legacy function for backward compatibility
 export function calculateGenerationMP(model: Model): number {
   if (model.customCost !== undefined) {
     // Convert customCost ($) to MP (integer)
-    return Math.ceil(Math.round((model.customCost / model.costPerMP) * 1.6)); // e.g., (0.003 / 0.001) * 1.6 = 4.8, rounded up to 5
+    return Math.ceil(Math.round((model.customCost / model.costPerMP) * 1.6));
   }
   // Return MP directly for non-custom cost
   return model.manaPoints;
+}
+
+// Helper function to convert video model config to legacy Model interface
+export function video_model_to_legacy_model(video_model: video_model_config): Model {
+  return {
+    name: video_model.name,
+    manaPoints: video_model.mana_points,
+    costPerMP: video_model.cost_per_mp,
+    customCost: video_model.custom_cost,
+    value: video_model.value,
+    plans: video_model.plans || ["free", "standard"],
+    is_image_to_video: video_model.is_image_to_video,
+  };
+}
+
+// Helper function to convert image model config to legacy Model interface
+export function image_model_to_legacy_model(image_model: image_model_config): Model {
+  return {
+    name: image_model.name,
+    manaPoints: image_model.mana_points,
+    costPerMP: image_model.cost_per_mp,
+    customCost: image_model.custom_cost,
+    value: image_model.value,
+    plans: image_model.plans,
+  };
+}
+
+// Helper function to convert all image models to legacy format
+export function get_legacy_model_options(): Model[] {
+  return ALL_IMAGE_MODELS.map(image_model_to_legacy_model);
 }
 
 /**
@@ -492,4 +300,75 @@ export function sort_models_by_cost(models: Model[]): Model[] {
     const cost_b = b.customCost !== undefined ? b.customCost : b.costPerMP;
     return cost_a - cost_b;
   });
+}
+
+/**
+ * Get workflow limits based on user plan
+ */
+export function get_workflow_limits(plan: string): { max_workflows: number } {
+  if (plan === "standard") {
+    return { max_workflows: -1 }; // Unlimited workflows
+  }
+  return { max_workflows: 1 }; // Free users: 1 workflow limit
+}
+
+/**
+ * Check if user can create a new workflow based on their plan limits
+ */
+export async function check_workflow_creation_limit({
+  supabase,
+  user_id,
+}: {
+  supabase: SupabaseClient;
+  user_id: string;
+}): Promise<{ allowed: boolean; current_count: number; max_allowed: number; plan: string }> {
+  // Get user's subscription plan
+  const { data: subscription, error: sub_error } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", user_id)
+    .single();
+
+  if (sub_error || !subscription) {
+    throw new Error("Subscription not found");
+  }
+
+  const plan = subscription.plan || "free";
+  const limits = get_workflow_limits(plan);
+
+  // If unlimited workflows (standard plan), allow creation
+  if (limits.max_workflows === -1) {
+    const { count: current_count = 0 } = await supabase
+      .from("workflows")
+      .select("id", { count: "exact" })
+      .eq("user_id", user_id)
+      .eq("is_active", true);
+
+    return {
+      allowed: true,
+      current_count: current_count || 0,
+      max_allowed: -1,
+      plan
+    };
+  }
+
+  // Get current workflow count for users with limits
+  const { count: current_count = 0, error: count_error } = await supabase
+    .from("workflows")
+    .select("id", { count: "exact" })
+    .eq("user_id", user_id)
+    .eq("is_active", true);
+
+  if (count_error) {
+    throw new Error("Failed to count workflows");
+  }
+
+  const allowed = (current_count || 0) < limits.max_workflows;
+
+  return {
+    allowed,
+    current_count: current_count || 0,
+    max_allowed: limits.max_workflows,
+    plan
+  };
 }

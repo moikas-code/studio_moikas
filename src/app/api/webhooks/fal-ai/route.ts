@@ -117,11 +117,11 @@ export async function POST(req: NextRequest) {
           
         if (job_data) {
           // Import necessary helpers at the top of the file
-          const { VIDEO_MODELS, calculateGenerationMP } = await import("@/lib/generate_helpers");
+          const { VIDEO_MODELS, calculateGenerationMP, video_model_to_legacy_model } = await import("@/lib/generate_helpers");
           
           const model = VIDEO_MODELS.find(m => m.value === job_data.model_id);
           if (model) {
-            const refund_amount = calculateGenerationMP(model) * (job_data.duration || 5);
+            const refund_amount = calculateGenerationMP(video_model_to_legacy_model(model)) * (job_data.duration || 5);
             
             // Refund the tokens
             const { error: refund_error } = await supabase.rpc('refund_tokens', {
