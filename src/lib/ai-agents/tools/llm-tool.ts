@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { workflow_node_tool, workflow_node } from "../types";
+import { extract_message_content } from "../utils/message-utils";
 
 /**
  * LLM (Language Model) tool implementation
@@ -23,7 +24,7 @@ export class llm_tool {
         instructions: z.string().optional().describe("Additional instructions"),
       }),
       execute: async (input) => {
-        return await this.execute_llm(node, input, model);
+        return await this.execute_llm(node, input as { input_text: string; instructions?: string }, model);
       }
     };
   }
@@ -40,8 +41,8 @@ export class llm_tool {
     input: { input_text: string; instructions?: string }, 
     model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>
   ): Promise<{ response: string; token_usage?: { input: number; output: number } }> {
-    const prompt = node.data.prompt || input.instructions || input.input_text;
-    const system_prompt = node.data.system_prompt || "You are a helpful assistant.";
+    const prompt = (node.data.prompt as string) || input.instructions || input.input_text;
+    const system_prompt = (node.data.system_prompt as string) || "You are a helpful assistant.";
 
     const messages = [
       new SystemMessage(system_prompt),
@@ -51,13 +52,11 @@ export class llm_tool {
     const response = await model.invoke(messages);
 
     return {
-      response: response.content,
-      prompt: prompt,
+      response: extract_message_content(response.content),
       token_usage: {
         input: response.usage_metadata?.input_tokens || 0,
         output: response.usage_metadata?.output_tokens || 0
-      },
-      status: "success"
+      }
     };
   }
 }

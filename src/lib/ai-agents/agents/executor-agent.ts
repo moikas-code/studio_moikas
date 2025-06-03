@@ -16,7 +16,7 @@ export class executor_agent {
    * @returns Updated state with execution results
    */
   async execute(state: agent_state): Promise<Partial<agent_state>> {
-    const plan = state.variables.execution_plan;
+    const plan = state.variables.execution_plan as { steps?: Array<{ tool_name: string; parameters: Record<string, unknown> }> } | undefined;
     
     if (!plan?.steps?.length) {
       return {
@@ -46,17 +46,18 @@ export class executor_agent {
     const results: execution_result[] = [];
     
     for (const step of steps) {
-      const result = await this.execute_single_step(step, state);
+      const result = await this.execute_single_step(step);
       results.push(result);
       
       // Update token usage and costs if available
       if (result.status === "success" && result.result) {
-        if (result.result.token_usage) {
-          state.token_usage.input += result.result.token_usage.input || 0;
-          state.token_usage.output += result.result.token_usage.output || 0;
+        const execution_result = result.result as { token_usage?: { input?: number; output?: number }; model_costs?: number };
+        if (execution_result.token_usage) {
+          state.token_usage.input += execution_result.token_usage.input || 0;
+          state.token_usage.output += execution_result.token_usage.output || 0;
         }
-        if (result.result.model_costs) {
-          state.model_costs += result.result.model_costs || 0;
+        if (execution_result.model_costs) {
+          state.model_costs += execution_result.model_costs || 0;
         }
       }
     }
@@ -67,7 +68,6 @@ export class executor_agent {
   /**
    * Executes a single step
    * @param step - Step to execute
-   * @param state - Current agent state
    * @returns Execution result
    */
   private async execute_single_step(step: { tool_name: string; parameters: Record<string, unknown> }): Promise<execution_result> {
@@ -92,7 +92,7 @@ export class executor_agent {
     } catch (error) {
       return {
         step: step,
-        error: error.message || "Unknown error",
+        error: error instanceof Error ? error.message : "Unknown error",
         status: "failed"
       };
     }

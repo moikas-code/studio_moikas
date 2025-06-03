@@ -17,7 +17,7 @@ export class coordinator_agent {
    * @returns Updated state with decision
    */
   async coordinate(state: agent_state): Promise<Partial<agent_state>> {
-    const results = state.variables.execution_results;
+    const results = state.variables.execution_results as Array<{ status: string }> | undefined;
     const failed_steps = results?.filter((r: { status: string }) => r.status === "failed") || [];
     
     if (failed_steps.length === 0) {

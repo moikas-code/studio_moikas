@@ -11,34 +11,18 @@ const state_schema = Annotation.Root({
     reducer: (x: BaseMessage[], y: BaseMessage[]) => [...x, ...y],
     default: () => []
   }),
-  session_id: Annotation<string>({
-    default: () => ""
-  }),
-  user_id: Annotation<string>({
-    default: () => ""
-  }),
-  workflow_id: Annotation<string | undefined>({
-    default: () => undefined
-  }),
-  variables: Annotation<Record<string, unknown>>({
-    default: () => ({})
-  }),
-  current_step: Annotation<string>({
-    default: () => "start"
-  }),
+  session_id: Annotation<string>(),
+  user_id: Annotation<string>(),
+  workflow_id: Annotation<string | undefined>(),
+  variables: Annotation<Record<string, unknown>>(),
+  current_step: Annotation<string>(),
   execution_history: Annotation<Record<string, unknown>[]>({
     reducer: (x: Record<string, unknown>[], y: Record<string, unknown>[]) => [...x, ...y],
     default: () => []
   }),
-  available_tools: Annotation<Record<string, unknown>[]>({
-    default: () => []
-  }),
-  token_usage: Annotation<{ input: number; output: number }>({
-    default: () => ({ input: 0, output: 0 })
-  }),
-  model_costs: Annotation<number>({
-    default: () => 0
-  })
+  available_tools: Annotation<Record<string, unknown>[]>(),
+  token_usage: Annotation<{ input: number; output: number }>(),
+  model_costs: Annotation<number>()
 });
 
 /**
@@ -52,8 +36,8 @@ export class workflow_graph_manager {
   private summarizer: summarizer_agent;
 
   constructor(
-    model: Record<string, unknown>,
-    tools_registry: Map<string, Record<string, unknown>>
+    model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>,
+    tools_registry: Map<string, import('../types').workflow_node_tool>
   ) {
     // Initialize agents
     this.planner = new planner_agent(model);
@@ -78,21 +62,27 @@ export class workflow_graph_manager {
     this.workflow_graph.addNode("summarizer", this.summarizer.summarize.bind(this.summarizer));
 
     // Add edges
-    this.workflow_graph.addEdge(START, "planner");
-    this.workflow_graph.addEdge("planner", "executor");
-    this.workflow_graph.addEdge("executor", "coordinator");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.workflow_graph.addEdge(START, "planner" as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.workflow_graph.addEdge("planner" as any, "executor" as any);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.workflow_graph.addEdge("executor" as any, "coordinator" as any);
     
     // Conditional edge for continuing or finishing
     this.workflow_graph.addConditionalEdges(
-      "coordinator",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "coordinator" as any,
       this.should_continue.bind(this),
       {
         continue: "executor",
         finish: "summarizer"
-      }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any
     );
     
-    this.workflow_graph.addEdge("summarizer", END);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.workflow_graph.addEdge("summarizer" as any, END);
   }
 
   /**

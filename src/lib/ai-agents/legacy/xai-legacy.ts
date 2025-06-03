@@ -27,7 +27,8 @@ export async function invoke_xai_agent_with_tools({
   
   let response;
   if (tools && Array.isArray(tools) && tools.length > 0) {
-    const runnable = model.bindTools(tools as unknown[]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runnable = model.bindTools(tools as any[]);
     response = await runnable.invoke(_messages);
   } else {
     response = await model.invoke(_messages);

@@ -25,11 +25,6 @@ const MODEL_CONFIGS: Record<string, model_token_config> = {
     min_cost_mp: 1,
     estimation_accuracy: 1.1 // Slightly overestimate for safety
   },
-  'grok-3-mini-latest': {
-    tokens_per_mp: 3000,
-    min_cost_mp: 1,
-    estimation_accuracy: 1.1
-  },
   'fal-ai/flux/schnell': {
     tokens_per_mp: 1, // Image models work differently
     min_cost_mp: 4
@@ -48,8 +43,9 @@ export class precise_token_counter {
     const config = MODEL_CONFIGS[model] || MODEL_CONFIGS['grok-3-mini-latest'];
     
     if (ai_response.usage_metadata) {
-      const input_tokens = ai_response.usage_metadata.input_tokens || 0;
-      const output_tokens = ai_response.usage_metadata.output_tokens || 0;
+      const usage_metadata = ai_response.usage_metadata as { input_tokens?: number; output_tokens?: number };
+      const input_tokens = usage_metadata.input_tokens || 0;
+      const output_tokens = usage_metadata.output_tokens || 0;
       const total_tokens = input_tokens + output_tokens;
       
       return {
@@ -63,7 +59,8 @@ export class precise_token_counter {
     }
     
     // Fallback to estimation
-    return this.estimate_usage(input_text, ai_response.content || '', model);
+    const output_text = typeof ai_response.content === 'string' ? ai_response.content : JSON.stringify(ai_response.content || '');
+    return this.estimate_usage(input_text, output_text, model);
   }
 
   /**
@@ -170,23 +167,25 @@ export class precise_token_counter {
     let method: 'actual' | 'estimated' | 'hybrid' = 'hybrid';
     
     // Try to get actual input tokens
-    if (ai_response.usage_metadata?.input_tokens) {
-      input_tokens = ai_response.usage_metadata.input_tokens;
+    const usage_metadata = ai_response.usage_metadata as { input_tokens?: number; output_tokens?: number } | undefined;
+    if (usage_metadata?.input_tokens) {
+      input_tokens = usage_metadata.input_tokens;
     } else {
       input_tokens = this.estimate_tokens_from_text(input_text);
     }
     
     // Try to get actual output tokens
-    if (ai_response.usage_metadata?.output_tokens) {
-      output_tokens = ai_response.usage_metadata.output_tokens;
+    if (usage_metadata?.output_tokens) {
+      output_tokens = usage_metadata.output_tokens;
     } else {
-      output_tokens = this.estimate_tokens_from_text(ai_response.content || '');
+      const content_text = typeof ai_response.content === 'string' ? ai_response.content : JSON.stringify(ai_response.content || '');
+      output_tokens = this.estimate_tokens_from_text(content_text);
     }
     
     // If we got both actual values, mark as actual
-    if (ai_response.usage_metadata?.input_tokens && ai_response.usage_metadata?.output_tokens) {
+    if (usage_metadata?.input_tokens && usage_metadata?.output_tokens) {
       method = 'actual';
-    } else if (!ai_response.usage_metadata?.input_tokens && !ai_response.usage_metadata?.output_tokens) {
+    } else if (!usage_metadata?.input_tokens && !usage_metadata?.output_tokens) {
       method = 'estimated';
     }
     

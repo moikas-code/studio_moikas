@@ -107,11 +107,13 @@ export function useSessionManagement(): UseSessionManagementReturn {
     
     try {
       const response = await fetch(`/api/chat-sessions/${session_id}/messages`);
-      const data: SessionWithMessages = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load session');
+        const error_data = await response.json();
+        throw new Error(error_data.error || 'Failed to load session');
       }
+      
+      const data: SessionWithMessages = await response.json();
       
       const session = sessions.find(s => s.id === session_id);
       if (session) {

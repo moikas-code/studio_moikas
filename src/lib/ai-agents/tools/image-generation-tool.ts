@@ -22,7 +22,7 @@ export class image_generation_tool {
         size: z.string().optional().describe("Image size"),
       }),
       execute: async (input) => {
-        return await this.execute_image_generation(node, input);
+        return await this.execute_image_generation(node, input as { prompt: string; style?: string; size?: string });
       }
     };
   }
@@ -34,7 +34,7 @@ export class image_generation_tool {
    * @returns Generation result
    */
   private static async execute_image_generation(node: workflow_node, input: { prompt: string; style?: string; size?: string }): Promise<{ image_url: string; prompt: string; model: string; model_costs: number; status: string }> {
-    const model = node.data.model || "fal-ai/flux/schnell";
+    const model = (node.data.model as string) || "fal-ai/flux/schnell";
     const cost = IMAGE_MODEL_COSTS[model] || 4;
 
     // TODO: Implement actual image generation using fal.ai API

@@ -165,7 +165,7 @@ export class WorkflowAgent {
 
           return JSON.stringify(result);
         } catch (error) {
-          return JSON.stringify({ error: error.message });
+          return JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' });
         }
       }
     });
@@ -193,7 +193,7 @@ export class WorkflowAgent {
     }
 
     // Convert each node to a tool
-    const workflow_tools = nodes.map((node: WorkflowNode) => {
+    const workflow_tools = (nodes as unknown as WorkflowNode[]).map((node) => {
       return new DynamicTool({
         name: `workflow_node_${node.node_id}`,
         description: `Execute workflow node: ${node.type} - ${node.data.description || 'No description'}`,
@@ -242,7 +242,7 @@ export class WorkflowAgent {
         .from('workflow_nodes')
         .select('*')
         .eq('workflow_id', workflow_id)
-        .eq('node_id', input_data.node_id)
+        .eq('node_id', input_data.node_id as string)
         .single();
 
       if (node_error || !node) {
@@ -251,22 +251,23 @@ export class WorkflowAgent {
 
       // Execute based on node type
       let output_data: Record<string, unknown> = {};
+      const workflow_node = node as unknown as WorkflowNode;
       
-      switch (node.type) {
+      switch (workflow_node.type) {
         case 'llm':
-          output_data = await this.execute_llm_node(node, input_data);
+          output_data = await this.execute_llm_node(workflow_node, input_data);
           break;
         case 'image_generator':
-          output_data = await this.execute_image_node(node, input_data);
+          output_data = await this.execute_image_node(workflow_node, input_data);
           break;
         case 'text_analyzer':
-          output_data = await this.execute_text_analyzer_node(node, input_data);
+          output_data = await this.execute_text_analyzer_node(workflow_node, input_data);
           break;
         case 'video_generator':
-          output_data = await this.execute_video_node(node, input_data);
+          output_data = await this.execute_video_node(workflow_node, input_data);
           break;
         default:
-          throw new Error(`Unsupported node type: ${node.type}`);
+          throw new Error(`Unsupported node type: ${workflow_node.type}`);
       }
 
       // Update execution with results
@@ -281,7 +282,7 @@ export class WorkflowAgent {
 
       return JSON.stringify({
         success: true,
-        node_id: node.node_id,
+        node_id: workflow_node.node_id,
         output_data,
         execution_id: execution.id
       });
@@ -289,7 +290,7 @@ export class WorkflowAgent {
     } catch (error) {
       return JSON.stringify({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   }
@@ -346,7 +347,7 @@ export class WorkflowAgent {
    */
   private async execute_text_analyzer_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { analysis_type, text_input } = node.data;
-    const text = input_data[text_input] || input_data.text;
+    const text = input_data[text_input as string] || input_data.text;
 
     // Call your text analyzer API
     const response = await fetch('/api/text-analyzer', {

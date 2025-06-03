@@ -66,8 +66,8 @@ Respond with a JSON plan containing:
     const content = extract_message_content(response.content);
     const json_plan = extract_json_from_message(content);
     
-    if (json_plan && json_plan.steps) {
-      return json_plan;
+    if (json_plan && (json_plan as { steps?: unknown }).steps) {
+      return json_plan as execution_plan;
     }
     
     // Fallback if JSON extraction fails

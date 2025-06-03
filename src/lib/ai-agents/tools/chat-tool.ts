@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { workflow_node_tool, workflow_node } from "../types";
+import { extract_message_content } from "../utils/message-utils";
 
 /**
  * Chat tool implementation for basic conversational interactions
@@ -24,7 +25,7 @@ export class chat_tool {
         personality: z.string().optional().describe("Personality style for the response"),
       }),
       execute: async (input) => {
-        return await this.execute_chat(node, input, model);
+        return await this.execute_chat(node, input as { user_message: string; context?: string; personality?: string }, model);
       }
     };
   }
@@ -41,8 +42,8 @@ export class chat_tool {
     input: { user_message: string; context?: string; personality?: string }, 
     model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>
   ): Promise<{ response: string; personality_used: string; context_used: string; token_usage?: { input: number; output: number } }> {
-    const personality = input.personality || node.data.personality || "friendly and helpful";
-    const context = input.context || node.data.context || "";
+    const personality = input.personality || (node.data.personality as string) || "friendly and helpful";
+    const context = input.context || (node.data.context as string) || "";
     
     const system_prompt = this.build_system_prompt(personality, context);
     
@@ -54,15 +55,13 @@ export class chat_tool {
     const response = await model.invoke(messages);
 
     return {
-      response: response.content,
-      user_message: input.user_message,
+      response: extract_message_content(response.content),
       personality_used: personality,
+      context_used: context,
       token_usage: {
         input: response.usage_metadata?.input_tokens || 0,
         output: response.usage_metadata?.output_tokens || 0
-      },
-      model_costs: this.calculate_model_costs(response.usage_metadata),
-      status: "success"
+      }
     };
   }
 

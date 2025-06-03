@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { message } from "../types";
-import { MessageFormatter } from "./message_formatter";
-import { ChevronDown, ChevronRight, Brain, Target, CheckCircle, AlertCircle, Info } from "lucide-react";
+import MessageFormatter from "./message_formatter";
+import { ChevronDown, ChevronRight, Brain, Target, CheckCircle, Info } from "lucide-react";
 
 interface enhanced_message_display_props {
   message: message;
@@ -21,7 +21,7 @@ export function EnhancedMessageDisplay({ message, show_debug_info = false }: enh
         </div>
         <div className="flex-1">
           <div className="bg-primary text-primary-content rounded-lg p-3 max-w-[80%] ml-auto">
-            <MessageFormatter content={message.content} />
+            <MessageFormatter content={message.content} role={message.role} />
           </div>
           <div className="text-xs text-base-content/60 mt-1 text-right">
             {new Date(message.created_at).toLocaleTimeString()}
@@ -42,7 +42,7 @@ export function EnhancedMessageDisplay({ message, show_debug_info = false }: enh
       <div className="flex-1">
         {/* Main Response */}
         <div className="bg-base-200 rounded-lg p-3">
-          <MessageFormatter content={message.content} />
+          <MessageFormatter content={message.content} role={message.role} />
           
           {/* Response Type Badge */}
           {structured?.metadata?.response_type && (

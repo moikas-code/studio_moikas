@@ -19,9 +19,11 @@ export interface billing_transaction {
 }
 
 export class billing_strategy {
-  private supabase: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: any;
   
-  constructor(supabase: Record<string, unknown>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(supabase: any) {
     this.supabase = supabase;
   }
 

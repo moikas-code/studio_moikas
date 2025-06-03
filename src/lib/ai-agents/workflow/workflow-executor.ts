@@ -67,11 +67,8 @@ export class workflow_executor {
     };
 
     try {
-      // Compile workflow with configuration
-      const compiled_graph = this.workflow_graph_manager.compile({
-        recursionLimit: 10, // Limit to prevent infinite loops
-        checkpointer: undefined // No checkpointing for now
-      });
+      // Compile workflow
+      const compiled_graph = this.workflow_graph_manager.compile();
 
       console.log("🔧 Executing workflow graph...");
       const final_state = await compiled_graph.invoke(initial_state);
@@ -84,7 +81,7 @@ export class workflow_executor {
       let structured_response;
       try {
         const enhanced_agent = new enhanced_conversational_agent(this.model);
-        structured_response = await enhanced_agent.generate_structured_response(final_state);
+        structured_response = await enhanced_agent.generate_structured_response(final_state as agent_state);
       } catch (structure_error) {
         console.warn("Could not generate structured response:", structure_error);
         // Continue without structured response

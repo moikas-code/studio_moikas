@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { workflow_node_tool, workflow_node } from "../types";
+import { extract_message_content } from "../utils/message-utils";
 
 /**
  * Text analysis tool implementation
@@ -23,7 +24,7 @@ export class text_analysis_tool {
         analysis_type: z.string().optional().describe("Type of analysis to perform"),
       }),
       execute: async (input) => {
-        return await this.execute_text_analysis(node, input, model);
+        return await this.execute_text_analysis(node, input as { text: string; analysis_type?: string }, model);
       }
     };
   }
@@ -57,15 +58,18 @@ export class text_analysis_tool {
 
     const response = await model.invoke(messages);
     
+    // Parse the analysis response to extract structured data
+    const analysis_content = extract_message_content(response.content);
+    
     return {
-      analysis: response.content,
-      input_text: input.text,
-      analysis_type: input.analysis_type,
+      analysis: analysis_content,
+      sentiment: "neutral", // TODO: Extract from analysis
+      key_themes: [], // TODO: Extract from analysis
+      word_count: input.text.split(/\s+/).length,
       token_usage: {
         input: response.usage_metadata?.input_tokens || 0,
         output: response.usage_metadata?.output_tokens || 0
-      },
-      status: "success"
+      }
     };
   }
 }

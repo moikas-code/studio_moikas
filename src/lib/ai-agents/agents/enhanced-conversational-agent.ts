@@ -111,13 +111,13 @@ Remember to:
    */
   private parse_structured_response(ai_output: string, user_input: string): structured_ai_response {
     try {
-      // Extract sections using regex
-      const thinking_match = ai_output.match(/<thinking>(.*?)<\/thinking>/s);
-      const objectives_match = ai_output.match(/<objectives>(.*?)<\/objectives>/s);
-      const response_match = ai_output.match(/<response>(.*?)<\/response>/s);
-      const summary_match = ai_output.match(/<summary>(.*?)<\/summary>/s);
-      const confidence_match = ai_output.match(/<confidence>(.*?)<\/confidence>/s);
-      const metadata_match = ai_output.match(/<metadata>(.*?)<\/metadata>/s);
+      // Extract sections using regex (without 's' flag for compatibility)
+      const thinking_match = ai_output.match(/<thinking>([\s\S]*?)<\/thinking>/);
+      const objectives_match = ai_output.match(/<objectives>([\s\S]*?)<\/objectives>/);
+      const response_match = ai_output.match(/<response>([\s\S]*?)<\/response>/);
+      const summary_match = ai_output.match(/<summary>([\s\S]*?)<\/summary>/);
+      const confidence_match = ai_output.match(/<confidence>([\s\S]*?)<\/confidence>/);
+      const metadata_match = ai_output.match(/<metadata>([\s\S]*?)<\/metadata>/);
 
       // Parse metadata
       let metadata: {
