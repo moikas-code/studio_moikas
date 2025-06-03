@@ -5,7 +5,7 @@ import { MpContext } from "@/app/context/mp_context";
 import { useAuth } from "@clerk/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
-import { message, workflow, chat_state } from "./types";
+import { message, workflow, chat_state, default_chat_settings, chat_session } from "./types";
 import { create_chat_handlers } from "./handlers";
 import {
   Error_display,
@@ -15,7 +15,9 @@ import {
   New_workflow_modal,
   Templates_modal,
   Workflow_panel
-} from "./components"
+} from "./components";
+import Default_settings_modal from "./components/default_settings_modal";
+import Session_history_panel from "./components/session_history_panel";
 
 export default function Workflow_chatbot_page() {
   const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
@@ -35,6 +37,16 @@ export default function Workflow_chatbot_page() {
   const [new_workflow_name, set_new_workflow_name] = useState("");
   const [new_workflow_description, set_new_workflow_description] = useState("");
   const [creating_workflow, set_creating_workflow] = useState(false);
+  const [workflow_limits, set_workflow_limits] = useState<any>(null);
+  const [default_settings, set_default_settings] = useState<default_chat_settings | null>(null);
+  const [show_default_settings_modal, set_show_default_settings_modal] = useState(false);
+  const [loading_default_settings, set_loading_default_settings] = useState(false);
+  
+  // Session management state
+  const [sessions, set_sessions] = useState<chat_session[]>([]);
+  const [show_sessions_panel, set_show_sessions_panel] = useState(false);
+  const [loading_sessions, set_loading_sessions] = useState(false);
+  const [deleting_session, set_deleting_session] = useState<string | null>(null);
   
   const messages_end_ref = useRef<HTMLDivElement>(null);
   const text_area_ref = useRef<HTMLTextAreaElement>(null);
@@ -54,7 +66,14 @@ export default function Workflow_chatbot_page() {
     show_new_workflow_modal,
     new_workflow_name,
     new_workflow_description,
-    creating_workflow
+    creating_workflow,
+    default_settings,
+    show_default_settings_modal,
+    loading_default_settings,
+    sessions,
+    show_sessions_panel,
+    loading_sessions,
+    deleting_session
   };
 
   // Create setters object for handlers
@@ -70,7 +89,16 @@ export default function Workflow_chatbot_page() {
     set_new_workflow_name,
     set_new_workflow_description,
     set_creating_workflow,
-    set_show_templates
+    set_show_templates,
+    set_workflow_limits,
+    set_default_settings,
+    set_show_default_settings_modal,
+    set_loading_default_settings,
+    set_sessions,
+    set_show_sessions_panel,
+    set_loading_sessions,
+    set_deleting_session,
+    set_session_id
   };
 
   // Get handlers
@@ -81,6 +109,8 @@ export default function Workflow_chatbot_page() {
     set_session_id(uuidv4());
     handlers.load_workflows();
     handlers.load_templates();
+    handlers.load_workflow_limits();
+    handlers.load_default_settings();
   }, []);
 
   useEffect(() => {
@@ -98,6 +128,7 @@ export default function Workflow_chatbot_page() {
         set_selected_workflow={set_selected_workflow}
         set_show_templates={set_show_templates}
         set_show_new_workflow_modal={set_show_new_workflow_modal}
+        workflow_limits={workflow_limits}
       />
 
       {/* Main Chat Area */}
@@ -106,6 +137,10 @@ export default function Workflow_chatbot_page() {
         <Header
           show_workflow_panel={show_workflow_panel}
           set_show_workflow_panel={set_show_workflow_panel}
+          set_show_default_settings_modal={set_show_default_settings_modal}
+          show_sessions_panel={show_sessions_panel}
+          set_show_sessions_panel={set_show_sessions_panel}
+          load_sessions={handlers.load_sessions}
         />
 
         {/* Messages Area */}
@@ -131,6 +166,18 @@ export default function Workflow_chatbot_page() {
         />
       </div>
 
+      {/* Session History Panel */}
+      <Session_history_panel
+        sessions={sessions}
+        show_sessions_panel={show_sessions_panel}
+        loading_sessions={loading_sessions}
+        deleting_session={deleting_session}
+        current_session_id={session_id}
+        set_show_sessions_panel={set_show_sessions_panel}
+        load_session={handlers.load_session}
+        delete_session={handlers.delete_session}
+      />
+
       {/* Templates Modal */}
       <Templates_modal
         show_templates={show_templates}
@@ -149,6 +196,16 @@ export default function Workflow_chatbot_page() {
         set_new_workflow_description={set_new_workflow_description}
         set_show_new_workflow_modal={set_show_new_workflow_modal}
         create_new_workflow={handlers.create_new_workflow}
+      />
+
+      {/* Default Settings Modal */}
+      <Default_settings_modal
+        is_open={show_default_settings_modal}
+        current_settings={default_settings}
+        loading={loading_default_settings}
+        on_close={() => set_show_default_settings_modal(false)}
+        on_save={handlers.update_default_settings}
+        on_reset={handlers.reset_default_settings}
       />
     </div>
   );

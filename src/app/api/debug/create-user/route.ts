@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {

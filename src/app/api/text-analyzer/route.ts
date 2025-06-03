@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     const file = form_data.get("file");
     const feature = form_data.get("feature");
     const link_or_topic = form_data.get("link_or_topic");
+    const session_id = form_data.get("session_id");
     if (typeof feature !== "string" || !FEATURES.includes(feature)) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
@@ -137,6 +138,60 @@ export async function POST(req: NextRequest) {
       prompt: new HumanMessage(text),
       model_options: { model: "grok-3-mini-latest" },
     });
+
+    // Save to session if session_id is provided
+    if (session_id && typeof session_id === "string") {
+      try {
+        // Verify session belongs to user
+        const { data: session, error: session_error } = await supabase
+          .from("workflow_sessions")
+          .select("id")
+          .eq("id", session_id)
+          .eq("user_id", user_row.id)
+          .single();
+
+        if (session && !session_error) {
+          // Create user input message
+          const user_input = file_name 
+            ? `[File: ${file_name}] ${feature.replace('_', ' ')} request`
+            : `[Topic: ${text.slice(0, 100)}...] ${feature.replace('_', ' ')} request`;
+
+          // Save user message
+          await supabase
+            .from('workflow_messages')
+            .insert({
+              session_id,
+              role: 'user',
+              content: user_input,
+              metadata: { 
+                feature,
+                file_name: file_name || null,
+                topic: typeof link_or_topic === 'string' ? link_or_topic : null
+              }
+            });
+
+          // Save assistant response
+          await supabase
+            .from('workflow_messages')
+            .insert({
+              session_id,
+              role: 'assistant',
+              content: result,
+              metadata: { feature, tokens_used: 25 }
+            });
+
+          // Update session timestamp
+          await supabase
+            .from('workflow_sessions')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', session_id);
+        }
+      } catch (session_error) {
+        console.error('Failed to save to session:', session_error);
+        // Don't fail the request if session saving fails
+      }
+    }
+
     return NextResponse.json({ result });
   } catch  {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

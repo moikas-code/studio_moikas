@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { Redis } from "@upstash/redis";
-import { check_rate_limit } from "@/lib/generate_helpers";
+import { check_rate_limit, check_workflow_creation_limit } from "@/lib/generate_helpers";
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -126,6 +126,34 @@ export async function POST(req: NextRequest) {
     if (user_error || !user) {
       console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check workflow creation limits
+    try {
+      const limit_check = await check_workflow_creation_limit({
+        supabase,
+        user_id: user.id,
+      });
+
+      if (!limit_check.allowed) {
+        return NextResponse.json({
+          error: `Workflow limit reached. ${limit_check.plan === "free" 
+            ? `Free users can create ${limit_check.max_allowed} workflow. Upgrade to Standard for unlimited workflows.`
+            : `You have reached your limit of ${limit_check.max_allowed} workflows.`
+          }`,
+          limit_info: {
+            current_count: limit_check.current_count,
+            max_allowed: limit_check.max_allowed,
+            plan: limit_check.plan
+          }
+        }, { status: 403 });
+      }
+    } catch (limit_error) {
+      console.error("Error checking workflow limits:", limit_error);
+      return NextResponse.json(
+        { error: "Failed to check workflow limits" },
+        { status: 500 }
+      );
     }
 
     // Create workflow

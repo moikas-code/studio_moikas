@@ -493,3 +493,74 @@ export function sort_models_by_cost(models: Model[]): Model[] {
     return cost_a - cost_b;
   });
 }
+
+/**
+ * Get workflow limits based on user plan
+ */
+export function get_workflow_limits(plan: string): { max_workflows: number } {
+  if (plan === "standard") {
+    return { max_workflows: -1 }; // Unlimited workflows
+  }
+  return { max_workflows: 1 }; // Free users: 1 workflow limit
+}
+
+/**
+ * Check if user can create a new workflow based on their plan limits
+ */
+export async function check_workflow_creation_limit({
+  supabase,
+  user_id,
+}: {
+  supabase: SupabaseClient;
+  user_id: string;
+}): Promise<{ allowed: boolean; current_count: number; max_allowed: number; plan: string }> {
+  // Get user's subscription plan
+  const { data: subscription, error: sub_error } = await supabase
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", user_id)
+    .single();
+
+  if (sub_error || !subscription) {
+    throw new Error("Subscription not found");
+  }
+
+  const plan = subscription.plan || "free";
+  const limits = get_workflow_limits(plan);
+
+  // If unlimited workflows (standard plan), allow creation
+  if (limits.max_workflows === -1) {
+    const { count: current_count = 0 } = await supabase
+      .from("workflows")
+      .select("id", { count: "exact" })
+      .eq("user_id", user_id)
+      .eq("is_active", true);
+
+    return {
+      allowed: true,
+      current_count: current_count || 0,
+      max_allowed: -1,
+      plan
+    };
+  }
+
+  // Get current workflow count for users with limits
+  const { count: current_count = 0, error: count_error } = await supabase
+    .from("workflows")
+    .select("id", { count: "exact" })
+    .eq("user_id", user_id)
+    .eq("is_active", true);
+
+  if (count_error) {
+    throw new Error("Failed to count workflows");
+  }
+
+  const allowed = (current_count || 0) < limits.max_workflows;
+
+  return {
+    allowed,
+    current_count: current_count || 0,
+    max_allowed: limits.max_workflows,
+    plan
+  };
+}

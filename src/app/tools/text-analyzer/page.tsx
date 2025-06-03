@@ -2,7 +2,7 @@
 import React, { useState, useContext } from "react";
 import { MpContext } from "../../context/mp_context";
 import jsPDF from "jspdf";
-import { use_token_estimation } from "@/lib/token_estimation";
+import { use_complete_token_estimation, feature_type } from "@/lib/token_estimation";
 
 const FEATURES = [
   { value: "script", label: "Generate Script" },
@@ -33,8 +33,11 @@ export default function Text_analyzer_page() {
     return "";
   };
 
-  // Use token estimation hook
-  const token_estimate = use_token_estimation(get_content_for_estimation());
+  // Use complete token estimation hook (input + output)
+  const token_estimate = use_complete_token_estimation(
+    get_content_for_estimation(), 
+    feature as feature_type
+  );
 
   const handle_file_change = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -206,21 +209,25 @@ export default function Text_analyzer_page() {
           className="btn btn-primary w-full text-lg mt-2"
           disabled={loading || out_of_tokens}
         >
-          {loading ? "Processing..." : `✨ Generate (${token_estimate.estimated_cost} MP)`}
+          {loading ? "Processing..." : `✨ Generate (${token_estimate.total_cost} MP)`}
         </button>
         
         {/* Token estimation display */}
         {(file || link_or_topic) && (
           <div className="text-xs text-base-content/60 mt-2 text-center">
-            <div className="flex justify-center items-center gap-2">
-              <span>📊 {token_estimate.formatted_estimate}</span>
+            <div className="flex justify-center items-center gap-2 mb-1">
+              <span>📊 Total: {token_estimate.formatted_complete_estimate}</span>
               <span>•</span>
               <span>{token_estimate.character_count.toLocaleString()} chars</span>
               <span>•</span>
               <span>{token_estimate.word_count.toLocaleString()} words</span>
             </div>
+            <div className="flex justify-center items-center gap-3 text-xs text-base-content/50">
+              <span>📥 Input: {token_estimate.breakdown.input}</span>
+              <span>📤 Output: {token_estimate.breakdown.output}</span>
+            </div>
             <div className="text-xs text-base-content/40 mt-1">
-              Estimation based on ~4 chars per token
+              Estimation: ~4 chars per token • Output varies by feature type
             </div>
           </div>
         )}

@@ -50,6 +50,20 @@ describe("tool-factory", () => {
       expect(tool?.type).toBe("llm");
     });
 
+    it("should create chat tool", () => {
+      const node: workflow_node = {
+        id: "chat-1",
+        type: "chat",
+        data: { personality: "friendly" }
+      };
+
+      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      
+      expect(tool).not.toBeNull();
+      expect(tool?.name).toBe("chat_chat-1");
+      expect(tool?.type).toBe("chat");
+    });
+
     it("should return null for unsupported node type", () => {
       const node: workflow_node = {
         id: "unknown-1",
@@ -68,15 +82,17 @@ describe("tool-factory", () => {
       const nodes: workflow_node[] = [
         { id: "img-1", type: "image_generator", data: {} },
         { id: "text-1", type: "text_analyzer", data: {} },
-        { id: "llm-1", type: "llm", data: {} }
+        { id: "llm-1", type: "llm", data: {} },
+        { id: "chat-1", type: "chat", data: {} }
       ];
 
       const tools_map = tool_factory.create_tools_from_nodes(nodes, mock_model);
       
-      expect(tools_map.size).toBe(3);
+      expect(tools_map.size).toBe(4);
       expect(tools_map.has("img-1")).toBe(true);
       expect(tools_map.has("text-1")).toBe(true);
       expect(tools_map.has("llm-1")).toBe(true);
+      expect(tools_map.has("chat-1")).toBe(true);
     });
 
     it("should skip unsupported nodes", () => {

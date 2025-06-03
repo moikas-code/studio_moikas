@@ -1,5 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { check_workflow_creation_limit } from "@/lib/generate_helpers";
+
+// Template type definitions
+interface TemplateNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: Record<string, unknown>;
+}
+
+interface TemplateConnection {
+  source: string;
+  target: string;
+}
+
+interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  nodes: TemplateNode[];
+  connections: TemplateConnection[];
+}
 
 // Predefined workflow templates for different use cases
 const WORKFLOW_TEMPLATES = {
@@ -410,7 +433,14 @@ export async function GET(req: NextRequest) {
         estimated_cost: estimate_template_cost(template)
       });
       return acc;
-    }, {} as Record<string, any[]>);
+    }, {} as Record<string, Array<{
+      id: string;
+      name: string;
+      description: string;
+      category: string;
+      node_count: number;
+      estimated_cost: number;
+    }>>);
 
     return NextResponse.json({
       templates: grouped_templates,
@@ -469,6 +499,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check workflow creation limits
+    try {
+      const limit_check = await check_workflow_creation_limit({
+        supabase,
+        user_id: user.id,
+      });
+
+      if (!limit_check.allowed) {
+        return NextResponse.json({
+          error: `Workflow limit reached. ${limit_check.plan === "free" 
+            ? `Free users can create ${limit_check.max_allowed} workflow. Upgrade to Standard for unlimited workflows.`
+            : `You have reached your limit of ${limit_check.max_allowed} workflows.`
+          }`,
+          limit_info: {
+            current_count: limit_check.current_count,
+            max_allowed: limit_check.max_allowed,
+            plan: limit_check.plan
+          }
+        }, { status: 403 });
+      }
+    } catch (limit_error) {
+      console.error("Error checking workflow limits:", limit_error);
+      return NextResponse.json(
+        { error: "Failed to check workflow limits" },
+        { status: 500 }
+      );
+    }
+
     // Create workflow from template
     const { data: workflow, error: workflow_error } = await supabase
       .from("workflows")
@@ -500,13 +558,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Create workflow nodes from template
-    const workflow_nodes = template.nodes.map((node: any) => ({
+    const workflow_nodes = template.nodes.map((node: TemplateNode) => ({
       workflow_id: workflow.id,
       node_id: node.id,
       type: node.type,
       position: node.position,
       data: node.data,
-      connections: template.connections.filter((conn: any) => 
+      connections: template.connections.filter((conn: TemplateConnection) => 
         conn.source === node.id || conn.target === node.id
       )
     }));
@@ -547,7 +605,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Helper function to estimate template execution cost
-function estimate_template_cost(template: any): number {
+function estimate_template_cost(template: WorkflowTemplate): number {
   let cost = 0;
   
   for (const node of template.nodes) {
@@ -556,8 +614,8 @@ function estimate_template_cost(template: any): number {
         cost += 1; // Base LLM cost
         break;
       case "image_generator":
-        const model = node.data.model || "fal-ai/flux/schnell";
-        const model_costs = {
+        const model = (node.data.model as string) || "fal-ai/flux/schnell";
+        const model_costs: Record<string, number> = {
           "fal-ai/recraft-v3": 6,
           "fal-ai/flux-lora": 6,
           "fal-ai/flux/schnell": 4,
@@ -569,7 +627,7 @@ function estimate_template_cost(template: any): number {
           "fal-ai/kolors": 3,
           "fal-ai/stable-cascade": 5,
         };
-        cost += (model_costs as any)[model] || 4;
+        cost += model_costs[model] || 4;
         break;
       case "text_analyzer":
         cost += 0.5; // Text analysis cost

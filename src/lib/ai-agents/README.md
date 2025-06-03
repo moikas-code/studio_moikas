@@ -38,17 +38,19 @@ The main entry point for executing multi-agent workflows. It orchestrates the en
 - Returns structured results with token usage and costs
 
 ### 2. Agent System
-Four specialized agents work together:
+Specialized agents work together:
 - **Planner Agent**: Analyzes requests and creates execution plans
 - **Executor Agent**: Executes tools based on the plan
 - **Coordinator Agent**: Decides if retry/recovery is needed
 - **Summarizer Agent**: Creates final user-facing responses
+- **Conversational Agent**: Handles direct chat interactions with context awareness
 
 ### 3. Tool System
 Dynamic tool creation from workflow nodes:
 - **Image Generation Tool**: Handles image creation requests
 - **Text Analysis Tool**: Performs text analysis operations
 - **LLM Tool**: General language model processing
+- **Chat Tool**: Provides natural conversational interactions
 
 ### 4. Workflow Graph
 Uses LangGraph to define the agent execution flow:
@@ -86,6 +88,49 @@ const response = await invoke_xai_agent_with_tools({
   prompt: new HumanMessage("What is the weather?"),
   tools: [weatherTool]
 });
+```
+
+### Basic Chat Interactions
+```typescript
+import { conversational_agent, model_factory } from '@/lib/ai-agents';
+import { HumanMessage } from '@langchain/core/messages';
+
+// Direct conversational agent usage
+const model = model_factory.create_xai_model();
+const chat_agent = new conversational_agent(model);
+
+const initial_state = {
+  messages: [new HumanMessage("Hello! How can you help me today?")],
+  session_id: "chat-123",
+  user_id: "user-456", 
+  variables: { personality: "friendly and helpful" },
+  // ... other required state properties
+};
+
+const result = await chat_agent.converse(initial_state);
+console.log(result.variables?.last_response);
+```
+
+### Chat Tool in Workflows
+```typescript
+// Define a chat workflow node for default templates
+const chat_node = {
+  id: "default-chat",
+  type: "chat",
+  data: {
+    personality: "helpful and engaging",
+    description: "General purpose chat assistant",
+    context: "You are a helpful assistant ready to chat about anything"
+  }
+};
+
+const result = await executor.execute(
+  [new HumanMessage("Hi! Tell me a joke")],
+  "workflow-123",
+  "session-456",
+  "user-789",
+  [chat_node]
+);
 ```
 
 ### Creating Custom Tools

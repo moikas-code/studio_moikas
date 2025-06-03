@@ -9,6 +9,7 @@ import { model_factory } from "../utils/model-factory";
 import { tool_factory } from "../tools/tool-factory";
 import { workflow_graph_manager } from "./workflow-graph";
 import { extract_message_content } from "../utils/message-utils";
+import { SystemMessage } from "@langchain/core/messages";
 
 /**
  * Main workflow executor that orchestrates multi-agent execution
@@ -65,19 +66,54 @@ export class workflow_executor {
       model_costs: 0
     };
 
-    // Execute workflow
-    const compiled_graph = this.workflow_graph_manager.compile();
-    const final_state = await compiled_graph.invoke(initial_state);
+    try {
+      // Compile workflow with configuration
+      const compiled_graph = this.workflow_graph_manager.compile({
+        recursionLimit: 10, // Limit to prevent infinite loops
+        checkpointer: undefined // No checkpointing for now
+      });
 
-    // Extract final response
-    const last_message = final_state.messages[final_state.messages.length - 1];
-    const response = extract_message_content(last_message.content);
+      console.log("🔧 Executing workflow graph...");
+      const final_state = await compiled_graph.invoke(initial_state);
 
-    return {
-      response,
-      token_usage: final_state.token_usage,
-      model_costs: final_state.model_costs,
-      execution_history: final_state.execution_history
-    };
+      // Extract final response
+      const last_message = final_state.messages[final_state.messages.length - 1];
+      const response = extract_message_content(last_message.content);
+
+      return {
+        response,
+        token_usage: final_state.token_usage,
+        model_costs: final_state.model_costs,
+        execution_history: final_state.execution_history
+      };
+    } catch (error) {
+      console.error("Workflow execution error:", error);
+      
+      // Fallback: Use the model directly for simple chat
+      try {
+        console.log("🔄 Falling back to simple chat...");
+        const last_user_message = messages[messages.length - 1];
+        const response = await this.model.invoke([
+          new SystemMessage("You are a helpful AI assistant."),
+          last_user_message
+        ]);
+        
+        return {
+          response: extract_message_content(response.content),
+          token_usage: { input: 100, output: 50 }, // Estimated
+          model_costs: 1, // Estimated
+          execution_history: [
+            {
+              step: "fallback",
+              status: "completed",
+              result: "Used simple chat fallback due to workflow error"
+            }
+          ]
+        };
+      } catch (fallback_error) {
+        console.error("Fallback also failed:", fallback_error);
+        throw new Error("Both workflow and fallback execution failed");
+      }
+    }
   }
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";
 
@@ -10,7 +9,6 @@ const redis = new Redis({
 });
 
 // Constants matching the main API
-const TEXT_TOKENS_PER_3000 = 1;
 const MIN_TEXT_COST = 1;
 
 export async function POST(req: NextRequest) {

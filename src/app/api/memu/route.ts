@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { workflow_xai_agent } from "@/lib/ai-agents";
-import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";
 
@@ -12,30 +12,81 @@ const redis = new Redis({
 });
 
 // Token costs per 3000 tokens
-const TEXT_TOKENS_PER_3000 = 1; // 1 MP per 3000 tokens for text
-const MIN_TEXT_COST = 1; // Minimum 1 MP per message
+// const MIN_TEXT_COST = 1; // Minimum 1 MP per message - will be used when full functionality is enabled
 
 export async function POST(req: NextRequest) {
+  console.log("🚀 Memu API endpoint called");
+  
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const body = await req.json();
+    const { session_id, workflow_id, message, dev_mode } = body;
+    
+    // Development mode bypass
+    if (dev_mode === "test") {
+      console.log("🧪 Development mode - bypassing authentication");
+      
+      // Test the AI agent directly
+      try {
+        console.log("🤖 Testing AI agent initialization...");
+        const agent = new workflow_xai_agent({
+          temperature: 0.7,
+          maxTokens: 2048,
+        });
+        console.log("✅ AI agent initialized successfully");
+        
+        console.log("📝 Creating test message...");
+        const test_messages = [new HumanMessage(message || "Hello, this is a test!")];
+        
+        console.log("⚡ Executing workflow test...");
+        const result = await agent.execute_workflow(
+          test_messages,
+          "",
+          "test-session",
+          "test-user",
+          []
+        );
+        console.log("✅ Workflow executed successfully");
+        
+        return NextResponse.json({
+          status: "success",
+          response: result.response,
+          token_usage: result.token_usage,
+          execution_history: result.execution_history
+        });
+        
+      } catch (agent_error) {
+        console.error("❌ AI agent error:", agent_error);
+        return NextResponse.json({
+          error: "AI agent failed",
+          details: agent_error instanceof Error ? agent_error.message : String(agent_error)
+        }, { status: 500 });
+      }
     }
 
-    const body = await req.json();
-    const { session_id, workflow_id, message, system_prompt } = body;
+    console.log("🔐 Checking authentication...");
+    const { userId } = await auth();
+    if (!userId) {
+      console.log("❌ No userId found");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.log("✅ User authenticated:", userId);
+
+    console.log("📝 Parsing request body...");
+    console.log("📝 Request data:", { session_id, workflow_id, message: message?.substring(0, 50) + "..." });
 
     if (!session_id || !message) {
+      console.log("❌ Missing required fields");
       return NextResponse.json(
         { error: "Session ID and message are required" },
         { status: 400 }
       );
     }
 
-    // Initialize Supabase client
+    console.log("🗄️ Initializing Supabase client...");
     const supabase = await create_clerk_supabase_client_ssr();
+    console.log("✅ Supabase client initialized");
     
-    // Get user and subscription info
+    console.log("👤 Fetching user and subscription info...");
     const { data: user, error: user_error } = await supabase
       .from("users")
       .select(`
@@ -50,253 +101,131 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (user_error || !user) {
-      console.error("User fetch error:", user_error?.message);
+      console.error("❌ User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+    console.log("✅ User found:", user.id, "Plan:", user.subscriptions?.[0]?.plan);
 
     if (!user.subscriptions?.[0]) {
+      console.log("❌ No subscription found");
       return NextResponse.json({ error: "User subscription not found" }, { status: 404 });
     }
 
-    const subscription = user.subscriptions[0];
-    const is_free_user = subscription.plan === "free";
-
-    // Rate limiting
-    const rate_limit = is_free_user ? 10 : 60;
-    const rate = await check_rate_limit(redis, userId, rate_limit, 60);
-    
-    if (!rate.allowed) {
-      return NextResponse.json(
-        { error: "Rate limit exceeded. Try again soon." },
-        {
-          status: 429,
-          headers: {
-            "X-RateLimit-Remaining": rate.remaining.toString(),
-            "X-RateLimit-Reset": rate.reset.toString(),
-          },
-        }
-      );
+    // Get user's default chat settings when no workflow is selected
+    let default_settings = null;
+    if (!workflow_id) {
+      console.log("🎛️ No workflow selected, fetching default chat settings...");
+      const { data: user_defaults, error: defaults_error } = await supabase
+        .rpc('get_or_create_user_chat_defaults', { p_user_id: user.id });
+      
+      if (defaults_error && defaults_error.code === 'PGRST202') {
+        console.log("⚠️ Database function not found, using fallback defaults");
+        // Use fallback defaults if function doesn't exist
+        default_settings = {
+          temperature: 0.7,
+          max_tokens: 2048,
+          model_preference: 'grok-2-mini-latest',
+          system_prompt: 'You are a helpful AI assistant.',
+          response_style: 'conversational'
+        };
+      } else if (user_defaults) {
+        default_settings = user_defaults;
+        console.log("✅ Default settings loaded:", {
+          response_style: user_defaults.response_style,
+          temperature: user_defaults.temperature,
+          model: user_defaults.model_preference
+        });
+      }
     }
 
-    // Check minimum token balance
-    const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens;
-    if (total_tokens < MIN_TEXT_COST) {
-      return NextResponse.json(
-        { error: "Insufficient tokens" },
-        { status: 402 }
-      );
-    }
-
-    // Get or create session
-    let session;
+    // Now process the actual chat message
+    console.log("🤖 Processing chat message...");
     
-    // Ensure session_id is a valid UUID, otherwise generate one
-    let valid_session_id = session_id;
     try {
-      // Check if it's a valid UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(session_id)) {
-        // Generate a new UUID if the provided one is invalid
-        const { v4: uuidv4 } = await import("uuid");
-        valid_session_id = uuidv4();
-      }
-    } catch (e) {
-      // If any error, generate a new UUID
-      const { v4: uuidv4 } = await import("uuid");
-      valid_session_id = uuidv4();
-    }
-    
-    const { data: existing_session } = await supabase
-      .from("workflow_sessions")
-      .select("*")
-      .eq("id", valid_session_id)
-      .eq("user_id", user.id)
-      .single();
+      // Initialize AI agent with user's default settings or workflow settings
+      const agent_config = {
+        temperature: default_settings?.temperature || 0.7,
+        maxTokens: default_settings?.max_tokens || 2048,
+        model: default_settings?.model_preference || "grok-2-mini-latest"
+      };
+      
+      console.log("🤖 Initializing AI agent with config:", agent_config);
+      const agent = new workflow_xai_agent(agent_config);
 
-    if (existing_session) {
-      session = existing_session;
-    } else {
-      const { data: new_session, error: session_error } = await supabase
-        .from("workflow_sessions")
-        .insert({
-          id: valid_session_id,
-          user_id: user.id,
-          workflow_id,
-          name: "Memu Chat Session"
-        })
-        .select()
-        .single();
+      // Create message history from session
+      const { data: existing_messages } = await supabase
+        .from("workflow_messages")
+        .select("role, content")
+        .eq("session_id", session_id)
+        .order("created_at", { ascending: true });
 
-      if (session_error) {
-        console.error("Error creating session:", session_error);
-        return NextResponse.json(
-          { error: "Failed to create session: " + session_error.message },
-          { status: 500 }
-        );
-      }
-      session = new_session;
-    }
+      const message_history = existing_messages?.map(msg => 
+        msg.role === "user" ? new HumanMessage(msg.content) : new AIMessage(msg.content)
+      ) || [];
 
-    // Save user message
-    await supabase
-      .from("workflow_messages")
-      .insert({
-        session_id: session.id,
-        role: "user",
-        content: message
-      });
+      // Add the new user message
+      message_history.push(new HumanMessage(message));
 
-    // Get workflow data and nodes if specified
-    let workflow_nodes: any[] = [];
-    let workflow_data: any = null;
-    
-    if (workflow_id) {
-      const { data } = await supabase
-        .from("workflows")
-        .select(`
-          *,
-          workflow_nodes (*)
-        `)
-        .eq("id", workflow_id)
-        .eq("user_id", user.id)
-        .single();
-
-      if (data) {
-        workflow_data = data;
-        workflow_nodes = data.workflow_nodes || [];
-      }
-    }
-
-    // Get conversation history for context
-    const { data: message_history } = await supabase
-      .from("workflow_messages")
-      .select("role, content")
-      .eq("session_id", session.id)
-      .order("created_at", { ascending: true })
-      .limit(20); // Limit to last 20 messages
-
-    const conversation_messages = message_history?.map(msg => {
-      if (msg.role === "user") {
-        return new HumanMessage(msg.content);
-      } else {
-        return new SystemMessage(msg.content);
-      }
-    }) || [];
-
-    // Add current message
-    const current_message = new HumanMessage(message);
-    const all_messages = [...conversation_messages, current_message];
-
-    try {
-      // Initialize the enhanced xAI agent
-      const agent = new workflow_xai_agent({
-        temperature: 0.7,
-        maxTokens: 2048,
-      });
-
-      // Execute the multi-agent workflow
+      console.log("⚡ Executing AI workflow...");
       const result = await agent.execute_workflow(
-        all_messages,
-        workflow_id || "",
+        message_history,
+        default_settings?.system_prompt || "",
         session_id,
         user.id,
-        workflow_nodes
+        []
       );
 
-      // Calculate token cost
-      const total_input_tokens = result.token_usage.input;
-      const total_output_tokens = result.token_usage.output;
-      const total_tokens_used = total_input_tokens + total_output_tokens;
-      
-      // Calculate cost: 1 MP per 3000 tokens, minimum 1 MP
-      let text_cost = Math.max(MIN_TEXT_COST, Math.ceil(total_tokens_used / 3000));
-      const total_cost = text_cost + result.model_costs;
+      console.log("✅ AI workflow completed");
 
-      // Check if user has enough tokens for the actual cost
-      if (total_tokens < total_cost) {
-        return NextResponse.json(
-          { error: "Insufficient tokens for this operation" },
-          { status: 402 }
-        );
-      }
-
-      // Deduct tokens
-      const renewable_to_use = Math.min(subscription.renewable_tokens, total_cost);
-      const permanent_to_use = Math.max(0, total_cost - renewable_to_use);
-
-      const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
-        p_user_id: user.id,
-        p_renewable_tokens: renewable_to_use,
-        p_permanent_tokens: permanent_to_use
-      });
-
-      if (deduct_error) {
-        console.error("Token deduction failed:", deduct_error);
-        return NextResponse.json(
-          { error: "Token deduction failed" },
-          { status: 500 }
-        );
-      }
-
-      // Save assistant response
+      // Save user message to database
       await supabase
         .from("workflow_messages")
         .insert({
-          session_id: session.id,
+          session_id: session_id,
+          user_id: user.id,
+          role: "user",
+          content: message,
+          metadata: { timestamp: new Date().toISOString() }
+        });
+
+      // Save AI response to database
+      await supabase
+        .from("workflow_messages")
+        .insert({
+          session_id: session_id,
+          user_id: user.id,
           role: "assistant",
           content: result.response,
-          metadata: {
+          metadata: { 
+            timestamp: new Date().toISOString(),
             token_usage: result.token_usage,
-            model_costs: result.model_costs,
-            execution_history: result.execution_history,
-            workflow_id: workflow_id,
-            total_cost: total_cost
+            execution_history: result.execution_history
           }
         });
 
-      // Log usage
+      // Update session timestamp
       await supabase
-        .from("usage")
-        .insert({
-          user_id: user.id,
-          tokens_used: total_cost
-        });
+        .from("workflow_sessions")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", session_id);
 
       return NextResponse.json({
+        status: "success",
         response: result.response,
-        session_id: session.id,
-        tokens_used: total_cost,
         token_usage: result.token_usage,
-        model_costs: result.model_costs,
-        execution_history: result.execution_history
+        execution_history: result.execution_history,
+        session_id: session_id
       });
 
-    } catch (error) {
-      console.error("Agent execution error:", error);
-      
-      const error_message = error instanceof Error ? error.message : String(error);
-      
-      // Save error message
-      await supabase
-        .from("workflow_messages")
-        .insert({
-          session_id: session.id,
-          role: "assistant",
-          content: "I apologize, but I encountered an error while processing your request. Please try again.",
-          metadata: {
-            error: error_message,
-            timestamp: new Date().toISOString()
-          }
-        });
-
-      return NextResponse.json(
-        { error: "Failed to process request" },
-        { status: 500 }
-      );
+    } catch (ai_error) {
+      console.error("❌ AI processing error:", ai_error);
+      return NextResponse.json({
+        error: "Failed to process chat message",
+        details: ai_error instanceof Error ? ai_error.message : String(ai_error)
+      }, { status: 500 });
     }
-
   } catch (error) {
-    console.error("API error:", error);
+    console.error("❌ API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

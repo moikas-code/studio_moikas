@@ -1,6 +1,7 @@
 import React from "react";
 import { Send } from "lucide-react";
 import Token_usage_display from "./token_usage_display";
+import Token_count_display from "@/app/components/TokenCountDisplay";
 
 interface input_area_props {
   input: string;
@@ -44,9 +45,15 @@ export default function input_area({
           </button>
         </div>
         <div className="text-xs text-base-content/60 mt-2 flex justify-between items-center">
-          <span>
-            {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 3000 tokens (min 1 MP)
-          </span>
+          <div className="flex items-center gap-4">
+            <span>
+              {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 3000 tokens (min 1 MP)
+            </span>
+            {/* Show detailed token info on mobile where header compact display is hidden */}
+            <div className="sm:hidden">
+              <Token_count_display />
+            </div>
+          </div>
           <Token_usage_display input={input} show_details={true} />
         </div>
       </div>

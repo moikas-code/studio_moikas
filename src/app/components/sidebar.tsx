@@ -79,7 +79,7 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                   title={is_minimized ? "Chat" : undefined}
                 >
                   <MessageSquare className="w-5 h-5 flex-shrink-0" />
-                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Chat</span>}
+                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">MEMU</span>}
                 </Link>
               </li>
               <li>

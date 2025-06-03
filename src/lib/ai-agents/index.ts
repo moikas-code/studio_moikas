@@ -36,12 +36,14 @@ export { tool_factory } from "./tools/tool-factory";
 export { image_generation_tool } from "./tools/image-generation-tool";
 export { text_analysis_tool } from "./tools/text-analysis-tool";
 export { llm_tool } from "./tools/llm-tool";
+export { chat_tool } from "./tools/chat-tool";
 
 // Agent exports
 export { planner_agent } from "./agents/planner-agent";
 export { executor_agent } from "./agents/executor-agent";
 export { coordinator_agent } from "./agents/coordinator-agent";
 export { summarizer_agent } from "./agents/summarizer-agent";
+export { conversational_agent } from "./agents/conversational-agent";
 
 // Utility exports
 export { model_factory } from "./utils/model-factory";

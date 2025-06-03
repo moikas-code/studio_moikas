@@ -106,7 +106,7 @@ export interface workflow_execution_result {
 /**
  * Node types supported by the workflow system
  */
-export type workflow_node_type = "image_generator" | "text_analyzer" | "llm";
+export type workflow_node_type = "image_generator" | "text_analyzer" | "llm" | "chat";
 
 /**
  * Configuration for a workflow node

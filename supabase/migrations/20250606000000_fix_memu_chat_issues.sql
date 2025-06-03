@@ -171,6 +171,27 @@ begin
 end;
 $$;
 
+-- Add RLS policies for user_chat_defaults table (created in earlier migration)
+create policy "Users can view their own chat defaults"
+  on "public"."user_chat_defaults"
+  for select
+  using (user_id = get_user_id_from_clerk());
+
+create policy "Users can create their own chat defaults"
+  on "public"."user_chat_defaults"
+  for insert
+  with check (user_id = get_user_id_from_clerk());
+
+create policy "Users can update their own chat defaults"
+  on "public"."user_chat_defaults"
+  for update
+  using (user_id = get_user_id_from_clerk());
+
+create policy "Users can delete their own chat defaults"
+  on "public"."user_chat_defaults"
+  for delete
+  using (user_id = get_user_id_from_clerk());
+
 -- Grant necessary permissions
 grant execute on function get_user_id_from_clerk() to authenticated;
 grant execute on function deduct_tokens(uuid, numeric, numeric) to authenticated;

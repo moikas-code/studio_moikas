@@ -1,6 +1,6 @@
 "use client";
 import React, { useContext } from "react";
-import { Protect, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { MpContext } from "../components/../context/mp_context";
 import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot } from "react-icons/fa";
 import Link from "next/link";
@@ -11,6 +11,14 @@ export default function Tools_home_page() {
   const username = user?.username || user?.firstName || user?.lastName || user?.emailAddresses?.[0]?.emailAddress || "User";
 
   const tools = [
+    {
+      title: "MEMU",
+      description: "Create and run AI workflows with a visual editor",
+      icon: FaRobot,
+      href: "/tools/chat",
+      color: "from-indigo-500 to-purple-500",
+      available: true
+    },
     {
       title: "Image Generator",
       description: "Create stunning AI-generated images from text prompts",
@@ -43,18 +51,10 @@ export default function Tools_home_page() {
       color: "from-green-500 to-teal-500",
       available: true
     },
-    {
-      title: "Workflow Chatbot",
-      description: "Create and run AI workflows with a visual editor",
-      icon: FaRobot,
-      href: "/tools/chat",
-      color: "from-indigo-500 to-purple-500",
-      available: true
-    }
+
   ];
 
   return (
-    <Protect feature={"all_freemium_features"} fallback={<div>Loading...</div>}>
     <div className="h-full w-full max-w-7xl mx-auto py-8 px-4 flex flex-col">
       {/* Header Section */}
       <div className="text-center mb-8">
@@ -184,6 +184,5 @@ export default function Tools_home_page() {
         </div>
       </div>
     </div>
-    </Protect>
   );
 } 

@@ -3,6 +3,7 @@ import { workflow_node_tool, workflow_node, IMAGE_MODEL_COSTS } from "../types";
 import { image_generation_tool } from "./image-generation-tool";
 import { text_analysis_tool } from "./text-analysis-tool";
 import { llm_tool } from "./llm-tool";
+import { chat_tool } from "./chat-tool";
 
 /**
  * Factory for creating tools from workflow nodes
@@ -24,6 +25,9 @@ export class tool_factory {
       
       case "llm":
         return llm_tool.create(node, model);
+      
+      case "chat":
+        return chat_tool.create(node, model);
       
       default:
         return null;
