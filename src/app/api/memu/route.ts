@@ -115,12 +115,24 @@ export async function POST(req: NextRequest) {
     let default_settings = null;
     if (!workflow_id) {
       console.log("🎛️ No workflow selected, fetching default chat settings...");
-      const { data: user_defaults, error: defaults_error } = await supabase
-        .rpc('get_or_create_user_chat_defaults', { p_user_id: user.id });
       
-      if (defaults_error && defaults_error.code === 'PGRST202') {
-        console.log("⚠️ Database function not found, using fallback defaults");
-        // Use fallback defaults if function doesn't exist
+      // Try to get existing defaults directly from database
+      const { data: user_defaults, error: defaults_error } = await supabase
+        .from("user_chat_defaults")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (user_defaults) {
+        default_settings = user_defaults;
+        console.log("✅ Default settings loaded:", {
+          response_style: user_defaults.response_style,
+          temperature: user_defaults.temperature,
+          model: user_defaults.model_preference
+        });
+      } else {
+        console.log("⚠️ No user defaults found, using hardcoded fallback");
+        // Use hardcoded defaults as fallback
         default_settings = {
           temperature: 0.8,
           max_tokens: 1024,
@@ -128,13 +140,6 @@ export async function POST(req: NextRequest) {
           system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
           response_style: 'conversational'
         };
-      } else if (user_defaults) {
-        default_settings = user_defaults;
-        console.log("✅ Default settings loaded:", {
-          response_style: user_defaults.response_style,
-          temperature: user_defaults.temperature,
-          model: user_defaults.model_preference
-        });
       }
     }
 

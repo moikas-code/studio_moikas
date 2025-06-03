@@ -101,69 +101,78 @@ export async function GET(_req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get or create user chat defaults
-    const { data: defaults, error: defaults_error } = await supabase
-      .rpc('get_or_create_user_chat_defaults', { p_user_id: user.id });
-
-    if (defaults_error) {
-      console.error("Error fetching chat defaults:", defaults_error);
+    // Use direct database queries instead of the problematic function
+    console.log("Fetching user chat defaults directly from database");
+    
+    // Try to get existing defaults first
+    const { data: existing_defaults, error: fetch_error } = await supabase
+      .from("user_chat_defaults")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+    
+    if (existing_defaults) {
+      console.log("Found existing defaults for user");
+      return NextResponse.json({ defaults: existing_defaults });
+    }
+    
+    if (fetch_error && fetch_error.code !== 'PGRST116') {
+      console.error("Error fetching existing defaults:", fetch_error);
+      // Continue to create defaults
+    }
+    
+    // Create default settings if none exist
+    console.log("Creating new default settings for user");
+    const default_settings = {
+      user_id: user.id,
+      temperature: 0.8,
+      max_tokens: 1024,
+      model_preference: 'grok-3-mini-latest',
+      system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
+      response_style: 'conversational',
+      context_window: 20,
+      enable_memory: true,
+      enable_web_search: false,
+      enable_code_execution: false,
+      custom_instructions: ''
+    };
+    
+    const { data: new_defaults, error: create_error } = await supabase
+      .from("user_chat_defaults")
+      .insert(default_settings)
+      .select()
+      .single();
+    
+    if (create_error) {
+      console.error("Error creating default settings:", create_error);
       
-      // If function doesn't exist, fall back to manual default creation
-      if (defaults_error.code === 'PGRST202') {
-        console.log("Database function not found, creating default settings manually");
-        
-        // Try to get existing defaults first
-        const { data: existing_defaults } = await supabase
-          .from("user_chat_defaults")
-          .select("*")
-          .eq("user_id", user.id)
-          .single();
-        
-        if (existing_defaults) {
-          return NextResponse.json({ defaults: existing_defaults });
-        }
-        
-        // Create default settings if none exist
-        const default_settings = {
-          user_id: user.id,
-          temperature: 0.8,
-          max_tokens: 1024,
-          model_preference: 'grok-3-mini-latest',
-          system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
-          response_style: 'conversational',
-          context_window: 20,
-          enable_memory: true,
-          enable_web_search: false,
-          enable_code_execution: false,
-          custom_instructions: ''
-        };
-        
-        const { data: new_defaults, error: create_error } = await supabase
-          .from("user_chat_defaults")
-          .insert(default_settings)
-          .select()
-          .single();
-        
-        if (create_error) {
-          console.error("Error creating default settings:", create_error);
-          return NextResponse.json(
-            { error: "Failed to create default settings" },
-            { status: 500 }
-          );
-        }
-        
-        return NextResponse.json({ defaults: new_defaults });
+      // If table doesn't exist, return hardcoded defaults
+      if (create_error.code === '42P01') {
+        console.log("Table doesn't exist, returning hardcoded defaults");
+        return NextResponse.json({
+          defaults: {
+            temperature: 0.8,
+            max_tokens: 1024,
+            model_preference: 'grok-3-mini-latest',
+            system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
+            response_style: 'conversational',
+            context_window: 20,
+            enable_memory: true,
+            enable_web_search: false,
+            enable_code_execution: false,
+            custom_instructions: ''
+          }
+        });
       }
       
       return NextResponse.json(
-        { error: "Failed to fetch chat defaults" },
+        { error: "Failed to create default settings", details: create_error },
         { status: 500 }
       );
     }
-
-    return NextResponse.json({
-      defaults: defaults
-    });
+    
+    console.log("Successfully created new defaults");
+    return NextResponse.json({ defaults: new_defaults });
 
   } catch (error) {
     console.error("GET chat defaults error:", error);
