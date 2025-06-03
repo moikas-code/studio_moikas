@@ -99,7 +99,7 @@ export default function workflow_panel({
                 )}
               </button>
               <a
-                href={`/tools/chat/editor?id=${workflow.id}`}
+                href={`/tools/memu/editor?id=${workflow.id}`}
                 className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Edit workflow"
               >

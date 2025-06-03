@@ -84,7 +84,7 @@ export default function MessageDisplay({ messages, loading }: MessageDisplayProp
             </div>
 
             {/* File info */}
-            {message.metadata?.file_name && (
+            {message.metadata?.file_name && typeof message.metadata.file_name === 'string' ? (
               <div className={`
                 mt-2 text-xs p-2 rounded
                 ${message.role === 'user' 
@@ -94,17 +94,17 @@ export default function MessageDisplay({ messages, loading }: MessageDisplayProp
               `}>
                 📄 {message.metadata.file_name}
               </div>
-            )}
+            ) : null}
 
             {/* Token usage */}
-            {message.metadata?.tokens_used && (
+            {message.metadata?.tokens_used && typeof message.metadata.tokens_used === 'number' ? (
               <div className={`
                 mt-2 text-xs
                 ${message.role === 'user' ? 'text-primary-content/70' : 'text-base-content/50'}
               `}>
                 {message.metadata.tokens_used} tokens used
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       ))}

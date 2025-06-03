@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import { create_node_component, node_data } from "./workflow_nodes";
 import { 
   Save, 
@@ -15,6 +15,11 @@ interface workflow_editor_props {
   initial_nodes?: node_data[];
   on_save?: (nodes: node_data[], connections: connection[]) => void;
   on_run?: () => void;
+  workflow_id?: string;
+}
+
+export interface workflow_editor_ref {
+  get_current_data: () => { nodes: node_data[]; connections: connection[] };
 }
 
 interface connection {
@@ -28,7 +33,7 @@ interface drag_state {
   offset: { x: number; y: number };
 }
 
-export default function Workflow_editor(props: workflow_editor_props) {
+const Workflow_editor = forwardRef<workflow_editor_ref, workflow_editor_props>((props, ref) => {
   const { initial_nodes = [], on_save, on_run } = props;
   const [nodes, set_nodes] = useState<node_data[]>(initial_nodes);
   const [connections, set_connections] = useState<connection[]>([]);

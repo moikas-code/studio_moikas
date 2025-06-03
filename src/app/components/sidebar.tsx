@@ -73,10 +73,10 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
             <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
               <li>
                 <Link
-                  href="/tools/chat"
+                  href="/tools/memu"
                   className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
-                  aria-label="Chat tool"
-                  title={is_minimized ? "Chat" : undefined}
+                  aria-label="MEMU tool"
+                  title={is_minimized ? "MEMU" : undefined}
                 >
                   <MessageSquare className="w-5 h-5 flex-shrink-0" />
                   {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">MEMU</span>}

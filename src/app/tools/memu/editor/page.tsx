@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Workflow_editor, { node_data } from "../components/workflow_editor";
+import Workflow_editor from "../components/workflow_editor";
+import { node_data } from "../components/workflow_nodes";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 
@@ -17,6 +18,7 @@ export default function Workflow_editor_page() {
   const [error, set_error] = useState<string | null>(null);
   const [workflow, set_workflow] = useState<{ id: string; name: string; workflow_nodes?: node_data[] } | null>(null);
   const [workflow_name, set_workflow_name] = useState("");
+  const workflow_editor_ref = useRef<{ get_current_data: () => { nodes: node_data[]; connections: { from: string; to: string }[] } } | null>(null);
   
   useEffect(() => {
     if (workflow_id) {
@@ -30,7 +32,7 @@ export default function Workflow_editor_page() {
   
   const load_workflow = async () => {
     try {
-      const response = await fetch(`/api/chat?id=${workflow_id}`);
+      const response = await fetch(`/api/memu?id=${workflow_id}`);
       if (!response.ok) throw new Error("Failed to load workflow");
       
       const data = await response.json();
@@ -64,7 +66,7 @@ export default function Workflow_editor_page() {
         body.id = workflow_id;
       }
       
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/memu/workflows", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -76,7 +78,7 @@ export default function Workflow_editor_page() {
       
       if (!workflow_id && data.workflow) {
         // If it was a new workflow, update URL to include the ID
-        router.push(`/tools/chat/editor?id=${data.workflow.id}`);
+        router.push(`/tools/memu/editor?id=${data.workflow.id}`);
       }
       
       // Show success message
@@ -91,7 +93,7 @@ export default function Workflow_editor_page() {
   
   const handle_run = () => {
     if (workflow_id) {
-      router.push(`/tools/chat?workflow=${workflow_id}`);
+      router.push(`/tools/memu?workflow=${workflow_id}`);
     }
   };
   
@@ -108,7 +110,7 @@ export default function Workflow_editor_page() {
       {/* Header */}
       <div className="navbar bg-base-100 border-b">
         <div className="flex-none">
-          <Link href="/tools/chat" className="btn btn-square btn-ghost">
+          <Link href="/tools/memu" className="btn btn-square btn-ghost">
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </div>
@@ -124,7 +126,14 @@ export default function Workflow_editor_page() {
         <div className="flex-none">
           {saving && <span className="loading loading-spinner loading-sm mr-2"></span>}
           <button
-            onClick={() => handle_save([], [])}
+            onClick={() => {
+              const current_data = workflow_editor_ref.current?.get_current_data();
+              if (current_data) {
+                handle_save(current_data.nodes, current_data.connections);
+              } else {
+                handle_save([], []);
+              }
+            }}
             className="btn btn-primary btn-sm"
             disabled={saving}
           >

@@ -15,7 +15,7 @@ export default function Tools_home_page() {
       title: "MEMU",
       description: "Create and run AI workflows with a visual editor",
       icon: FaRobot,
-      href: "/tools/chat",
+      href: "/tools/memu",
       color: "from-indigo-500 to-purple-500",
       available: true
     },
