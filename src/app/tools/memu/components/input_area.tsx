@@ -6,7 +6,7 @@ import Token_count_display from "@/app/components/TokenCountDisplay";
 interface InputAreaProps {
   input: string;
   loading: boolean;
-  plan: string;
+  plan: string | null;
   text_area_ref: React.RefObject<HTMLTextAreaElement>;
   set_input: (value: string) => void;
   handle_submit: (e: React.FormEvent) => Promise<void>;

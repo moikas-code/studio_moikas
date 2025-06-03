@@ -81,7 +81,13 @@ export const create_chat_handlers = (
       }
     } catch (error) {
       console.error("Failed to load workflow limits:", error);
-      setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
+      setters.set_workflow_limits({ 
+        can_create: true, 
+        current_count: 0, 
+        max_allowed: 999, 
+        plan: "fallback", 
+        is_unlimited: true 
+      });
     }
   };
 

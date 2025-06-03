@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { MpContext } from "@/app/context/mp_context";
 import { v4 as uuidv4 } from "uuid";
 
@@ -99,8 +99,13 @@ export default function Workflow_chatbot_page() {
     set_session_id
   };
 
-  // Get handlers
-  const handlers = create_chat_handlers(state, setters, refresh_mp);
+  // Get handlers with useMemo to prevent recreating on every render
+  const handlers = useMemo(() => 
+    create_chat_handlers(state, setters, refresh_mp),
+    // Only recreate handlers when refresh_mp changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [refresh_mp]
+  );
 
   useEffect(() => {
     // Generate session ID on mount
@@ -146,7 +151,7 @@ export default function Workflow_chatbot_page() {
           messages={messages}
           loading={loading}
           selected_workflow={selected_workflow}
-          messages_end_ref={messages_end_ref}
+          messages_end_ref={messages_end_ref as React.RefObject<HTMLDivElement>}
         />
 
         {/* Error Display */}
@@ -157,7 +162,7 @@ export default function Workflow_chatbot_page() {
           input={input}
           loading={loading}
           plan={plan}
-          text_area_ref={text_area_ref}
+          text_area_ref={text_area_ref as React.RefObject<HTMLTextAreaElement>}
           set_input={set_input}
           handle_submit={handlers.handle_submit}
           handle_key_down={handlers.handle_key_down}

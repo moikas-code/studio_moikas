@@ -1,6 +1,6 @@
 import React from "react";
 import { FileText, Plus, Edit } from "lucide-react";
-import { workflow } from "../types";
+import { workflow, workflow_limits } from "../types";
 
 interface workflow_panel_props {
   show_workflow_panel: boolean;
@@ -9,13 +9,7 @@ interface workflow_panel_props {
   set_selected_workflow: (id: string | null) => void;
   set_show_templates: (show: boolean) => void;
   set_show_new_workflow_modal: (show: boolean) => void;
-  workflow_limits?: {
-    current_count: number;
-    max_allowed: number;
-    can_create: boolean;
-    plan: string;
-    is_unlimited: boolean;
-  };
+  workflow_limits?: workflow_limits | null;
 }
 
 export default function workflow_panel({
