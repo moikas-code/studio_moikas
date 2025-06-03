@@ -1,9 +1,9 @@
 import React from "react";
 import { Send } from "lucide-react";
-import Token_usage_display from "./token_usage_display";
+import TokenUsageDisplay from "./token_usage_display";
 import Token_count_display from "@/app/components/TokenCountDisplay";
 
-interface input_area_props {
+interface InputAreaProps {
   input: string;
   loading: boolean;
   plan: string;
@@ -13,7 +13,7 @@ interface input_area_props {
   handle_key_down: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
-export default function input_area({
+export default function InputArea({
   input,
   loading,
   plan,
@@ -21,7 +21,7 @@ export default function input_area({
   set_input,
   handle_submit,
   handle_key_down
-}: input_area_props) {
+}: InputAreaProps) {
   return (
     <form onSubmit={handle_submit} className="p-4 border-t bg-base-100">
       <div className="max-w-4xl mx-auto">
@@ -54,7 +54,7 @@ export default function input_area({
               <Token_count_display />
             </div>
           </div>
-          <Token_usage_display input={input} show_details={true} />
+          <TokenUsageDisplay input={input} show_details={true} />
         </div>
       </div>
     </form>

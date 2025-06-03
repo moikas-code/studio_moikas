@@ -5,9 +5,9 @@ import { agent_state } from "../types";
  * Summarizer agent responsible for creating final responses
  */
 export class summarizer_agent {
-  private model: any;
+  private model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>;
 
-  constructor(model: any) {
+  constructor(model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>) {
     this.model = model;
   }
 
@@ -40,7 +40,7 @@ export class summarizer_agent {
    * @param results - Execution results
    * @returns Summary prompt
    */
-  private build_summary_prompt(original_request: any, results: any): string {
+  private build_summary_prompt(original_request: unknown, results: unknown): string {
     return `You are a summarizer agent. Create a comprehensive response based on the execution results.
     
     Original request: ${original_request}

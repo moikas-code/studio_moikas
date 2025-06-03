@@ -42,7 +42,7 @@ export class executor_agent {
    * @param state - Current agent state
    * @returns Array of execution results
    */
-  private async execute_steps(steps: any[], state: agent_state): Promise<execution_result[]> {
+  private async execute_steps(steps: Array<{ tool_name: string; parameters: Record<string, unknown> }>, state: agent_state): Promise<execution_result[]> {
     const results: execution_result[] = [];
     
     for (const step of steps) {
@@ -70,7 +70,7 @@ export class executor_agent {
    * @param state - Current agent state
    * @returns Execution result
    */
-  private async execute_single_step(step: any, state: agent_state): Promise<execution_result> {
+  private async execute_single_step(step: { tool_name: string; parameters: Record<string, unknown> }, state: agent_state): Promise<execution_result> {
     const tool_id = step.tool_name?.replace(/^.*_/, '');
     const tool = this.tools_registry.get(tool_id);
     
@@ -89,7 +89,7 @@ export class executor_agent {
         result: result,
         status: "success"
       };
-    } catch (error: any) {
+    } catch (error) {
       return {
         step: step,
         error: error.message || "Unknown error",

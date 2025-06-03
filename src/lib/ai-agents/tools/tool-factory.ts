@@ -15,7 +15,7 @@ export class tool_factory {
    * @param model - ChatXAI model instance for LLM operations
    * @returns Workflow tool or null if node type is not supported
    */
-  static create_tool_from_node(node: workflow_node, model: any): workflow_node_tool | null {
+  static create_tool_from_node(node: workflow_node, model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>): workflow_node_tool | null {
     switch (node.type) {
       case "image_generator":
         return image_generation_tool.create(node);
@@ -40,7 +40,7 @@ export class tool_factory {
    * @param model - ChatXAI model instance
    * @returns Map of tool ID to workflow tool
    */
-  static create_tools_from_nodes(nodes: workflow_node[], model: any): Map<string, workflow_node_tool> {
+  static create_tools_from_nodes(nodes: workflow_node[], model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>): Map<string, workflow_node_tool> {
     const tools_registry = new Map<string, workflow_node_tool>();
     
     for (const node of nodes) {

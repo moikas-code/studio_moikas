@@ -55,6 +55,19 @@ export interface chat_handlers {
   handle_key_down: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
+export interface workflow_template {
+  id: string;
+  name: string;
+  description: string;
+  graph_data: Record<string, unknown>;
+}
+
+export interface workflow_limits {
+  can_create: boolean;
+  current_count: number;
+  max_allowed: number;
+}
+
 export interface chat_state {
   messages: message[];
   input: string;
@@ -65,7 +78,7 @@ export interface chat_state {
   selected_workflow: string | null;
   show_workflow_panel: boolean;
   show_templates: boolean;
-  templates: any;
+  templates: Record<string, workflow_template>;
   show_new_workflow_modal: boolean;
   new_workflow_name: string;
   new_workflow_description: string;

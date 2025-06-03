@@ -1,4 +1,4 @@
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import { SystemMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
 import { agent_state } from "../types";
 import { extract_message_content } from "../utils/message-utils";
 
@@ -6,9 +6,9 @@ import { extract_message_content } from "../utils/message-utils";
  * Conversational agent specialized for human-like chat interactions
  */
 export class conversational_agent {
-  private model: any;
+  private model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>;
 
-  constructor(model: any) {
+  constructor(model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>) {
     this.model = model;
   }
 
@@ -99,7 +99,7 @@ export class conversational_agent {
    * @param messages - Array of conversation messages
    * @returns Formatted conversation history
    */
-  private extract_conversation_history(messages: any[]): string {
+  private extract_conversation_history(messages: BaseMessage[]): string {
     if (messages.length <= 1) return "";
 
     const history_messages = messages.slice(0, -1); // Exclude the current message
@@ -119,7 +119,7 @@ export class conversational_agent {
    * @param usage_metadata - Token usage metadata
    * @returns Estimated cost
    */
-  private calculate_conversation_costs(usage_metadata: any): number {
+  private calculate_conversation_costs(usage_metadata: { input_tokens?: number; output_tokens?: number }): number {
     if (!usage_metadata) return 0;
     
     const input_tokens = usage_metadata.input_tokens || 0;

@@ -12,23 +12,16 @@ interface WorkflowNode {
   id: string;
   node_id: string;
   type: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   position: { x: number; y: number };
-  connections: any[];
-}
-
-interface WorkflowExecution {
-  session_id: string;
-  workflow_id: string;
-  input_data: Record<string, any>;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  connections: Record<string, unknown>[];
 }
 
 interface AgentState {
   messages: BaseMessage[];
   current_node?: string;
-  workflow_data?: Record<string, any>;
-  execution_context?: Record<string, any>;
+  workflow_data?: Record<string, unknown>;
+  execution_context?: Record<string, unknown>;
   next_action?: string;
 }
 
@@ -37,7 +30,7 @@ interface AgentState {
  */
 export class WorkflowAgent {
   private model: ChatXAI;
-  private supabase: any;
+  private supabase: ReturnType<typeof createClient>;
   private tools: Tool[] = [];
   private workflow_graph?: StateGraph<AgentState>;
 
@@ -224,7 +217,7 @@ export class WorkflowAgent {
   private async execute_workflow_node(
     workflow_id: string,
     session_id: string,
-    input_data: Record<string, any>
+    input_data: Record<string, unknown>
   ): Promise<string> {
     try {
       // Create execution record
@@ -257,7 +250,7 @@ export class WorkflowAgent {
       }
 
       // Execute based on node type
-      let output_data: Record<string, any> = {};
+      let output_data: Record<string, unknown> = {};
       
       switch (node.type) {
         case 'llm':
@@ -304,7 +297,7 @@ export class WorkflowAgent {
   /**
    * Execute LLM node
    */
-  private async execute_llm_node(node: WorkflowNode, input_data: Record<string, any>): Promise<Record<string, any>> {
+  private async execute_llm_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { prompt, system_message, temperature = 0.7 } = node.data;
     
     const messages = [
@@ -329,7 +322,7 @@ export class WorkflowAgent {
   /**
    * Execute image generation node
    */
-  private async execute_image_node(node: WorkflowNode, input_data: Record<string, any>): Promise<Record<string, any>> {
+  private async execute_image_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { prompt_template, style, size } = node.data;
     const final_prompt = prompt_template.replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] || match);
 
@@ -351,7 +344,7 @@ export class WorkflowAgent {
   /**
    * Execute text analyzer node
    */
-  private async execute_text_analyzer_node(node: WorkflowNode, input_data: Record<string, any>): Promise<Record<string, any>> {
+  private async execute_text_analyzer_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { analysis_type, text_input } = node.data;
     const text = input_data[text_input] || input_data.text;
 
@@ -372,7 +365,7 @@ export class WorkflowAgent {
   /**
    * Execute video generation node
    */
-  private async execute_video_node(node: WorkflowNode, input_data: Record<string, any>): Promise<Record<string, any>> {
+  private async execute_video_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { video_prompt, effects, duration } = node.data;
     const final_prompt = video_prompt.replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] || match);
 
@@ -547,7 +540,7 @@ export class WorkflowAgent {
     chat_history: BaseMessage[] = []
   ): Promise<{
     response: string;
-    execution_data?: Record<string, any>;
+    execution_data?: Record<string, unknown>;
     tokens_used?: number;
   }> {
     try {

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { message, workflow, chat_state, default_chat_settings, chat_session } from "./types";
+import { message, workflow, chat_state, default_chat_settings, chat_session, workflow_template, workflow_limits } from "./types";
 
 export const create_chat_handlers = (
   state: chat_state,
@@ -10,13 +10,13 @@ export const create_chat_handlers = (
     set_error: React.Dispatch<React.SetStateAction<string | null>>;
     set_workflows: React.Dispatch<React.SetStateAction<workflow[]>>;
     set_selected_workflow: React.Dispatch<React.SetStateAction<string | null>>;
-    set_templates: React.Dispatch<React.SetStateAction<any>>;
+    set_templates: React.Dispatch<React.SetStateAction<Record<string, workflow_template>>>;
     set_show_new_workflow_modal: React.Dispatch<React.SetStateAction<boolean>>;
     set_new_workflow_name: React.Dispatch<React.SetStateAction<string>>;
     set_new_workflow_description: React.Dispatch<React.SetStateAction<string>>;
     set_creating_workflow: React.Dispatch<React.SetStateAction<boolean>>;
     set_show_templates: React.Dispatch<React.SetStateAction<boolean>>;
-    set_workflow_limits: React.Dispatch<React.SetStateAction<any>>;
+    set_workflow_limits: React.Dispatch<React.SetStateAction<workflow_limits | null>>;
     set_default_settings: React.Dispatch<React.SetStateAction<default_chat_settings | null>>;
     set_show_default_settings_modal: React.Dispatch<React.SetStateAction<boolean>>;
     set_loading_default_settings: React.Dispatch<React.SetStateAction<boolean>>;
@@ -472,7 +472,7 @@ export const create_chat_handlers = (
   const handle_key_down = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handle_submit(e as any);
+      handle_submit(e as unknown as React.FormEvent);
     }
   };
 

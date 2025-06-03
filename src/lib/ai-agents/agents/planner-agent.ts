@@ -6,9 +6,9 @@ import { extract_json_from_message, extract_message_content } from "../utils/mes
  * Planner agent responsible for analyzing user requests and creating execution plans
  */
 export class planner_agent {
-  private model: any;
+  private model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>;
 
-  constructor(model: any) {
+  constructor(model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>) {
     this.model = model;
   }
 
@@ -62,7 +62,7 @@ Respond with a JSON plan containing:
    * @param response - Model response
    * @returns Execution plan
    */
-  private extract_plan(response: any): execution_plan {
+  private extract_plan(response: { content: unknown }): execution_plan {
     const content = extract_message_content(response.content);
     const json_plan = extract_json_from_message(content);
     

@@ -3,15 +3,15 @@ import React, { useContext } from "react";
 import { MpContext } from "@/app/context/mp_context";
 import { Zap } from "lucide-react";
 
-interface compact_token_display_props {
+interface CompactTokenDisplayProps {
   show_breakdown?: boolean;
   className?: string;
 }
 
-export default function compact_token_display({ 
+function CompactTokenDisplay({ 
   show_breakdown = false,
   className = ""
-}: compact_token_display_props) {
+}: CompactTokenDisplayProps) {
   const { mp_tokens, renewable_tokens, permanent_tokens, is_loading_tokens, token_error } = useContext(MpContext);
 
   return (
@@ -35,3 +35,5 @@ export default function compact_token_display({
     </div>
   );
 }
+
+export default CompactTokenDisplay;

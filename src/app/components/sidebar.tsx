@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, HelpCircle, Bug } from "lucide-react";
+import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import Image from "next/image";

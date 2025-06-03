@@ -14,7 +14,7 @@ interface UseSessionManagementReturn {
   clear_current_session: () => void;
 }
 
-export function use_session_management(): UseSessionManagementReturn {
+export function useSessionManagement(): UseSessionManagementReturn {
   const [sessions, set_sessions] = useState<ChatSession[]>([]);
   const [current_session, set_current_session] = useState<ChatSession | null>(null);
   const [current_messages, set_current_messages] = useState<ChatMessage[]>([]);

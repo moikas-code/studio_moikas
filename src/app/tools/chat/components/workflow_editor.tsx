@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { create_node_component, node_data } from "./workflow_nodes";
 import { 
-  Plus, 
   Save, 
   Play, 
-  Download, 
-  Upload,
   ZoomIn,
   ZoomOut,
   Maximize2
@@ -94,7 +91,7 @@ export default function Workflow_editor({
     set_show_node_menu(false);
   };
 
-  const get_default_node_data = (type: string): Record<string, any> => {
+  const get_default_node_data = (type: string): Record<string, unknown> => {
     switch (type) {
       case "input":
         return { label: "User Input" };

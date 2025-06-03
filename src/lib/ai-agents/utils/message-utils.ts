@@ -9,7 +9,7 @@ import { BaseMessage } from "@langchain/core/messages";
  * @param content - Message content to extract from
  * @returns Extracted string content
  */
-export function extract_message_content(content: any): string {
+export function extract_message_content(content: unknown): string {
   if (typeof content === "string") {
     return content;
   } else if (Array.isArray(content)) {
@@ -31,7 +31,7 @@ export function extract_message_content(content: any): string {
  * @param content - Message content containing JSON
  * @returns Parsed JSON object or null
  */
-export function extract_json_from_message(content: string): any | null {
+export function extract_json_from_message(content: string): unknown | null {
   try {
     const json_match = content.match(/\{[\s\S]*\}/);
     return json_match ? JSON.parse(json_match[0]) : null;

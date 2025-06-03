@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       console.log("🎛️ No workflow selected, fetching default chat settings...");
       
       // Try to get existing defaults directly from database
-      const { data: user_defaults, error: defaults_error } = await supabase
+      const { data: user_defaults } = await supabase
         .from("user_chat_defaults")
         .select("*")
         .eq("user_id", user.id)

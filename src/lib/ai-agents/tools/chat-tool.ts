@@ -12,7 +12,7 @@ export class chat_tool {
    * @param model - ChatXAI model instance
    * @returns Configured chat tool
    */
-  static create(node: workflow_node, model: any): workflow_node_tool {
+  static create(node: workflow_node, model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>): workflow_node_tool {
     return {
       id: node.id,
       type: node.type,
@@ -38,9 +38,9 @@ export class chat_tool {
    */
   private static async execute_chat(
     node: workflow_node, 
-    input: any, 
-    model: any
-  ): Promise<any> {
+    input: { user_message: string; context?: string; personality?: string }, 
+    model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>
+  ): Promise<{ response: string; personality_used: string; context_used: string; token_usage?: { input: number; output: number } }> {
     const personality = input.personality || node.data.personality || "friendly and helpful";
     const context = input.context || node.data.context || "";
     
@@ -92,7 +92,7 @@ export class chat_tool {
    * @param usage_metadata - Token usage metadata
    * @returns Estimated cost
    */
-  private static calculate_model_costs(usage_metadata: any): number {
+  private static calculate_model_costs(usage_metadata: { input_tokens?: number; output_tokens?: number }): number {
     if (!usage_metadata) return 0;
     
     const input_tokens = usage_metadata.input_tokens || 0;

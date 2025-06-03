@@ -1,9 +1,9 @@
 import React from "react";
 import { Workflow, Settings, History, MoreVertical } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import Compact_token_display from "@/app/components/CompactTokenDisplay";
+import CompactTokenDisplay from "@/app/components/CompactTokenDisplay";
 
-interface header_props {
+interface HeaderProps {
   show_workflow_panel: boolean;
   set_show_workflow_panel: (show: boolean) => void;
   set_show_default_settings_modal: (show: boolean) => void;
@@ -12,14 +12,14 @@ interface header_props {
   load_sessions: () => Promise<void>;
 }
 
-export default function header({ 
+function Header({ 
   show_workflow_panel, 
   set_show_workflow_panel,
   set_show_default_settings_modal,
   show_sessions_panel,
   set_show_sessions_panel,
   load_sessions
-}: header_props) {
+}: HeaderProps) {
   const { user } = useUser();
 
   return (
@@ -38,7 +38,7 @@ export default function header({
       </div>
       <div className="flex-none flex items-center gap-3">
         {/* Compact token display */}
-        <Compact_token_display className="hidden sm:flex" />
+        <CompactTokenDisplay className="hidden sm:flex" />
         
         {/* Dropdown menu for better mobile experience */}
         <div className="dropdown dropdown-end">
@@ -74,7 +74,7 @@ export default function header({
                     </div>
                   </div>
                 )}
-                <Compact_token_display show_breakdown={true} />
+                <CompactTokenDisplay show_breakdown={true} />
               </div>
             </li>
             <li>
@@ -106,3 +106,5 @@ export default function header({
     </div>
   );
 }
+
+export default Header;

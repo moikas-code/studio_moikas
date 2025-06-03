@@ -16,7 +16,7 @@ export interface workflow_node_tool {
   /** Zod schema for validating input parameters */
   parameters: z.ZodSchema;
   /** Function to execute the tool with given parameters */
-  execute: (input: any) => Promise<any>;
+  execute: (input: unknown) => Promise<unknown>;
 }
 
 /**
@@ -32,7 +32,7 @@ export interface agent_state {
   /** User ID executing the workflow */
   user_id: string;
   /** Variables available during execution */
-  variables: Record<string, any>;
+  variables: Record<string, unknown>;
   /** Current execution step */
   current_step: string;
   /** History of all executed steps */
@@ -62,7 +62,7 @@ export interface execution_result {
   /** The step that was executed */
   step: execution_step;
   /** Result of the execution (if successful) */
-  result?: any;
+  result?: unknown;
   /** Error message (if failed) */
   error?: string;
   /** Status of the execution */
@@ -76,7 +76,7 @@ export interface execution_step {
   /** Name of the tool to execute */
   tool_name: string;
   /** Parameters to pass to the tool */
-  parameters: Record<string, any>;
+  parameters: Record<string, unknown>;
 }
 
 /**
@@ -117,7 +117,7 @@ export interface workflow_node {
   /** Type of the node */
   type: workflow_node_type;
   /** Node-specific data and configuration */
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 /**

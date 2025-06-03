@@ -5,9 +5,9 @@ import { agent_state } from "../types";
  * Coordinator agent responsible for deciding if more execution is needed
  */
 export class coordinator_agent {
-  private model: any;
+  private model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>;
 
-  constructor(model: any) {
+  constructor(model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>) {
     this.model = model;
   }
 
@@ -18,7 +18,7 @@ export class coordinator_agent {
    */
   async coordinate(state: agent_state): Promise<Partial<agent_state>> {
     const results = state.variables.execution_results;
-    const failed_steps = results?.filter((r: any) => r.status === "failed") || [];
+    const failed_steps = results?.filter((r: { status: string }) => r.status === "failed") || [];
     
     if (failed_steps.length === 0) {
       return {
@@ -39,7 +39,7 @@ export class coordinator_agent {
    * @param failed_steps - Array of failed execution results
    * @returns Decision to continue or finish
    */
-  private async analyze_failures(failed_steps: any[]): Promise<string> {
+  private async analyze_failures(failed_steps: Array<{ status: string; error?: string }>): Promise<string> {
     const system_prompt = `You are a coordinator agent. Some steps failed during execution. 
     Analyze the failures and determine if they can be recovered or if the task is complete.
     

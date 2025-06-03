@@ -4,7 +4,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { MpContext } from "@/app/context/mp_context";
 import { useAuth } from "@clerk/nextjs";
-import Workflow_editor from "../components/workflow_editor";
+import Workflow_editor, { node_data } from "../components/workflow_editor";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 
@@ -19,7 +19,7 @@ export default function Workflow_editor_page() {
   const [loading, set_loading] = useState(true);
   const [saving, set_saving] = useState(false);
   const [error, set_error] = useState<string | null>(null);
-  const [workflow, set_workflow] = useState<any>(null);
+  const [workflow, set_workflow] = useState<{ id: string; name: string; workflow_nodes?: node_data[] } | null>(null);
   const [workflow_name, set_workflow_name] = useState("");
   
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function Workflow_editor_page() {
       
       const data = await response.json();
       if (data.workflows && data.workflows.length > 0) {
-        const wf = data.workflows.find((w: any) => w.id === workflow_id);
+        const wf = data.workflows.find((w: { id: string; name: string; workflow_nodes?: node_data[] }) => w.id === workflow_id);
         if (wf) {
           set_workflow(wf);
           set_workflow_name(wf.name);
@@ -53,13 +53,13 @@ export default function Workflow_editor_page() {
     }
   };
   
-  const handle_save = async (nodes: any[], connections: any[]) => {
+  const handle_save = async (nodes: node_data[], connections: { from: string; to: string }[]) => {
     set_saving(true);
     set_error(null);
     
     try {
       const method = workflow_id ? "PUT" : "POST";
-      const body: any = {
+      const body: { name: string; graph_data: { nodes: node_data[]; connections: { from: string; to: string }[] }; id?: string } = {
         name: workflow_name,
         graph_data: { nodes, connections }
       };

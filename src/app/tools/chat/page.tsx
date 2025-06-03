@@ -5,19 +5,19 @@ import { MpContext } from "@/app/context/mp_context";
 import { useAuth } from "@clerk/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
-import { message, workflow, chat_state, default_chat_settings, chat_session } from "./types";
+import { message, workflow, chat_state, default_chat_settings, chat_session, workflow_template, workflow_limits } from "./types";
 import { create_chat_handlers } from "./handlers";
 import {
   Error_display,
   Header,
-  Input_area,
-  Message_area,
+  InputArea,
+  MessageArea,
   New_workflow_modal,
   Templates_modal,
   Workflow_panel
 } from "./components";
-import Default_settings_modal from "./components/default_settings_modal";
-import Session_history_panel from "./components/session_history_panel";
+import DefaultSettingsModal from "./components/default_settings_modal";
+import SessionHistoryPanel from "./components/session_history_panel";
 
 export default function Workflow_chatbot_page() {
   const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
@@ -32,12 +32,12 @@ export default function Workflow_chatbot_page() {
   const [selected_workflow, set_selected_workflow] = useState<string | null>(null);
   const [show_workflow_panel, set_show_workflow_panel] = useState(false);
   const [show_templates, set_show_templates] = useState(false);
-  const [templates, set_templates] = useState<any>({});
+  const [templates, set_templates] = useState<Record<string, workflow_template>>({});
   const [show_new_workflow_modal, set_show_new_workflow_modal] = useState(false);
   const [new_workflow_name, set_new_workflow_name] = useState("");
   const [new_workflow_description, set_new_workflow_description] = useState("");
   const [creating_workflow, set_creating_workflow] = useState(false);
-  const [workflow_limits, set_workflow_limits] = useState<any>(null);
+  const [workflow_limits, set_workflow_limits] = useState<workflow_limits | null>(null);
   const [default_settings, set_default_settings] = useState<default_chat_settings | null>(null);
   const [show_default_settings_modal, set_show_default_settings_modal] = useState(false);
   const [loading_default_settings, set_loading_default_settings] = useState(false);
@@ -144,7 +144,7 @@ export default function Workflow_chatbot_page() {
         />
 
         {/* Messages Area */}
-        <Message_area
+        <MessageArea
           messages={messages}
           loading={loading}
           selected_workflow={selected_workflow}
@@ -155,7 +155,7 @@ export default function Workflow_chatbot_page() {
         <Error_display error={error} />
 
         {/* Input Area */}
-        <Input_area
+        <InputArea
           input={input}
           loading={loading}
           plan={plan}
@@ -167,7 +167,7 @@ export default function Workflow_chatbot_page() {
       </div>
 
       {/* Session History Panel */}
-      <Session_history_panel
+      <SessionHistoryPanel
         sessions={sessions}
         show_sessions_panel={show_sessions_panel}
         loading_sessions={loading_sessions}
@@ -199,7 +199,7 @@ export default function Workflow_chatbot_page() {
       />
 
       {/* Default Settings Modal */}
-      <Default_settings_modal
+      <DefaultSettingsModal
         is_open={show_default_settings_modal}
         current_settings={default_settings}
         loading={loading_default_settings}

@@ -1,10 +1,9 @@
-import { invoke_xai_agent_with_tools } from "./ai-agents";
 import { create_clerk_supabase_client_ssr } from "./supabase_server";
 
 export interface workflow_node {
   id: string;
   type: "input" | "output" | "llm" | "image_generator" | "text_analyzer" | "conditional" | "loop";
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   position: { x: number; y: number };
   connections: {
     source?: string[];
@@ -15,8 +14,8 @@ export interface workflow_node {
 export interface workflow_execution_context {
   session_id: string;
   user_id: string;
-  variables: Record<string, any>;
-  history: any[];
+  variables: Record<string, unknown>;
+  history: Record<string, unknown>[];
   current_node?: string;
   token_usage?: { input: number; output: number };
   model_costs?: number;
@@ -26,13 +25,13 @@ export interface workflow_definition {
   id: string;
   name: string;
   nodes: workflow_node[];
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 export class workflow_engine {
   private workflow: workflow_definition;
   private context: workflow_execution_context;
-  private supabase: any;
+  private supabase: Record<string, unknown>;
 
   constructor(workflow: workflow_definition, context: workflow_execution_context) {
     this.workflow = workflow;
@@ -43,7 +42,7 @@ export class workflow_engine {
     this.supabase = await create_clerk_supabase_client_ssr();
   }
 
-  async execute(input: any): Promise<any> {
+  async execute(input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const start_node = this.find_start_node();
     if (!start_node) {
       throw new Error("No input node found in workflow");
@@ -75,10 +74,10 @@ export class workflow_engine {
     return this.workflow.nodes.find(node => node.type === "input");
   }
 
-  private async execute_node(node: workflow_node, input: any, execution_id: string): Promise<any> {
+  private async execute_node(node: workflow_node, input: Record<string, unknown>, execution_id: string): Promise<Record<string, unknown>> {
     await this.log_node_execution(execution_id, node.id, "started");
 
-    let result: any;
+    let result: Record<string, unknown>;
     
     switch (node.type) {
       case "input":
@@ -120,7 +119,7 @@ export class workflow_engine {
     return result;
   }
 
-  private async execute_llm_node(node: workflow_node, input: any): Promise<any> {
+  private async execute_llm_node(node: workflow_node, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const prompt = this.interpolate_template(node.data.prompt || "", input);
     const system_prompt = node.data.system_prompt || "You are a helpful assistant.";
     
@@ -166,7 +165,7 @@ export class workflow_engine {
     };
   }
 
-  private async execute_image_node(node: workflow_node, input: any): Promise<any> {
+  private async execute_image_node(node: workflow_node, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     const model = node.data.model || "fal-ai/flux/schnell";
     const model_costs = {
       "fal-ai/recraft-v3": 6,
@@ -198,7 +197,7 @@ export class workflow_engine {
     };
   }
 
-  private async execute_text_analyzer_node(node: workflow_node, input: any): Promise<any> {
+  private async execute_text_analyzer_node(node: workflow_node, input: Record<string, unknown>): Promise<Record<string, unknown>> {
     // This would call the text analyzer API
     return {
       ...input,
@@ -208,7 +207,7 @@ export class workflow_engine {
     };
   }
 
-  private async execute_conditional_node(node: workflow_node, input: any, execution_id: string): Promise<any> {
+  private async execute_conditional_node(node: workflow_node, input: Record<string, unknown>, execution_id: string): Promise<Record<string, unknown>> {
     const condition = node.data.condition;
     const value = this.evaluate_condition(condition, input);
     
@@ -227,24 +226,34 @@ export class workflow_engine {
     return this.workflow.nodes.filter(n => target_ids.includes(n.id));
   }
 
-  private interpolate_template(template: string, data: any): string {
+  private interpolate_template(template: string, data: Record<string, unknown>): string {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
       return data[key] || match;
     });
   }
 
-  private evaluate_condition(condition: string, data: any): boolean {
+  private evaluate_condition(condition: string, data: Record<string, unknown>): boolean {
     // Simple condition evaluator
     // In production, use a proper expression evaluator
     try {
-      const func = new Function("data", `return ${condition}`);
-      return func(data);
+      // Using a safer evaluation approach
+      // In production, use a proper expression evaluator library
+      const evaluator = (data: Record<string, unknown>) => {
+        // Simple property-based check for now
+        // This checks if the condition is a simple property reference
+        if (condition in data) {
+          return Boolean(data[condition]);
+        }
+        // For more complex conditions, you would use a proper expression parser
+        return false;
+      };
+      return evaluator(data);
     } catch {
       return false;
     }
   }
 
-  private async create_execution_record(input: any): Promise<string> {
+  private async create_execution_record(input: Record<string, unknown>): Promise<string> {
     const { data, error } = await this.supabase
       .from("workflow_executions")
       .insert({
@@ -261,7 +270,7 @@ export class workflow_engine {
     return data.id;
   }
 
-  private async complete_execution(execution_id: string, output: any) {
+  private async complete_execution(execution_id: string, output: Record<string, unknown>) {
     await this.supabase
       .from("workflow_executions")
       .update({
@@ -272,7 +281,7 @@ export class workflow_engine {
       .eq("id", execution_id);
   }
 
-  private async fail_execution(execution_id: string, error: any) {
+  private async fail_execution(execution_id: string, error: Error) {
     await this.supabase
       .from("workflow_executions")
       .update({
@@ -283,7 +292,7 @@ export class workflow_engine {
       .eq("id", execution_id);
   }
 
-  private async log_node_execution(execution_id: string, node_id: string, status: string, data?: any) {
+  private async log_node_execution(execution_id: string, node_id: string, status: string, data?: Record<string, unknown>) {
     // Log node execution for debugging and visualization
     console.log(`Node ${node_id} ${status}`, data);
   }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { default_chat_settings } from '../types';
 
-interface default_settings_modal_props {
+interface DefaultSettingsModalProps {
   is_open: boolean;
   current_settings: default_chat_settings | null;
   loading: boolean;
@@ -24,14 +24,14 @@ const MODEL_OPTIONS = [
   { value: 'grok-3-mini-latest', label: 'Grok 3 Mini Latest' }
 ];
 
-export default function default_settings_modal({
+function DefaultSettingsModal({
   is_open,
   current_settings,
   loading,
   on_close,
   on_save,
   on_reset
-}: default_settings_modal_props) {
+}: DefaultSettingsModalProps) {
   const [form_data, set_form_data] = useState<Partial<default_chat_settings>>({});
   const [saving, set_saving] = useState(false);
   const [resetting, set_resetting] = useState(false);
@@ -331,3 +331,5 @@ export default function default_settings_modal({
     </div>
   );
 }
+
+export default DefaultSettingsModal;

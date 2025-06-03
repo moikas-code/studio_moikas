@@ -18,7 +18,7 @@ export interface node_data {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   selected?: boolean;
 }
 
@@ -30,7 +30,7 @@ interface node_props {
 }
 
 // Base node component
-const base_node: React.FC<node_props & { icon: React.ReactNode; color: string; title: string }> = ({
+const BaseNode: React.FC<node_props & { icon: React.ReactNode; color: string; title: string }> = ({
   node,
   on_update,
   on_delete,
@@ -138,35 +138,35 @@ const base_node: React.FC<node_props & { icon: React.ReactNode; color: string; t
 
 // Specific node types
 export const input_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<Play className="w-4 h-4" />} color="from-green-500 to-emerald-500" title="Input" />
+  <BaseNode {...props} icon={<Play className="w-4 h-4" />} color="from-green-500 to-emerald-500" title="Input" />
 );
 
 export const output_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<Square className="w-4 h-4" />} color="from-red-500 to-rose-500" title="Output" />
+  <BaseNode {...props} icon={<Square className="w-4 h-4" />} color="from-red-500 to-rose-500" title="Output" />
 );
 
 export const llm_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<MessageSquare className="w-4 h-4" />} color="from-blue-500 to-indigo-500" title="LLM" />
+  <BaseNode {...props} icon={<MessageSquare className="w-4 h-4" />} color="from-blue-500 to-indigo-500" title="LLM" />
 );
 
 export const image_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<Image className="w-4 h-4" />} color="from-purple-500 to-pink-500" title="Image Gen" />
+  <BaseNode {...props} icon={<Image className="w-4 h-4" />} color="from-purple-500 to-pink-500" title="Image Gen" />
 );
 
 export const video_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<Video className="w-4 h-4" />} color="from-orange-500 to-red-500" title="Video Gen" />
+  <BaseNode {...props} icon={<Video className="w-4 h-4" />} color="from-orange-500 to-red-500" title="Video Gen" />
 );
 
 export const text_analyzer_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<FileText className="w-4 h-4" />} color="from-teal-500 to-cyan-500" title="Text Analyzer" />
+  <BaseNode {...props} icon={<FileText className="w-4 h-4" />} color="from-teal-500 to-cyan-500" title="Text Analyzer" />
 );
 
 export const conditional_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<GitBranch className="w-4 h-4" />} color="from-yellow-500 to-amber-500" title="Conditional" />
+  <BaseNode {...props} icon={<GitBranch className="w-4 h-4" />} color="from-yellow-500 to-amber-500" title="Conditional" />
 );
 
 export const loop_node: React.FC<node_props> = (props) => (
-  <base_node {...props} icon={<Repeat className="w-4 h-4" />} color="from-gray-500 to-gray-600" title="Loop" />
+  <BaseNode {...props} icon={<Repeat className="w-4 h-4" />} color="from-gray-500 to-gray-600" title="Loop" />
 );
 
 // Node factory

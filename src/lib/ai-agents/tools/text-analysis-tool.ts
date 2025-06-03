@@ -12,7 +12,7 @@ export class text_analysis_tool {
    * @param model - ChatXAI model instance
    * @returns Configured text analysis tool
    */
-  static create(node: workflow_node, model: any): workflow_node_tool {
+  static create(node: workflow_node, model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>): workflow_node_tool {
     return {
       id: node.id,
       type: node.type,
@@ -37,9 +37,9 @@ export class text_analysis_tool {
    */
   private static async execute_text_analysis(
     node: workflow_node, 
-    input: any, 
-    model: any
-  ): Promise<any> {
+    input: { text: string; analysis_type?: string }, 
+    model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>
+  ): Promise<{ analysis: string; sentiment: string; key_themes: string[]; word_count: number; token_usage?: { input: number; output: number } }> {
     const analysis_prompt = `Analyze the following text: ${input.text}
     
     Analysis type: ${input.analysis_type || 'general'}

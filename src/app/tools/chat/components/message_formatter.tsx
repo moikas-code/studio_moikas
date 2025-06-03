@@ -2,12 +2,12 @@ import React from "react";
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
 
-interface message_formatter_props {
+interface MessageFormatterProps {
   content: string;
   role: "user" | "assistant" | "system";
 }
 
-export default function message_formatter({ content, role }: message_formatter_props) {
+function MessageFormatter({ content, role }: MessageFormatterProps) {
   const [copied_blocks, set_copied_blocks] = useState<Set<number>>(new Set());
 
   const copy_to_clipboard = async (text: string, block_index: number) => {
@@ -33,10 +33,7 @@ export default function message_formatter({ content, role }: message_formatter_p
 
     // Regular expressions for different formatting
     const code_block_regex = /```(\w+)?\n([\s\S]*?)```/g;
-    const inline_code_regex = /`([^`]+)`/g;
-    const bold_regex = /\*\*(.*?)\*\*/g;
-    const italic_regex = /\*(.*?)\*/g;
-    const link_regex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    // Inline formatting patterns are handled in format_inline_text
 
     // Process code blocks first (they take precedence)
     let match;
@@ -220,3 +217,5 @@ export default function message_formatter({ content, role }: message_formatter_p
     </div>
   );
 }
+
+export default MessageFormatter;

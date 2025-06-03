@@ -2,21 +2,21 @@ import React from "react";
 import { Bot, User } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { message } from "../types";
-import Message_formatter from "./message_formatter";
+import MessageFormatter from "./message_formatter";
 
-interface message_area_props {
+interface MessageAreaProps {
   messages: message[];
   loading: boolean;
   selected_workflow: string | null;
   messages_end_ref: React.RefObject<HTMLDivElement>;
 }
 
-export default function message_area({ 
+function MessageArea({ 
   messages, 
   loading, 
   selected_workflow,
   messages_end_ref 
-}: message_area_props) {
+}: MessageAreaProps) {
   const { user } = useUser();
 
   return (
@@ -57,7 +57,7 @@ export default function message_area({
               </div>
             </div>
             <div className={`chat-bubble ${message.role === "user" ? "chat-bubble-primary" : ""} ${message.role === "assistant" ? "max-w-none" : ""}`}>
-              <Message_formatter content={message.content} role={message.role} />
+              <MessageFormatter content={message.content} role={message.role} />
             </div>
           </div>
         ))}
@@ -80,3 +80,5 @@ export default function message_area({
     </div>
   );
 }
+
+export default MessageArea;

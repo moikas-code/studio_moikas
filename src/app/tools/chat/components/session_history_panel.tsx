@@ -3,7 +3,7 @@ import { History, Trash2, MessageSquare, Calendar, X } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { chat_session } from "../types";
 
-interface session_history_panel_props {
+interface SessionHistoryPanelProps {
   sessions: chat_session[];
   show_sessions_panel: boolean;
   loading_sessions: boolean;
@@ -14,7 +14,7 @@ interface session_history_panel_props {
   delete_session: (session_id: string) => Promise<void>;
 }
 
-export default function session_history_panel({
+function SessionHistoryPanel({
   sessions,
   show_sessions_panel,
   loading_sessions,
@@ -23,7 +23,7 @@ export default function session_history_panel({
   set_show_sessions_panel,
   load_session,
   delete_session
-}: session_history_panel_props) {
+}: SessionHistoryPanelProps) {
   const [confirm_delete, set_confirm_delete] = useState<string | null>(null);
   const { user } = useUser();
 
@@ -181,3 +181,5 @@ export default function session_history_panel({
     </>
   );
 }
+
+export default SessionHistoryPanel;

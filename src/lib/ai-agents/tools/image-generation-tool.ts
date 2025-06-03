@@ -33,7 +33,7 @@ export class image_generation_tool {
    * @param input - Input parameters
    * @returns Generation result
    */
-  private static async execute_image_generation(node: workflow_node, input: any): Promise<any> {
+  private static async execute_image_generation(node: workflow_node, input: { prompt: string; style?: string; size?: string }): Promise<{ image_url: string; prompt: string; model: string; model_costs: number; status: string }> {
     const model = node.data.model || "fal-ai/flux/schnell";
     const cost = IMAGE_MODEL_COSTS[model] || 4;
 

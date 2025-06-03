@@ -9,7 +9,7 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     // Create workflow nodes if provided
     if (nodes.length > 0) {
-      const workflow_nodes = nodes.map((node: any) => ({
+      const workflow_nodes = nodes.map((node: { id?: string; type: string; position?: { x: number; y: number }; data?: Record<string, unknown>; connections?: unknown[] }) => ({
         workflow_id: workflow.id,
         node_id: node.id || `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         type: node.type,
@@ -265,7 +265,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Update workflow
-    const update_data: any = { updated_at: new Date().toISOString() };
+    const update_data: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (name) update_data.name = name;
     if (description !== undefined) update_data.description = description;
     if (settings) update_data.settings = settings;
@@ -296,7 +296,7 @@ export async function PUT(req: NextRequest) {
 
       // Insert new nodes
       if (nodes.length > 0) {
-        const workflow_nodes = nodes.map((node: any) => ({
+        const workflow_nodes = nodes.map((node: { id?: string; type: string; position?: { x: number; y: number }; data?: Record<string, unknown>; connections?: unknown[] }) => ({
           workflow_id: id,
           node_id: node.id || `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           type: node.type,
@@ -400,7 +400,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 // Helper function to extract workflow capabilities
-function extract_workflow_capabilities(nodes: any[]): string[] {
+function extract_workflow_capabilities(nodes: Array<{ type: string; data?: Record<string, unknown> }>): string[] {
   const capabilities = new Set<string>();
 
   for (const node of nodes) {

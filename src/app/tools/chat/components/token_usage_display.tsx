@@ -2,15 +2,15 @@ import React, { useState } from "react";
 import { Info, Zap } from "lucide-react";
 import { use_token_estimation } from "@/lib/token_estimation";
 
-interface token_usage_display_props {
+interface TokenUsageDisplayProps {
   input: string;
   show_details?: boolean;
 }
 
-export default function token_usage_display({ 
+function TokenUsageDisplay({ 
   input, 
   show_details = false 
-}: token_usage_display_props) {
+}: TokenUsageDisplayProps) {
   const [show_tooltip, set_show_tooltip] = useState(false);
   const token_estimate = use_token_estimation(input);
 
@@ -58,4 +58,6 @@ export default function token_usage_display({
       )}
     </div>
   );
-} 
+}
+
+export default TokenUsageDisplay;

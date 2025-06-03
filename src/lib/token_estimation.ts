@@ -29,7 +29,6 @@ export type feature_type =
   | "outline";
 
 // Constants matching the API
-const TEXT_TOKENS_PER_3000 = 1; // 1 MP per 3000 tokens
 const MIN_TEXT_COST = 1; // Minimum 1 MP per message
 
 // Output token estimation multipliers based on feature type and input length

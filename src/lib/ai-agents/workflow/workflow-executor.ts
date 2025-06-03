@@ -15,7 +15,7 @@ import { SystemMessage } from "@langchain/core/messages";
  * Main workflow executor that orchestrates multi-agent execution
  */
 export class workflow_executor {
-  private model: any;
+  private model: ReturnType<typeof model_factory.create_xai_model>;
   private workflow_graph_manager: workflow_graph_manager;
   private tools_registry: Map<string, workflow_node_tool>;
 

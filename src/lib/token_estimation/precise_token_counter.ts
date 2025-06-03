@@ -41,7 +41,7 @@ export class precise_token_counter {
    * Get actual token usage from AI response metadata
    */
   static extract_actual_usage(
-    ai_response: any, 
+    ai_response: Record<string, unknown>, 
     model: string,
     input_text: string
   ): token_usage_result {
@@ -124,7 +124,7 @@ export class precise_token_counter {
     if (!text) return 0;
     
     // Base estimation: ~4 characters per token for English
-    let base_tokens = Math.ceil(text.length / 4);
+    const base_tokens = Math.ceil(text.length / 4);
     
     // Adjustments for better accuracy:
     
@@ -160,7 +160,7 @@ export class precise_token_counter {
    */
   static hybrid_calculation(
     input_text: string,
-    ai_response: any,
+    ai_response: Record<string, unknown>,
     model: string
   ): token_usage_result {
     const config = MODEL_CONFIGS[model] || MODEL_CONFIGS['grok-3-mini-latest'];

@@ -12,7 +12,7 @@ export class llm_tool {
    * @param model - ChatXAI model instance
    * @returns Configured LLM tool
    */
-  static create(node: workflow_node, model: any): workflow_node_tool {
+  static create(node: workflow_node, model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>): workflow_node_tool {
     return {
       id: node.id,
       type: node.type,
@@ -37,9 +37,9 @@ export class llm_tool {
    */
   private static async execute_llm(
     node: workflow_node, 
-    input: any, 
-    model: any
-  ): Promise<any> {
+    input: { input_text: string; instructions?: string }, 
+    model: ReturnType<typeof import('../utils/model-factory').model_factory.create_xai_model>
+  ): Promise<{ response: string; token_usage?: { input: number; output: number } }> {
     const prompt = node.data.prompt || input.instructions || input.input_text;
     const system_prompt = node.data.system_prompt || "You are a helpful assistant.";
 

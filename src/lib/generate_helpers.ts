@@ -458,7 +458,7 @@ export function log_event(
   event_type: string,
   details: Record<string, unknown>
 ) {
-  // eslint-disable-next-line no-console
+   
   console.log(`[${new Date().toISOString()}] [${event_type}]`, details);
 }
 

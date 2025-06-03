@@ -19,9 +19,9 @@ export interface billing_transaction {
 }
 
 export class billing_strategy {
-  private supabase: any;
+  private supabase: Record<string, unknown>;
   
-  constructor(supabase: any) {
+  constructor(supabase: Record<string, unknown>) {
     this.supabase = supabase;
   }
 
@@ -104,7 +104,7 @@ export class billing_strategy {
     transaction_id: string,
     user_id: string,
     input_text: string,
-    ai_response: any,
+    ai_response: Record<string, unknown>,
     model: string
   ): Promise<{ success: boolean; final_cost: number; adjustment: number; error?: string }> {
     try {

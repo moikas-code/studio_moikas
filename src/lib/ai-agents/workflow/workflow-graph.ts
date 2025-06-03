@@ -1,6 +1,5 @@
 import { StateGraph, END, START, Annotation } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
-import { agent_state } from "../types";
 import { planner_agent } from "../agents/planner-agent";
 import { executor_agent } from "../agents/executor-agent";
 import { coordinator_agent } from "../agents/coordinator-agent";
@@ -21,17 +20,17 @@ const state_schema = Annotation.Root({
   workflow_id: Annotation<string | undefined>({
     default: () => undefined
   }),
-  variables: Annotation<Record<string, any>>({
+  variables: Annotation<Record<string, unknown>>({
     default: () => ({})
   }),
   current_step: Annotation<string>({
     default: () => "start"
   }),
-  execution_history: Annotation<any[]>({
-    reducer: (x: any[], y: any[]) => [...x, ...y],
+  execution_history: Annotation<Record<string, unknown>[]>({
+    reducer: (x: Record<string, unknown>[], y: Record<string, unknown>[]) => [...x, ...y],
     default: () => []
   }),
-  available_tools: Annotation<any[]>({
+  available_tools: Annotation<Record<string, unknown>[]>({
     default: () => []
   }),
   token_usage: Annotation<{ input: number; output: number }>({
@@ -53,8 +52,8 @@ export class workflow_graph_manager {
   private summarizer: summarizer_agent;
 
   constructor(
-    model: any,
-    tools_registry: Map<string, any>
+    model: Record<string, unknown>,
+    tools_registry: Map<string, Record<string, unknown>>
   ) {
     // Initialize agents
     this.planner = new planner_agent(model);
