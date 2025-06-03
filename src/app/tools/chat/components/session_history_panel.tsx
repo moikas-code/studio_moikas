@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { History, Trash2, MessageSquare, Calendar, X } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { chat_session } from "../types";
 
 interface session_history_panel_props {
@@ -24,6 +25,7 @@ export default function session_history_panel({
   delete_session
 }: session_history_panel_props) {
   const [confirm_delete, set_confirm_delete] = useState<string | null>(null);
+  const { user } = useUser();
 
   const handle_delete_click = (session_id: string, e: React.MouseEvent) => {
     e.stopPropagation();

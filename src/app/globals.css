@@ -132,3 +132,60 @@ html {
 .shadow-3xl {
   box-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.3);
 }
+
+/* Chat message formatting */
+.prose {
+  color: inherit;
+  max-width: none;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+.prose em {
+  font-style: italic;
+  color: inherit;
+}
+
+.prose code {
+  color: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.prose pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+
+.prose pre code {
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Chat bubble adjustments for code blocks */
+.chat-bubble .prose pre {
+  overflow-x: auto;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

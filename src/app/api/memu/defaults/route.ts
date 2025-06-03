@@ -126,10 +126,10 @@ export async function GET(_req: NextRequest) {
         // Create default settings if none exist
         const default_settings = {
           user_id: user.id,
-          temperature: 0.7,
-          max_tokens: 2048,
-          model: 'grok-3-mini-latest',
-          system_prompt: 'You are a helpful AI assistant.',
+          temperature: 0.8,
+          max_tokens: 1024,
+          model_preference: 'grok-3-mini-latest',
+          system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
           response_style: 'conversational',
           context_window: 20,
           enable_memory: true,

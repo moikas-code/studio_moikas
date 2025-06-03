@@ -226,10 +226,10 @@ export const create_chat_handlers = (
         // API endpoint not found, use fallback defaults
         console.log("Default settings API not available, using fallback defaults");
         const fallback_defaults = {
-          system_prompt: "You are a helpful AI assistant.",
+          system_prompt: "You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.",
           response_style: "conversational" as const,
-          temperature: 0.7,
-          max_tokens: 2048,
+          temperature: 0.8,
+          max_tokens: 1024,
           context_window: 10,
           enable_memory: true,
           enable_web_search: false,
@@ -241,10 +241,10 @@ export const create_chat_handlers = (
         console.error("Failed to load default settings:", response.status, response.statusText);
         // Still set fallback defaults on other errors
         const fallback_defaults = {
-          system_prompt: "You are a helpful AI assistant.",
+          system_prompt: "You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.",
           response_style: "conversational" as const,
-          temperature: 0.7,
-          max_tokens: 2048,
+          temperature: 0.8,
+          max_tokens: 1024,
           context_window: 10,
           enable_memory: true,
           enable_web_search: false,
@@ -321,10 +321,10 @@ export const create_chat_handlers = (
         // API endpoint not available, reset to fallback defaults
         console.log("Default settings API not available, resetting to fallback defaults");
         const fallback_defaults = {
-          system_prompt: "You are a helpful AI assistant.",
+          system_prompt: "You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.",
           response_style: "conversational" as const,
-          temperature: 0.7,
-          max_tokens: 2048,
+          temperature: 0.8,
+          max_tokens: 1024,
           context_window: 10,
           enable_memory: true,
           enable_web_search: false,
@@ -342,10 +342,10 @@ export const create_chat_handlers = (
       if (error instanceof TypeError && error.message.includes("fetch")) {
         // Network error, reset to fallback defaults
         const fallback_defaults = {
-          system_prompt: "You are a helpful AI assistant.",
+          system_prompt: "You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.",
           response_style: "conversational" as const,
-          temperature: 0.7,
-          max_tokens: 2048,
+          temperature: 0.8,
+          max_tokens: 1024,
           context_window: 10,
           enable_memory: true,
           enable_web_search: false,

@@ -122,10 +122,10 @@ export async function POST(req: NextRequest) {
         console.log("⚠️ Database function not found, using fallback defaults");
         // Use fallback defaults if function doesn't exist
         default_settings = {
-          temperature: 0.7,
-          max_tokens: 2048,
+          temperature: 0.8,
+          max_tokens: 1024,
           model_preference: 'grok-3-mini-latest',
-          system_prompt: 'You are a helpful AI assistant.',
+          system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
           response_style: 'conversational'
         };
       } else if (user_defaults) {

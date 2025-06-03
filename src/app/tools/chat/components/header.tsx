@@ -1,5 +1,6 @@
 import React from "react";
 import { Workflow, Settings, History, MoreVertical } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import Compact_token_display from "@/app/components/CompactTokenDisplay";
 
 interface header_props {
@@ -19,6 +20,8 @@ export default function header({
   set_show_sessions_panel,
   load_sessions
 }: header_props) {
+  const { user } = useUser();
+
   return (
     <div className="navbar min-h-12 bg-base-100 border-b">
       <div className="flex-none">
@@ -43,9 +46,34 @@ export default function header({
             <MoreVertical className="w-4 h-4" />
           </div>
           <ul tabIndex={0} className="dropdown-content menu bg-base-100 rounded-box z-[1] w-64 p-2 shadow">
-            {/* Show token info in dropdown on mobile */}
+            {/* Show user info and token info in dropdown on mobile */}
             <li className="sm:hidden mb-2">
               <div className="px-2 py-1">
+                {user && (
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-base-300">
+                    <div className="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center overflow-hidden">
+                      {user.hasImage ? (
+                        <img 
+                          src={user.imageUrl} 
+                          alt={user.fullName || user.firstName || "User"} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs font-medium">
+                          {user.firstName?.[0] || user.emailAddresses[0]?.emailAddress[0] || "U"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {user.fullName || user.firstName || "User"}
+                      </div>
+                      <div className="text-xs text-base-content/60 truncate">
+                        {user.primaryEmailAddress?.emailAddress}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Compact_token_display show_breakdown={true} />
               </div>
             </li>

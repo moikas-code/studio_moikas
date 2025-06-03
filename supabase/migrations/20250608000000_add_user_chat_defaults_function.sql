@@ -74,7 +74,7 @@ BEGIN
     SET 
         temperature = COALESCE(p_temperature, temperature),
         max_tokens = COALESCE(p_max_tokens, max_tokens),
-        model = COALESCE(p_model, model),
+        model_preference = COALESCE(p_model, model_preference),
         system_prompt = COALESCE(p_system_prompt, system_prompt),
         updated_at = NOW()
     WHERE user_id = p_user_id
@@ -94,7 +94,7 @@ BEGIN
             p_user_id,
             COALESCE(p_temperature, 0.7),
             COALESCE(p_max_tokens, 2048),
-            COALESCE(p_model, 'grok-2-mini-latest'),
+            COALESCE(p_model, 'grok-3-mini-latest'),
             COALESCE(p_system_prompt, 'You are a helpful AI assistant.'),
             NOW(),
             NOW()
@@ -132,7 +132,7 @@ BEGIN
     SET 
         temperature = 0.7,
         max_tokens = 2048,
-        model = 'grok-2-mini-latest',
+        model_preference = 'grok-3-mini-latest',
         system_prompt = 'You are a helpful AI assistant.',
         updated_at = NOW()
     WHERE user_id = p_user_id
