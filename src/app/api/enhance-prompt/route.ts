@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
 import { auth } from "@clerk/nextjs/server";
 import { deduct_tokens } from "@/lib/generate_helpers";
-import { invoke_xai_agent_with_tools } from "@/lib/xai_agent";
+import { invoke_xai_agent_with_tools } from "@/lib/ai-agents";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";

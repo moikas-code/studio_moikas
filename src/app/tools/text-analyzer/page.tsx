@@ -2,6 +2,7 @@
 import React, { useState, useContext } from "react";
 import { MpContext } from "../../context/mp_context";
 import jsPDF from "jspdf";
+import { use_token_estimation } from "@/lib/token_estimation";
 
 const FEATURES = [
   { value: "script", label: "Generate Script" },
@@ -22,11 +23,39 @@ export default function Text_analyzer_page() {
   const [error, set_error] = useState("");
   const [link_or_topic, set_link_or_topic] = useState("");
   const [out_of_tokens, set_out_of_tokens] = useState(false);
+  const [file_content, set_file_content] = useState<string>("");
   const { mp_tokens, is_loading_tokens, token_error, refresh_mp } = useContext(MpContext);
 
-  const handle_file_change = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Get content for token estimation
+  const get_content_for_estimation = () => {
+    if (file_content) return file_content;
+    if (link_or_topic) return link_or_topic;
+    return "";
+  };
+
+  // Use token estimation hook
+  const token_estimate = use_token_estimation(get_content_for_estimation());
+
+  const handle_file_change = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      set_file(e.target.files[0]);
+      const selected_file = e.target.files[0];
+      set_file(selected_file);
+      
+      // Read file content for token estimation
+      if (selected_file.type === "text/plain") {
+        try {
+          const content = await selected_file.text();
+          set_file_content(content);
+        } catch (error) {
+          console.error("Error reading file:", error);
+          set_file_content("");
+        }
+      } else {
+        // For PDF files, we can't read the content directly for estimation
+        // Use a fallback estimation based on file size
+        const estimated_content = "PDF file content estimation - approximately " + Math.floor(selected_file.size / 5) + " characters";
+        set_file_content(estimated_content);
+      }
     }
   };
 
@@ -140,7 +169,10 @@ export default function Text_analyzer_page() {
               <button
                 type="button"
                 className="btn btn-xs btn-outline btn-error"
-                onClick={() => set_file(null)}
+                onClick={() => {
+                  set_file(null);
+                  set_file_content("");
+                }}
                 aria-label="Remove file"
               >
                 Remove
@@ -174,8 +206,24 @@ export default function Text_analyzer_page() {
           className="btn btn-primary w-full text-lg mt-2"
           disabled={loading || out_of_tokens}
         >
-          {loading ? "Processing..." : "✨ Generate (25 MP)"}
+          {loading ? "Processing..." : `✨ Generate (${token_estimate.estimated_cost} MP)`}
         </button>
+        
+        {/* Token estimation display */}
+        {(file || link_or_topic) && (
+          <div className="text-xs text-base-content/60 mt-2 text-center">
+            <div className="flex justify-center items-center gap-2">
+              <span>📊 {token_estimate.formatted_estimate}</span>
+              <span>•</span>
+              <span>{token_estimate.character_count.toLocaleString()} chars</span>
+              <span>•</span>
+              <span>{token_estimate.word_count.toLocaleString()} words</span>
+            </div>
+            <div className="text-xs text-base-content/40 mt-1">
+              Estimation based on ~4 chars per token
+            </div>
+          </div>
+        )}
       </form>
       {error && <div className="text-error mt-4 text-center">{error}</div>}
       {result && (

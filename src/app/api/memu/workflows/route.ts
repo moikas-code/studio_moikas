@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
+import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
+import { Redis } from "@upstash/redis";
+import { check_rate_limit } from "@/lib/generate_helpers";
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,21 +16,33 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // Rate limiting
+    const rate = await check_rate_limit(redis, userId, 10, 60);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again soon." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": rate.remaining.toString(),
+            "X-RateLimit-Reset": rate.reset.toString(),
+          },
+        }
+      );
+    }
+
+    // Initialize Supabase client
+    const supabase = await create_clerk_supabase_client_ssr();
 
     // Get user
-    const { data: user } = await supabase
+    const { data: user, error: user_error } = await supabase
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
       .single();
 
-    if (!user) {
+    if (user_error || !user) {
+      console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
@@ -68,6 +88,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limiting
+    const rate = await check_rate_limit(redis, userId, 10, 60);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again soon." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": rate.remaining.toString(),
+            "X-RateLimit-Reset": rate.reset.toString(),
+          },
+        }
+      );
+    }
+
     const body = await req.json();
     const { name, description, template_id, nodes = [] } = body;
 
@@ -78,21 +113,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // Initialize Supabase client
+    const supabase = await create_clerk_supabase_client_ssr();
 
     // Get user
-    const { data: user } = await supabase
+    const { data: user, error: user_error } = await supabase
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
       .single();
 
-    if (!user) {
+    if (user_error || !user) {
+      console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 

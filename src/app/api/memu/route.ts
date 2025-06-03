@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { create_clerk_supabase_client_ssr } from "@/lib/supabase_server";
-import { workflow_xai_agent } from "@/lib/xai_agent";
+import { workflow_xai_agent } from "@/lib/ai-agents";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";
 
 const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
 // Token costs per 3000 tokens
@@ -32,34 +32,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use service role client to bypass RLS for now
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // Initialize Supabase client
+    const supabase = await create_clerk_supabase_client_ssr();
     
     // Get user and subscription info
-    const { data: user } = await supabase
+    const { data: user, error: user_error } = await supabase
       .from("users")
       .select(`
         id,
         subscriptions (
-          plan_type,
-          tokens_renewable,
-          tokens_permanent
+          plan,
+          renewable_tokens,
+          permanent_tokens
         )
       `)
       .eq("clerk_id", userId)
       .single();
 
-    if (!user || !user.subscriptions?.[0]) {
+    if (user_error || !user) {
+      console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    if (!user.subscriptions?.[0]) {
+      return NextResponse.json({ error: "User subscription not found" }, { status: 404 });
+    }
+
     const subscription = user.subscriptions[0];
-    const is_free_user = subscription.plan_type === "free";
+    const is_free_user = subscription.plan === "free";
 
     // Rate limiting
     const rate_limit = is_free_user ? 10 : 60;
@@ -67,16 +67,19 @@ export async function POST(req: NextRequest) {
     
     if (!rate.allowed) {
       return NextResponse.json(
-        { 
-          error: "Rate limit exceeded",
-          retry_after: rate.reset
-        },
-        { status: 429 }
+        { error: "Rate limit exceeded. Try again soon." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": rate.remaining.toString(),
+            "X-RateLimit-Reset": rate.reset.toString(),
+          },
+        }
       );
     }
 
     // Check minimum token balance
-    const total_tokens = subscription.tokens_renewable + subscription.tokens_permanent;
+    const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens;
     if (total_tokens < MIN_TEXT_COST) {
       return NextResponse.json(
         { error: "Insufficient tokens" },
@@ -86,10 +89,27 @@ export async function POST(req: NextRequest) {
 
     // Get or create session
     let session;
+    
+    // Ensure session_id is a valid UUID, otherwise generate one
+    let valid_session_id = session_id;
+    try {
+      // Check if it's a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(session_id)) {
+        // Generate a new UUID if the provided one is invalid
+        const { v4: uuidv4 } = await import("uuid");
+        valid_session_id = uuidv4();
+      }
+    } catch (e) {
+      // If any error, generate a new UUID
+      const { v4: uuidv4 } = await import("uuid");
+      valid_session_id = uuidv4();
+    }
+    
     const { data: existing_session } = await supabase
       .from("workflow_sessions")
       .select("*")
-      .eq("id", session_id)
+      .eq("id", valid_session_id)
       .eq("user_id", user.id)
       .single();
 
@@ -99,7 +119,7 @@ export async function POST(req: NextRequest) {
       const { data: new_session, error: session_error } = await supabase
         .from("workflow_sessions")
         .insert({
-          id: session_id,
+          id: valid_session_id,
           user_id: user.id,
           workflow_id,
           name: "Memu Chat Session"
@@ -110,7 +130,7 @@ export async function POST(req: NextRequest) {
       if (session_error) {
         console.error("Error creating session:", session_error);
         return NextResponse.json(
-          { error: "Failed to create session" },
+          { error: "Failed to create session: " + session_error.message },
           { status: 500 }
         );
       }
@@ -201,10 +221,10 @@ export async function POST(req: NextRequest) {
       }
 
       // Deduct tokens
-      const renewable_to_use = Math.min(subscription.tokens_renewable, total_cost);
+      const renewable_to_use = Math.min(subscription.renewable_tokens, total_cost);
       const permanent_to_use = Math.max(0, total_cost - renewable_to_use);
 
-      const { error: deduct_error } = await supabase.rpc('deduct_tokens_v2', {
+      const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
         p_user_id: user.id,
         p_renewable_tokens: renewable_to_use,
         p_permanent_tokens: permanent_to_use
@@ -291,6 +311,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limiting
+    const rate = await check_rate_limit(redis, userId, 10, 60);
+    if (!rate.allowed) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Try again soon." },
+        {
+          status: 429,
+          headers: {
+            "X-RateLimit-Remaining": rate.remaining.toString(),
+            "X-RateLimit-Reset": rate.reset.toString(),
+          },
+        }
+      );
+    }
+
     const url = new URL(req.url);
     const session_id = url.searchParams.get("session_id");
 
@@ -301,21 +336,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    // Initialize Supabase client
+    const supabase = await create_clerk_supabase_client_ssr();
 
     // Get user
-    const { data: user } = await supabase
+    const { data: user, error: user_error } = await supabase
       .from("users")
       .select("id")
       .eq("clerk_id", userId)
       .single();
 
-    if (!user) {
+    if (user_error || !user) {
+      console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 

@@ -1,5 +1,6 @@
 import React from "react";
 import { Send } from "lucide-react";
+import Token_usage_display from "./token_usage_display";
 
 interface input_area_props {
   input: string;
@@ -42,8 +43,11 @@ export default function input_area({
             <Send className="w-5 h-5" />
           </button>
         </div>
-        <div className="text-xs text-base-content/60 mt-2">
-          {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 3000 tokens (min 1 MP)
+        <div className="text-xs text-base-content/60 mt-2 flex justify-between items-center">
+          <span>
+            {plan === "free" ? "10 messages/minute" : "60 messages/minute"} • 1 MP per 3000 tokens (min 1 MP)
+          </span>
+          <Token_usage_display input={input} show_details={true} />
         </div>
       </div>
     </form>

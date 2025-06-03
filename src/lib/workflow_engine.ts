@@ -1,4 +1,4 @@
-import { invoke_xai_agent_with_tools } from "./xai_agent";
+import { invoke_xai_agent_with_tools } from "./ai-agents";
 import { create_clerk_supabase_client_ssr } from "./supabase_server";
 
 export interface workflow_node {

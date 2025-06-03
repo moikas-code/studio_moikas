@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";
-import { invoke_xai_agent_with_tools } from "@/lib/xai_agent";
+import { invoke_xai_agent_with_tools } from "@/lib/ai-agents";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { PdfReader } from "pdfreader";
 import { track } from '@vercel/analytics/server';
