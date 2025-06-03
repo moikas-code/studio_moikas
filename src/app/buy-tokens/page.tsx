@@ -34,9 +34,9 @@ interface EnhancedProduct extends Product {
 const enhance_products = (products: Product[]): EnhancedProduct[] => {
   // Define token packages based on product order
   const token_configs = [
-    { tokens: 500, bonus: 0 },      // Minor Mana Potion
-    { tokens: 2000, bonus: 200 },   // Greater Mana Potion  
-    { tokens: 5000, bonus: 1000 }   // Superior Mana Potion
+    { tokens: 2048, bonus: 0 },     // Minor Mana Potion - 2048 @ $2
+    { tokens: 6144, bonus: 0 },     // Greater Mana Potion - 6144 @ $6
+    { tokens: 16384, bonus: 0 }     // Superior Mana Potion - 16384 @ $16
   ];
   
   return products.map((product, index) => {
@@ -88,16 +88,18 @@ const get_product_features = (product: Product, tokens: number, bonus: number, i
     base_features.push("Perfect for trying premium features");
     base_features.push(`Generate ~${Math.floor(total_tokens / 20)} high-quality images`);
     base_features.push("Never expires");
+    base_features.push("$0.001 per MP");
   } else if (index === 1) {
     base_features.push("Most popular choice");
     base_features.push(`Generate ~${Math.floor(total_tokens / 20)}+ images`);
-    if (bonus > 0) base_features.push(`Bonus ${bonus} tokens included`);
-    base_features.push("Best value per token");
+    base_features.push("Best value for regular creators");
+    base_features.push("$0.001 per MP");
   } else if (index === 2) {
     base_features.push("For power users & creators");
     base_features.push(`Generate ${Math.floor(total_tokens / 20)}+ images`);
-    if (bonus > 0) base_features.push(`Massive ${bonus} bonus tokens`);
+    base_features.push("Maximum value per token");
     base_features.push("Premium support priority");
+    base_features.push("$0.001 per MP");
   }
   
   return base_features;
@@ -240,12 +242,10 @@ export default function BuyTokensPage() {
                         <div className="text-center mb-6">
                           <div className="text-4xl font-bold mb-1">${product.price}</div>
                           <div className="text-sm text-base-content/60">
-                            ${product.value_per_token.toFixed(3)} per token
-                            {product.bonus > 0 && (
-                              <span className="block text-success font-medium">
-                                Total: {totalTokens.toLocaleString()} MP
-                              </span>
-                            )}
+                            <span className="block">Total: {totalTokens.toLocaleString()} MP</span>
+                            <span className="text-xs text-base-content/50">
+                              ${product.value_per_token.toFixed(4)} per MP
+                            </span>
                           </div>
                         </div>
 

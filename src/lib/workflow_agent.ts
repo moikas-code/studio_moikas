@@ -4,7 +4,7 @@ import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { DynamicTool, Tool } from "@langchain/core/tools";
 import { AgentExecutor, createToolCallingAgent } from "langchain/agents";
-import { StateGraph, END, START } from "@langchain/langgraph";
+import { StateGraph, END, START, Annotation } from "@langchain/langgraph";
 import { createClient } from "@supabase/supabase-js";
 
 // Types for workflow nodes and execution
@@ -17,13 +17,19 @@ interface WorkflowNode {
   connections: Record<string, unknown>[];
 }
 
-interface AgentState {
-  messages: BaseMessage[];
-  current_node?: string;
-  workflow_data?: Record<string, unknown>;
-  execution_context?: Record<string, unknown>;
-  next_action?: string;
-}
+// Define state schema using Annotation
+const agent_state_schema = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: (x: BaseMessage[], y: BaseMessage[]) => [...x, ...y],
+    default: () => []
+  }),
+  current_node: Annotation<string>(),
+  workflow_data: Annotation<Record<string, unknown>>(),
+  execution_context: Annotation<Record<string, unknown>>(),
+  next_action: Annotation<string>()
+});
+
+type AgentState = typeof agent_state_schema.State;
 
 /**
  * Workflow Agent that can execute workflow nodes as tools and coordinate with other agents
@@ -196,7 +202,7 @@ export class WorkflowAgent {
     const workflow_tools = (nodes as unknown as WorkflowNode[]).map((node) => {
       return new DynamicTool({
         name: `workflow_node_${node.node_id}`,
-        description: `Execute workflow node: ${node.type} - ${node.data.description || 'No description'}`,
+        description: `Execute workflow node: ${node.type} - ${(node.data.description as string) || 'No description'}`,
         func: async (input: string) => {
           const parsed_input = JSON.parse(input);
           return await this.execute_workflow_node(workflow_id, parsed_input.session_id, {
@@ -233,8 +239,8 @@ export class WorkflowAgent {
         .select()
         .single();
 
-      if (exec_error) {
-        throw new Error(`Failed to create execution: ${exec_error.message}`);
+      if (exec_error || !execution) {
+        throw new Error(`Failed to create execution: ${exec_error?.message || 'No execution created'}`);
       }
 
       // Get the node details
@@ -278,13 +284,13 @@ export class WorkflowAgent {
           output_data,
           completed_at: new Date().toISOString()
         })
-        .eq('id', execution.id);
+        .eq('id', (execution as { id: string }).id);
 
       return JSON.stringify({
         success: true,
         node_id: workflow_node.node_id,
         output_data,
-        execution_id: execution.id
+        execution_id: (execution as { id: string }).id
       });
 
     } catch (error) {
@@ -302,21 +308,22 @@ export class WorkflowAgent {
     const { prompt, system_message, temperature = 0.7 } = node.data;
     
     const messages = [
-      new SystemMessage(system_message || "You are a helpful assistant."),
-      new HumanMessage(prompt.replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] || match))
+      new SystemMessage((system_message as string) || "You are a helpful assistant."),
+      new HumanMessage((prompt as string).replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] as string || match))
     ];
 
     const model = new ChatXAI({
       apiKey: process.env.XAI_API_KEY,
       model: "grok-3-mini-latest",
-      temperature
+      temperature: temperature as number
     });
 
     const response = await model.invoke(messages);
     
     return {
       response: typeof response.content === 'string' ? response.content : response.content.toString(),
-      tokens_used: response.usage?.total_tokens || 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tokens_used: (response as any).usage?.total_tokens || 0
     };
   }
 
@@ -325,7 +332,7 @@ export class WorkflowAgent {
    */
   private async execute_image_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { prompt_template, style, size } = node.data;
-    const final_prompt = prompt_template.replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] || match);
+    const final_prompt = (prompt_template as string).replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] as string || match);
 
     // Call your image generation API
     const response = await fetch('/api/generate', {
@@ -333,8 +340,8 @@ export class WorkflowAgent {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         prompt: final_prompt, 
-        style: style || 'realistic',
-        size: size || '1024x1024'
+        style: (style as string) || 'realistic',
+        size: (size as string) || '1024x1024'
       })
     });
 
@@ -355,7 +362,7 @@ export class WorkflowAgent {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         text,
-        analysis_type: analysis_type || 'sentiment'
+        analysis_type: (analysis_type as string) || 'sentiment'
       })
     });
 
@@ -368,7 +375,7 @@ export class WorkflowAgent {
    */
   private async execute_video_node(node: WorkflowNode, input_data: Record<string, unknown>): Promise<Record<string, unknown>> {
     const { video_prompt, effects, duration } = node.data;
-    const final_prompt = video_prompt.replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] || match);
+    const final_prompt = (video_prompt as string).replace(/\{(\w+)\}/g, (match: string, key: string) => input_data[key] as string || match);
 
     // Call your video effects API
     const response = await fetch('/api/video-effects/upload', {
@@ -376,8 +383,8 @@ export class WorkflowAgent {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         prompt: final_prompt,
-        effects: effects || [],
-        duration: duration || 5
+        effects: (effects as string[]) || [],
+        duration: (duration as number) || 5
       })
     });
 
@@ -389,15 +396,7 @@ export class WorkflowAgent {
    * Create a LangGraph workflow for multi-agent coordination
    */
   create_langgraph_workflow(): StateGraph<AgentState> {
-    const workflow = new StateGraph<AgentState>({
-      channels: {
-        messages: { reducer: (x: BaseMessage[], y: BaseMessage[]) => [...x, ...y] },
-        current_node: { default: () => "" },
-        workflow_data: { default: () => ({}) },
-        execution_context: { default: () => ({}) },
-        next_action: { default: () => "" }
-      }
-    });
+    const workflow = new StateGraph(agent_state_schema);
 
     // Planning Agent Node
     workflow.addNode("planner", async (state: AgentState) => {
@@ -500,31 +499,38 @@ export class WorkflowAgent {
     });
 
     // Define edges
-    workflow.addEdge(START, "planner");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    workflow.addEdge(START, "planner" as any);
     workflow.addConditionalEdges(
-      "planner",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "planner" as any,
       (state: AgentState) => state.next_action || "executor",
       {
         executor: "executor",
         coordinator: "coordinator"
-      }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any
     );
     workflow.addConditionalEdges(
-      "executor",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "executor" as any,
       (state: AgentState) => state.next_action || "coordinator",
       {
         coordinator: "coordinator",
         planner: "planner"
-      }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any
     );
     workflow.addConditionalEdges(
-      "coordinator",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "coordinator" as any,
       (state: AgentState) => state.next_action || END,
       {
         executor: "executor",
         planner: "planner",
         [END]: END
-      }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any
     );
 
     this.workflow_graph = workflow;
@@ -582,9 +588,10 @@ export class WorkflowAgent {
 
     } catch (error) {
       console.error('Workflow agent execution error:', error);
+      const error_message = error instanceof Error ? error.message : 'Unknown error';
       return {
-        response: `Sorry, I encountered an error while processing your request: ${error.message}`,
-        execution_data: { error: error.message }
+        response: `Sorry, I encountered an error while processing your request: ${error_message}`,
+        execution_data: { error: error_message }
       };
     }
   }

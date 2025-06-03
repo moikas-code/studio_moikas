@@ -31,7 +31,8 @@ export interface workflow_definition {
 export class workflow_engine {
   private workflow: workflow_definition;
   private context: workflow_execution_context;
-  private supabase: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: any = null;
 
   constructor(workflow: workflow_definition, context: workflow_execution_context) {
     this.workflow = workflow;
@@ -65,7 +66,7 @@ export class workflow_engine {
         model_costs: this.context.model_costs
       };
     } catch (error) {
-      await this.fail_execution(execution_id, error);
+      await this.fail_execution(execution_id, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -120,8 +121,8 @@ export class workflow_engine {
   }
 
   private async execute_llm_node(node: workflow_node, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    const prompt = this.interpolate_template(node.data.prompt || "", input);
-    const system_prompt = node.data.system_prompt || "You are a helpful assistant.";
+    const prompt = this.interpolate_template((node.data.prompt as string) || "", input);
+    const system_prompt = (node.data.system_prompt as string) || "You are a helpful assistant.";
     
     const { ChatXAI } = await import("@langchain/xai");
     const { HumanMessage, SystemMessage } = await import("@langchain/core/messages");
