@@ -59,6 +59,17 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
             <ul className="menu menu-lg rounded-box w-full">
               <li>
                 <Link
+                  href="/tools/chat"
+                  className="justify-start"
+                  aria-label="Chat tool"
+                >
+                  <span className="text-base font-medium text-md">
+                    Chat
+                  </span>
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/tools/create"
                   className="justify-start"
                   aria-label="Image Generator tool"
@@ -97,17 +108,6 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 >
                   <span className="text-base font-medium text-md">
                     Video Generator
-                  </span>
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/tools/chat"
-                  className="justify-start"
-                  aria-label="Chat tool"
-                >
-                  <span className="text-base font-medium text-md">
-                    Chat
                   </span>
                 </Link>
               </li>
