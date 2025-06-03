@@ -23,14 +23,23 @@ export default function InputArea({
   handle_key_down
 }: InputAreaProps) {
   return (
-    <form onSubmit={handle_submit} className="p-4 border-t bg-base-100">
+    <form onSubmit={(e) => {
+      console.log("📤 Form onSubmit triggered");
+      handle_submit(e);
+    }} className="p-4 border-t bg-base-100">
       <div className="max-w-4xl mx-auto">
         <div className="flex gap-2">
           <textarea
             ref={text_area_ref}
             value={input}
-            onChange={(e) => set_input(e.target.value)}
-            onKeyDown={handle_key_down}
+            onChange={(e) => {
+              console.log("📝 Input changed:", e.target.value);
+              set_input(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              console.log("⌨️ Key down in textarea:", e.key);
+              handle_key_down(e);
+            }}
             placeholder="Type your message..."
             className="textarea textarea-bordered flex-1 resize-none"
             rows={2}
@@ -40,6 +49,7 @@ export default function InputArea({
             type="submit"
             className="btn btn-primary"
             disabled={loading || !input.trim()}
+            onClick={() => console.log("🖱️ Button clicked")}
           >
             <Send className="w-5 h-5" />
           </button>

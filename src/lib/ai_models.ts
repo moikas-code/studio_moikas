@@ -69,7 +69,7 @@ export const FREE_IMAGE_MODELS: image_model_config[] = [
     plans: ["free", "standard"],
   },
   {
-    value: "fal-ai/flux/schnell",
+    value: "fal-ai/flux-1/schnell",
     name: "FLUX.1 [schnell]",
     mana_points: 1,
     cost_per_mp: 0.001,
@@ -96,6 +96,20 @@ export const FREE_IMAGE_MODELS: image_model_config[] = [
     max_images: 4,
     plans: ["free", "standard"],
   },
+  {
+    value: "fal-ai/flux-1/dev",
+    name: "FLUX.1 [dev]",
+    mana_points: 1,
+    cost_per_mp: 0.001,
+    custom_cost: 0.025,
+    is_image_to_image: false,
+    is_size_configurable: false,
+    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
+    max_cfgs: 20,
+    max_steps: 50,
+    max_images: 4,
+    plans: ["free", "standard"],
+  },
 ];
 
 /**
@@ -116,20 +130,7 @@ export const PREMIUM_IMAGE_MODELS: image_model_config[] = [
     max_images: 4,
     plans: ["free", "standard"],
   },
-  {
-    value: "fal-ai/flux/dev",
-    name: "FLUX.1 [dev]",
-    mana_points: 1,
-    cost_per_mp: 0.001,
-    custom_cost: 0.025,
-    is_image_to_image: false,
-    is_size_configurable: false,
-    aspect_ratio: ["1:1", "16:9", "9:16", "2:3", "3:2", "3:4", "4:3", "21:9", "9:21"],
-    max_cfgs: 20,
-    max_steps: 50,
-    max_images: 4,
-    plans: ["free", "standard"],
-  },
+
   {
     value: "fal-ai/flux-pro/v1.1-ultra",
     name: "FLUX.1.1 Ultra",
@@ -293,7 +294,7 @@ export const CHAT_MODELS = {
   },
   "grok-2-vision-1212": {
     name: "Grok 2 Vision",
-    provider: "xai", 
+    provider: "xai",
     cost_per_1k_tokens: 0.002,
     context_window: 32000,
     supports_streaming: true,

@@ -94,8 +94,12 @@ export const create_chat_handlers = (
 
   const handle_submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("🎯 Handle submit called", { input: state.input, loading: state.loading });
     
-    if (!state.input.trim() || state.loading) return;
+    if (!state.input.trim() || state.loading) {
+      console.log("❌ Submit blocked:", { hasInput: !!state.input.trim(), loading: state.loading });
+      return;
+    }
     
     const user_message: message = {
       id: uuidv4(),
@@ -104,6 +108,7 @@ export const create_chat_handlers = (
       created_at: new Date().toISOString()
     };
     
+    console.log("📨 Sending message:", user_message.content);
     setters.set_messages(prev => [...prev, user_message]);
     setters.set_input("");
     setters.set_loading(true);
@@ -493,8 +498,10 @@ export const create_chat_handlers = (
   };
 
   const handle_key_down = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    console.log("🎹 Key down:", { key: e.key, shiftKey: e.shiftKey });
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      console.log("⏎ Enter pressed, calling handle_submit");
       handle_submit(e as unknown as React.FormEvent);
     }
   };

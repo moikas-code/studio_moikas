@@ -107,7 +107,7 @@ export default function Workflow_chatbot_page() {
     // Only recreate handlers when refresh_mp changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [refresh_mp]
-  );
+);
 
   useEffect(() => {
     // Generate session ID on mount
