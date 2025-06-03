@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           status: "success",
           response: result.response,
+          structured_response: result.structured_response,
           token_usage: result.token_usage,
           execution_history: result.execution_history
         });
@@ -234,6 +235,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         status: "success",
         response: result.response,
+        structured_response: result.structured_response,
         token_usage: result.token_usage,
         execution_history: result.execution_history,
         session_id: session_id

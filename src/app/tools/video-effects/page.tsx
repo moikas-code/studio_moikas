@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost } from "@/lib/generate_helpers";
+import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost, video_model_to_legacy_model } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import { MoreVertical } from "lucide-react";
 import CostDisplay from "../../components/CostDisplay";
@@ -25,9 +25,9 @@ export default function Video_effects_page() {
   const prompt_input_ref = useRef<HTMLDivElement>(null);
   const [prompt_input_height, set_prompt_input_height] = useState(0);
   const [window_width, set_window_width] = useState(1200);
-  const sorted_video_models = sort_models_by_cost(VIDEO_MODELS).filter(
-    (m) => !m.is_image_to_video,
-  );
+  const sorted_video_models = sort_models_by_cost(
+    VIDEO_MODELS.map(video_model_to_legacy_model)
+  ).filter((m) => !m.is_image_to_video);
   const [model_id, set_model_id] = useState(
     sorted_video_models[0]?.value || "",
   );

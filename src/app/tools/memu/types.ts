@@ -1,8 +1,22 @@
+export interface structured_ai_response {
+  response: string;
+  thinking?: string;
+  objectives?: string[];
+  summary?: string;
+  confidence?: number;
+  metadata?: {
+    response_type?: "greeting" | "question" | "task" | "conversation" | "error";
+    requires_followup?: boolean;
+    suggested_actions?: string[];
+  };
+}
+
 export interface message {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
   created_at: string;
+  structured_response?: structured_ai_response;
 }
 
 export interface workflow {
@@ -10,6 +24,7 @@ export interface workflow {
   name: string;
   description?: string;
   updated_at: string;
+  status?: 'stable' | 'early_access' | 'experimental' | 'deprecated';
 }
 
 export interface chat_session {
@@ -60,6 +75,7 @@ export interface workflow_template {
   name: string;
   description: string;
   graph_data: Record<string, unknown>;
+  status?: 'stable' | 'early_access' | 'experimental' | 'deprecated';
 }
 
 export interface workflow_limits {
@@ -84,6 +100,7 @@ export interface chat_state {
   show_new_workflow_modal: boolean;
   new_workflow_name: string;
   new_workflow_description: string;
+  new_workflow_status: 'stable' | 'early_access' | 'experimental' | 'deprecated';
   creating_workflow: boolean;
   default_settings: default_chat_settings | null;
   show_default_settings_modal: boolean;

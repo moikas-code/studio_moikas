@@ -90,11 +90,35 @@ export interface execution_plan {
 }
 
 /**
+ * Structured AI response for better logging and user experience
+ */
+export interface structured_ai_response {
+  /** The main response to show the user */
+  response: string;
+  /** AI's internal thinking process (for logging/debugging) */
+  thinking?: string;
+  /** Identified objectives from the user's request */
+  objectives?: string[];
+  /** Summary of what was accomplished */
+  summary?: string;
+  /** Confidence level in the response (0-1) */
+  confidence?: number;
+  /** Response metadata */
+  metadata?: {
+    response_type?: "greeting" | "question" | "task" | "conversation" | "error";
+    requires_followup?: boolean;
+    suggested_actions?: string[];
+  };
+}
+
+/**
  * Final result of workflow execution
  */
 export interface workflow_execution_result {
   /** Final response message */
   response: string;
+  /** Structured response with thinking and objectives */
+  structured_response?: structured_ai_response;
   /** Total token usage */
   token_usage: token_usage;
   /** Total model costs */

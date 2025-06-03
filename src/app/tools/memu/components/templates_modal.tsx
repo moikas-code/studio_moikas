@@ -1,5 +1,6 @@
 import React from "react";
 import { workflow_template } from "../types";
+import Workflow_status_badge from "./workflow_status_badge";
 
 interface templates_modal_props {
   show_templates: boolean;
@@ -29,7 +30,10 @@ export default function templates_modal({
               onClick={() => create_from_template(template.id, template.name)}
             >
               <div className="card-body p-4">
-                <h5 className="card-title text-base">{template.name}</h5>
+                <div className="flex items-center gap-2 mb-2">
+                  <h5 className="card-title text-base">{template.name}</h5>
+                  <Workflow_status_badge status={template.status} size="sm" />
+                </div>
                 {template.description && (
                   <p className="text-sm text-base-content/70">{template.description}</p>
                 )}

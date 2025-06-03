@@ -14,6 +14,7 @@ export const create_chat_handlers = (
     set_show_new_workflow_modal: React.Dispatch<React.SetStateAction<boolean>>;
     set_new_workflow_name: React.Dispatch<React.SetStateAction<string>>;
     set_new_workflow_description: React.Dispatch<React.SetStateAction<string>>;
+    set_new_workflow_status: React.Dispatch<React.SetStateAction<'stable' | 'early_access' | 'experimental' | 'deprecated'>>;
     set_creating_workflow: React.Dispatch<React.SetStateAction<boolean>>;
     set_show_templates: React.Dispatch<React.SetStateAction<boolean>>;
     set_workflow_limits: React.Dispatch<React.SetStateAction<workflow_limits | null>>;
@@ -142,7 +143,8 @@ export const create_chat_handlers = (
         id: uuidv4(),
         role: "assistant",
         content: data.response,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        structured_response: data.structured_response
       };
       
       setters.set_messages(prev => [...prev, assistant_message]);
@@ -172,7 +174,8 @@ export const create_chat_handlers = (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           name: state.new_workflow_name.trim(),
-          description: state.new_workflow_description.trim() || null
+          description: state.new_workflow_description.trim() || null,
+          status: state.new_workflow_status
         })
       });
       
@@ -184,6 +187,7 @@ export const create_chat_handlers = (
         setters.set_show_new_workflow_modal(false);
         setters.set_new_workflow_name("");
         setters.set_new_workflow_description("");
+        setters.set_new_workflow_status('stable');
       } else {
         const error_data = await response.json();
         if (response.status === 403 && error_data.limit_info) {

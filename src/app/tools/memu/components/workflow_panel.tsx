@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, Plus, Edit } from "lucide-react";
 import { workflow, workflow_limits } from "../types";
+import Workflow_status_badge from "./workflow_status_badge";
 
 interface workflow_panel_props {
   show_workflow_panel: boolean;
@@ -87,7 +88,10 @@ export default function workflow_panel({
                 onClick={() => set_selected_workflow(workflow.id)}
                 className="flex-1 text-left"
               >
-                <div className="font-medium">{workflow.name}</div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium">{workflow.name}</span>
+                  <Workflow_status_badge status={workflow.status} size="sm" />
+                </div>
                 {workflow.description && (
                   <div className="text-xs opacity-70">{workflow.description}</div>
                 )}

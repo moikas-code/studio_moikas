@@ -34,6 +34,7 @@ export default function Workflow_chatbot_page() {
   const [show_new_workflow_modal, set_show_new_workflow_modal] = useState(false);
   const [new_workflow_name, set_new_workflow_name] = useState("");
   const [new_workflow_description, set_new_workflow_description] = useState("");
+  const [new_workflow_status, set_new_workflow_status] = useState<'stable' | 'early_access' | 'experimental' | 'deprecated'>('stable');
   const [creating_workflow, set_creating_workflow] = useState(false);
   const [workflow_limits, set_workflow_limits] = useState<workflow_limits | null>(null);
   const [default_settings, set_default_settings] = useState<default_chat_settings | null>(null);
@@ -64,6 +65,7 @@ export default function Workflow_chatbot_page() {
     show_new_workflow_modal,
     new_workflow_name,
     new_workflow_description,
+    new_workflow_status,
     creating_workflow,
     default_settings,
     show_default_settings_modal,
@@ -86,6 +88,7 @@ export default function Workflow_chatbot_page() {
     set_show_new_workflow_modal,
     set_new_workflow_name,
     set_new_workflow_description,
+    set_new_workflow_status,
     set_creating_workflow,
     set_show_templates,
     set_workflow_limits,
@@ -136,6 +139,20 @@ export default function Workflow_chatbot_page() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
+        {/* Early Access Banner */}
+        <div className="bg-warning/10 border-l-4 border-warning px-4 py-2">
+          <div className="flex items-center gap-2">
+            <div className="badge badge-warning badge-sm gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Early Access
+            </div>
+            <span className="text-sm text-warning-content/80">
+              MEMU Workflow Chat is in early access. You may experience bugs or incomplete features.
+            </span>
+          </div>
+        </div>
         {/* Header */}
         <Header
           show_workflow_panel={show_workflow_panel}
@@ -194,9 +211,11 @@ export default function Workflow_chatbot_page() {
         show_new_workflow_modal={show_new_workflow_modal}
         new_workflow_name={new_workflow_name}
         new_workflow_description={new_workflow_description}
+        new_workflow_status={new_workflow_status}
         creating_workflow={creating_workflow}
         set_new_workflow_name={set_new_workflow_name}
         set_new_workflow_description={set_new_workflow_description}
+        set_new_workflow_status={set_new_workflow_status}
         set_show_new_workflow_modal={set_show_new_workflow_modal}
         create_new_workflow={handlers.create_new_workflow}
       />

@@ -9,7 +9,7 @@ import { model_factory } from "../utils/model-factory";
 import { tool_factory } from "../tools/tool-factory";
 import { workflow_graph_manager } from "./workflow-graph";
 import { extract_message_content } from "../utils/message-utils";
-import { SystemMessage } from "@langchain/core/messages";
+import { enhanced_conversational_agent } from "../agents/enhanced-conversational-agent";
 
 /**
  * Main workflow executor that orchestrates multi-agent execution
@@ -80,8 +80,19 @@ export class workflow_executor {
       const last_message = final_state.messages[final_state.messages.length - 1];
       const response = extract_message_content(last_message.content);
 
+      // If workflow completed successfully, also generate structured response for better logging
+      let structured_response;
+      try {
+        const enhanced_agent = new enhanced_conversational_agent(this.model);
+        structured_response = await enhanced_agent.generate_structured_response(final_state);
+      } catch (structure_error) {
+        console.warn("Could not generate structured response:", structure_error);
+        // Continue without structured response
+      }
+
       return {
         response,
+        structured_response,
         token_usage: final_state.token_usage,
         model_costs: final_state.model_costs,
         execution_history: final_state.execution_history
@@ -89,24 +100,37 @@ export class workflow_executor {
     } catch (error) {
       console.error("Workflow execution error:", error);
       
-      // Fallback: Use the model directly for simple chat
+      // Fallback: Use enhanced conversational agent for structured responses
       try {
-        console.log("🔄 Falling back to simple chat...");
-        const last_user_message = messages[messages.length - 1];
-        const response = await this.model.invoke([
-          new SystemMessage("You are a helpful AI assistant."),
-          last_user_message
-        ]);
+        console.log("🔄 Falling back to enhanced conversational agent...");
+        const enhanced_agent = new enhanced_conversational_agent(this.model);
+        
+        // Create state for enhanced agent
+        const fallback_state: agent_state = {
+          messages,
+          workflow_id,
+          session_id,
+          user_id,
+          variables: {},
+          current_step: "fallback",
+          execution_history: [],
+          available_tools: [],
+          token_usage: { input: 0, output: 0 },
+          model_costs: 0
+        };
+        
+        const structured_response = await enhanced_agent.generate_structured_response(fallback_state);
         
         return {
-          response: extract_message_content(response.content),
+          response: structured_response.response,
+          structured_response,
           token_usage: { input: 100, output: 50 }, // Estimated
           model_costs: 1, // Estimated
           execution_history: [
             {
-              step: "fallback",
-              status: "completed",
-              result: "Used simple chat fallback due to workflow error"
+              step: { tool_name: "enhanced_conversational_agent", parameters: {} },
+              result: structured_response,
+              status: "success"
             }
           ]
         };
