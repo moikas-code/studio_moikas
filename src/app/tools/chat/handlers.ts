@@ -21,7 +21,7 @@ export const create_chat_handlers = (
 ) => {
   const load_workflows = async () => {
     try {
-      const response = await fetch("/api/chat");
+      const response = await fetch("/api/memu/workflows");
       if (response.ok) {
         const data = await response.json();
         setters.set_workflows(data.workflows || []);
@@ -33,10 +33,10 @@ export const create_chat_handlers = (
 
   const load_templates = async () => {
     try {
-      const response = await fetch("/api/chat/templates");
+      const response = await fetch("/api/memu/templates");
       if (response.ok) {
         const data = await response.json();
-        setters.set_templates(data.grouped_templates || {});
+        setters.set_templates(data.templates || {});
       }
     } catch (error) {
       console.error("Failed to load templates:", error);
@@ -61,7 +61,7 @@ export const create_chat_handlers = (
     setters.set_error(null);
     
     try {
-      const response = await fetch("/api/chat/chat", {
+      const response = await fetch("/api/memu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -106,7 +106,7 @@ export const create_chat_handlers = (
     
     setters.set_creating_workflow(true);
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/memu/workflows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -136,12 +136,12 @@ export const create_chat_handlers = (
 
   const create_from_template = async (template_id: string, template_name: string) => {
     try {
-      const response = await fetch("/api/chat/templates", {
+      const response = await fetch("/api/memu/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           template_id,
-          name: `${template_name} - ${new Date().toLocaleDateString()}`
+          workflow_name: `${template_name} - ${new Date().toLocaleDateString()}`
         })
       });
       
