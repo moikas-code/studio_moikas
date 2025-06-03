@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
         default_settings = {
           temperature: 0.7,
           max_tokens: 2048,
-          model_preference: 'grok-2-mini-latest',
+          model_preference: 'grok-3-mini-latest',
           system_prompt: 'You are a helpful AI assistant.',
           response_style: 'conversational'
         };
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       const agent_config = {
         temperature: default_settings?.temperature || 0.7,
         maxTokens: default_settings?.max_tokens || 2048,
-        model: default_settings?.model_preference || "grok-2-mini-latest"
+        model: default_settings?.model_preference || "grok-3-mini-latest"
       };
       
       console.log("🤖 Initializing AI agent with config:", agent_config);

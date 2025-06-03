@@ -121,8 +121,7 @@ const base_node: React.FC<node_props & { icon: React.ReactNode; color: string; t
                     data: { ...node.data, model: e.target.value }
                   })}
                 >
-                  <option value="grok-2-mini-latest">Grok 2 Mini</option>
-                  <option value="grok-2-latest">Grok 2</option>
+                  <option value="grok-3-mini-latest">Grok 3 Mini Latest</option>
                 </select>
               </div>
             )}

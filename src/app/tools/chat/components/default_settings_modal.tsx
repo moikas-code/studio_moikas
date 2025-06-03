@@ -21,9 +21,7 @@ const RESPONSE_STYLES = [
 ];
 
 const MODEL_OPTIONS = [
-  { value: 'grok-2-mini-latest', label: 'Grok 2 Mini (Recommended)' },
-  { value: 'grok-2-latest', label: 'Grok 2' },
-  { value: 'grok-vision-beta', label: 'Grok Vision Beta' }
+  { value: 'grok-3-mini-latest', label: 'Grok 3 Mini Latest' }
 ];
 
 export default function default_settings_modal({
@@ -152,7 +150,7 @@ export default function default_settings_modal({
               </label>
               <select
                 className="select select-bordered"
-                value={form_data.model_preference || 'grok-2-mini-latest'}
+                value={form_data.model_preference || 'grok-3-mini-latest'}
                 onChange={(e) => update_field('model_preference', e.target.value)}
               >
                 {MODEL_OPTIONS.map(model => (

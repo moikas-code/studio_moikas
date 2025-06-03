@@ -34,9 +34,16 @@ export const create_chat_handlers = (
       if (response.ok) {
         const data = await response.json();
         setters.set_workflows(data.workflows || []);
+      } else if (response.status === 404) {
+        console.log("Workflows API not available, showing empty list");
+        setters.set_workflows([]);
+      } else {
+        console.error("Failed to load workflows:", response.status, response.statusText);
+        setters.set_workflows([]);
       }
     } catch (error) {
       console.error("Failed to load workflows:", error);
+      setters.set_workflows([]);
     }
   };
 
@@ -46,9 +53,16 @@ export const create_chat_handlers = (
       if (response.ok) {
         const data = await response.json();
         setters.set_templates(data.templates || {});
+      } else if (response.status === 404) {
+        console.log("Templates API not available, showing empty templates");
+        setters.set_templates({});
+      } else {
+        console.error("Failed to load templates:", response.status, response.statusText);
+        setters.set_templates({});
       }
     } catch (error) {
       console.error("Failed to load templates:", error);
+      setters.set_templates({});
     }
   };
 
@@ -58,9 +72,16 @@ export const create_chat_handlers = (
       if (response.ok) {
         const data = await response.json();
         setters.set_workflow_limits(data);
+      } else if (response.status === 404) {
+        console.log("Workflow limits API not available, using fallback limits");
+        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
+      } else {
+        console.error("Failed to load workflow limits:", response.status, response.statusText);
+        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
       }
     } catch (error) {
       console.error("Failed to load workflow limits:", error);
+      setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
     }
   };
 
@@ -296,14 +317,47 @@ export const create_chat_handlers = (
         // Reload default settings to get the system defaults
         await load_default_settings();
         console.log("Default settings reset successfully");
+      } else if (response.status === 404) {
+        // API endpoint not available, reset to fallback defaults
+        console.log("Default settings API not available, resetting to fallback defaults");
+        const fallback_defaults = {
+          system_prompt: "You are a helpful AI assistant.",
+          response_style: "conversational" as const,
+          temperature: 0.7,
+          max_tokens: 2048,
+          context_window: 10,
+          enable_memory: true,
+          enable_web_search: false,
+          enable_code_execution: false,
+          model_preference: "grok-2-mini-latest"
+        };
+        setters.set_default_settings(fallback_defaults);
+        setters.set_error("Settings reset to defaults. Full persistence requires database setup.");
       } else {
-        const error_data = await response.json();
+        const error_data = await response.json().catch(() => ({ error: "Unknown error" }));
         throw new Error(error_data.error || "Failed to reset default settings");
       }
     } catch (error) {
       console.error("Failed to reset default settings:", error);
-      setters.set_error(error instanceof Error ? error.message : "Failed to reset default settings");
-      throw error;
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        // Network error, reset to fallback defaults
+        const fallback_defaults = {
+          system_prompt: "You are a helpful AI assistant.",
+          response_style: "conversational" as const,
+          temperature: 0.7,
+          max_tokens: 2048,
+          context_window: 10,
+          enable_memory: true,
+          enable_web_search: false,
+          enable_code_execution: false,
+          model_preference: "grok-2-mini-latest"
+        };
+        setters.set_default_settings(fallback_defaults);
+        setters.set_error("Settings reset to defaults. Network error prevented server communication.");
+      } else {
+        setters.set_error(error instanceof Error ? error.message : "Failed to reset default settings");
+        throw error;
+      }
     }
   };
 
@@ -314,11 +368,22 @@ export const create_chat_handlers = (
       if (response.ok) {
         const data = await response.json();
         setters.set_sessions(data.sessions || []);
+      } else if (response.status === 404) {
+        console.log("Sessions API not available, showing empty session list");
+        setters.set_sessions([]);
       } else {
-        console.error("Failed to load sessions:", response.statusText);
+        console.error("Failed to load sessions:", response.status, response.statusText);
+        setters.set_sessions([]);
+        setters.set_error("Failed to load session history. Please try again later.");
       }
     } catch (error) {
       console.error("Failed to load sessions:", error);
+      setters.set_sessions([]);
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        setters.set_error("Network error loading sessions. Please check your connection.");
+      } else {
+        setters.set_error("Failed to load session history. Please try again later.");
+      }
     } finally {
       setters.set_loading_sessions(false);
     }
@@ -337,12 +402,20 @@ export const create_chat_handlers = (
         if (data.messages) {
           setters.set_messages(data.messages);
         }
+      } else if (response.status === 404) {
+        console.log("Session API not available, starting new session");
+        setters.set_error("Session history not available. Starting new conversation.");
       } else {
-        console.error("Failed to load session messages:", response.statusText);
+        console.error("Failed to load session messages:", response.status, response.statusText);
+        setters.set_error("Failed to load session. Please try again.");
       }
     } catch (error) {
       console.error("Failed to load session:", error);
-      setters.set_error("Failed to load session");
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        setters.set_error("Network error loading session. Please check your connection.");
+      } else {
+        setters.set_error("Failed to load session. Please try again.");
+      }
     }
   };
 
@@ -363,13 +436,34 @@ export const create_chat_handlers = (
           setters.set_session_id(new_session_id);
           setters.set_messages([]);
         }
+      } else if (response.status === 404) {
+        // API not available, just remove from local state
+        console.log("Session delete API not available, removing from local state");
+        setters.set_sessions(prev => prev.filter(s => s.id !== session_id));
+        if (state.session_id === session_id) {
+          const new_session_id = uuidv4();
+          setters.set_session_id(new_session_id);
+          setters.set_messages([]);
+        }
+        setters.set_error("Session removed locally. Full deletion requires database setup.");
       } else {
-        const error_data = await response.json();
+        const error_data = await response.json().catch(() => ({ error: "Unknown error" }));
         setters.set_error(error_data.error || "Failed to delete session");
       }
     } catch (error) {
       console.error("Failed to delete session:", error);
-      setters.set_error("Failed to delete session");
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        // Network error, remove from local state
+        setters.set_sessions(prev => prev.filter(s => s.id !== session_id));
+        if (state.session_id === session_id) {
+          const new_session_id = uuidv4();
+          setters.set_session_id(new_session_id);
+          setters.set_messages([]);
+        }
+        setters.set_error("Session removed locally. Network error prevented server deletion.");
+      } else {
+        setters.set_error("Failed to delete session");
+      }
     } finally {
       setters.set_deleting_session(null);
     }

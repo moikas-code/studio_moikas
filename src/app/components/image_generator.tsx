@@ -649,7 +649,7 @@ export default function Image_generator() {
                 position: "absolute",
                 left: 0,
                 right: 0,
-                top: window_size.width < 768 ? 72 : 42 + prompt_input_height,
+                top: window_size.width < 768 ? 120 : 90 + prompt_input_height,
                 margin: "0 auto",
               }}
             >

@@ -30,7 +30,7 @@ BEGIN
             p_user_id,
             0.7,
             2048,
-            'grok-2-mini-latest',
+            'grok-3-mini-latest',
             'You are a helpful AI assistant.',
             NOW(),
             NOW()
@@ -152,7 +152,7 @@ BEGIN
             p_user_id,
             0.7,
             2048,
-            'grok-2-mini-latest',
+            'grok-3-mini-latest',
             'You are a helpful AI assistant.',
             NOW(),
             NOW()

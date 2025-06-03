@@ -25,13 +25,8 @@ const MODEL_CONFIGS: Record<string, model_token_config> = {
     min_cost_mp: 1,
     estimation_accuracy: 1.1 // Slightly overestimate for safety
   },
-  'grok-2-latest': {
-    tokens_per_mp: 1500,
-    min_cost_mp: 2,
-    estimation_accuracy: 1.2
-  },
-  'grok-2-mini-latest': {
-    tokens_per_mp: 2500,
+  'grok-3-mini-latest': {
+    tokens_per_mp: 3000,
     min_cost_mp: 1,
     estimation_accuracy: 1.1
   },

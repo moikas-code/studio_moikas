@@ -11,7 +11,7 @@ const redis = new Redis({
 
 // Validation schemas
 const VALID_RESPONSE_STYLES = ['conversational', 'formal', 'creative', 'technical', 'concise'];
-const VALID_MODELS = ['grok-2-mini-latest', 'grok-2-latest', 'grok-vision-beta'];
+const VALID_MODELS = ['grok-3-mini-latest'];
 
 function validate_chat_defaults(data: Record<string, unknown>) {
   const errors: string[] = [];
@@ -128,7 +128,7 @@ export async function GET(_req: NextRequest) {
           user_id: user.id,
           temperature: 0.7,
           max_tokens: 2048,
-          model: 'grok-2-mini-latest',
+          model: 'grok-3-mini-latest',
           system_prompt: 'You are a helpful AI assistant.',
           response_style: 'conversational',
           context_window: 20,

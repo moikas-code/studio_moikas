@@ -547,7 +547,7 @@ export default function Video_effects_page() {
                 position: "absolute",
                 left: 0,
                 right: 0,
-                top: window_width < 768 ? 120 : 142 + prompt_input_height,
+                                 top: window_width < 768 ? 120 : 90 + prompt_input_height,
                 margin: "0 auto",
               }}
             >

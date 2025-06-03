@@ -11,7 +11,7 @@ create table "public"."user_chat_defaults" (
   "enable_web_search" boolean default false,
   "enable_code_execution" boolean default false,
   "custom_instructions" text,
-  "model_preference" text default 'grok-2-mini-latest',
+  "model_preference" text default 'grok-3-mini-latest',
   "created_at" timestamp with time zone not null default now(),
   "updated_at" timestamp with time zone not null default now(),
   constraint "user_chat_defaults_pkey" primary key ("id"),
