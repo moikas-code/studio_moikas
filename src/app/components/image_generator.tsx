@@ -10,10 +10,10 @@ import React, {
 } from "react";
 import { MpContext } from "../context/mp_context";
 import {
-  MODEL_OPTIONS,
   add_overlay_to_image,
   calculateGenerationMP,
   sort_models_by_cost,
+  get_legacy_model_options,
 } from "../../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
@@ -117,7 +117,7 @@ export default function Image_generator() {
 
   // Filter models based on plan
   const available_models = sort_models_by_cost(
-    MODEL_OPTIONS.filter((m) => m.plans.includes(plan || "free"))
+    get_legacy_model_options().filter((m) => m.plans?.includes(plan || "free"))
   );
 
   // State for showing/hiding settings

@@ -74,10 +74,10 @@ export const create_chat_handlers = (
         setters.set_workflow_limits(data);
       } else if (response.status === 404) {
         console.log("Workflow limits API not available, using fallback limits");
-        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
+        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999, plan: "fallback", is_unlimited: true });
       } else {
         console.error("Failed to load workflow limits:", response.status, response.statusText);
-        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999 });
+        setters.set_workflow_limits({ can_create: true, current_count: 0, max_allowed: 999, plan: "fallback", is_unlimited: true });
       }
     } catch (error) {
       console.error("Failed to load workflow limits:", error);
@@ -103,14 +103,27 @@ export const create_chat_handlers = (
     setters.set_error(null);
     
     try {
+      // Prepare request body with default settings when no workflow is selected
+      const request_body: {
+        session_id: string;
+        workflow_id: string | null;
+        message: string;
+        default_settings?: default_chat_settings;
+      } = {
+        session_id: state.session_id,
+        workflow_id: state.selected_workflow,
+        message: user_message.content
+      };
+
+      // Include default settings when using default chat (no workflow selected)
+      if (!state.selected_workflow && state.default_settings) {
+        request_body.default_settings = state.default_settings;
+      }
+
       const response = await fetch("/api/memu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          session_id: state.session_id,
-          workflow_id: state.selected_workflow,
-          message: user_message.content
-        })
+        body: JSON.stringify(request_body)
       });
       
       const data = await response.json();

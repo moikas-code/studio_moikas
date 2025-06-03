@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   
   try {
     const body = await req.json();
-    const { session_id, workflow_id, message, dev_mode } = body;
+    const { session_id, workflow_id, message, dev_mode, default_settings: frontend_settings } = body;
     
     // Development mode bypass
     if (dev_mode === "test") {
@@ -114,32 +114,40 @@ export async function POST(req: NextRequest) {
     // Get user's default chat settings when no workflow is selected
     let default_settings = null;
     if (!workflow_id) {
-      console.log("🎛️ No workflow selected, fetching default chat settings...");
+      console.log("🎛️ No workflow selected, determining default chat settings...");
       
-      // Try to get existing defaults directly from database
-      const { data: user_defaults } = await supabase
-        .from("user_chat_defaults")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (user_defaults) {
-        default_settings = user_defaults;
-        console.log("✅ Default settings loaded:", {
-          response_style: user_defaults.response_style,
-          temperature: user_defaults.temperature,
-          model: user_defaults.model_preference
-        });
+      // Priority: 1. Frontend settings, 2. Database settings, 3. Hardcoded fallback
+      if (frontend_settings) {
+        console.log("✅ Using frontend-provided default settings");
+        default_settings = frontend_settings;
       } else {
-        console.log("⚠️ No user defaults found, using hardcoded fallback");
-        // Use hardcoded defaults as fallback
-        default_settings = {
-          temperature: 0.8,
-          max_tokens: 1024,
-          model_preference: 'grok-3-mini-latest',
-          system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
-          response_style: 'conversational'
-        };
+        console.log("🔍 Fetching default settings from database...");
+        
+        // Try to get existing defaults directly from database
+        const { data: user_defaults } = await supabase
+          .from("user_chat_defaults")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+        
+        if (user_defaults) {
+          default_settings = user_defaults;
+          console.log("✅ Default settings loaded from database:", {
+            response_style: user_defaults.response_style,
+            temperature: user_defaults.temperature,
+            model: user_defaults.model_preference
+          });
+        } else {
+          console.log("⚠️ No user defaults found, using hardcoded fallback");
+          // Use hardcoded defaults as fallback
+          default_settings = {
+            temperature: 0.8,
+            max_tokens: 1024,
+            model_preference: 'grok-3-mini-latest',
+            system_prompt: 'You are a helpful, friendly AI assistant. Give direct, clear answers in a conversational tone. Avoid being overly formal or verbose. When someone asks a question, provide the key information they need without unnecessary technical details or lengthy explanations unless specifically requested. Be natural and human-like in your responses.',
+            response_style: 'conversational'
+          };
+        }
       }
     }
 
@@ -155,6 +163,15 @@ export async function POST(req: NextRequest) {
       };
       
       console.log("🤖 Initializing AI agent with config:", agent_config);
+      if (default_settings) {
+        console.log("🎛️ Using default settings:", {
+          system_prompt: default_settings.system_prompt?.substring(0, 50) + "...",
+          response_style: default_settings.response_style,
+          temperature: default_settings.temperature,
+          max_tokens: default_settings.max_tokens,
+          model: default_settings.model_preference
+        });
+      }
       const agent = new workflow_xai_agent(agent_config);
 
       // Create message history from session

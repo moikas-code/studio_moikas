@@ -66,6 +66,8 @@ export interface workflow_limits {
   can_create: boolean;
   current_count: number;
   max_allowed: number;
+  plan: string;
+  is_unlimited: boolean;
 }
 
 export interface chat_state {

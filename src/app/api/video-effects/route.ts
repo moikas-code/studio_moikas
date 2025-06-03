@@ -5,6 +5,7 @@ import {
   calculateGenerationMP,
   deduct_tokens,
   VIDEO_MODELS,
+  video_model_to_legacy_model,
 } from "@/lib/generate_helpers";
 import { track } from "@vercel/analytics/server";
 import { fal } from "@fal-ai/client";
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
       await deduct_tokens({
         supabase,
         user_id: user_row.id,
-        required_tokens: calculateGenerationMP(selected_model) * duration,
+        required_tokens: calculateGenerationMP(video_model_to_legacy_model(selected_model)) * duration,
       });
       tokens_deducted = true;
     } catch (error) {

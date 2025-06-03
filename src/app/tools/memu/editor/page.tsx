@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Workflow_editor from "../components/workflow_editor";
+import Workflow_editor, { workflow_editor_ref } from "../components/workflow_editor";
 import { node_data } from "../components/workflow_nodes";
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
@@ -18,19 +18,9 @@ export default function Workflow_editor_page() {
   const [error, set_error] = useState<string | null>(null);
   const [workflow, set_workflow] = useState<{ id: string; name: string; workflow_nodes?: node_data[] } | null>(null);
   const [workflow_name, set_workflow_name] = useState("");
-  const workflow_editor_ref = useRef<{ get_current_data: () => { nodes: node_data[]; connections: { from: string; to: string }[] } } | null>(null);
+  const workflow_editor_ref = useRef<workflow_editor_ref>(null);
   
-  useEffect(() => {
-    if (workflow_id) {
-      load_workflow();
-    } else {
-      // New workflow
-      set_workflow_name("New Workflow");
-      set_loading(false);
-    }
-  }, [workflow_id, load_workflow]);
-  
-  const load_workflow = async () => {
+  const load_workflow = useCallback(async () => {
     try {
       const response = await fetch(`/api/memu?id=${workflow_id}`);
       if (!response.ok) throw new Error("Failed to load workflow");
@@ -49,7 +39,17 @@ export default function Workflow_editor_page() {
     } finally {
       set_loading(false);
     }
-  };
+  }, [workflow_id]);
+  
+  useEffect(() => {
+    if (workflow_id) {
+      load_workflow();
+    } else {
+      // New workflow
+      set_workflow_name("New Workflow");
+      set_loading(false);
+    }
+  }, [workflow_id, load_workflow]);
   
   const handle_save = async (nodes: node_data[], connections: { from: string; to: string }[]) => {
     set_saving(true);
@@ -153,6 +153,7 @@ export default function Workflow_editor_page() {
       {/* Editor */}
       <div className="flex-1">
         <Workflow_editor
+          ref={workflow_editor_ref}
           workflow_id={workflow_id || undefined}
           initial_nodes={workflow?.workflow_nodes || []}
           on_save={handle_save}

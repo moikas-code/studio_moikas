@@ -122,16 +122,6 @@ export interface workflow_node {
 
 /**
  * Model cost mapping for image generation
+ * Imported from centralized ai_models.ts
  */
-export const IMAGE_MODEL_COSTS: Record<string, number> = {
-  "fal-ai/recraft-v3": 6,
-  "fal-ai/flux-lora": 6,
-  "fal-ai/flux/schnell": 4,
-  "fal-ai/flux-realism": 6,
-  "fal-ai/flux-pro": 12,
-  "fal-ai/flux/dev": 10,
-  "fal-ai/stable-diffusion-v3-medium": 3,
-  "fal-ai/aura-flow": 3,
-  "fal-ai/kolors": 3,
-  "fal-ai/stable-cascade": 5,
-};
+export { IMAGE_MODEL_COSTS } from "../ai_models";

@@ -34,7 +34,7 @@ function Header({
         </button>
       </div>
       <div className="flex-1">
-        <h1 className="text-lg font-bold">Workflow Chatbot</h1>
+        <h1 className="text-lg font-bold">MEMU</h1>
       </div>
       <div className="flex-none flex items-center gap-3">
         {/* Compact token display */}

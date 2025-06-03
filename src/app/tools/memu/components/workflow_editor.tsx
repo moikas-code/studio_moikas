@@ -50,6 +50,10 @@ const Workflow_editor = forwardRef<workflow_editor_ref, workflow_editor_props>((
   const [show_node_menu, set_show_node_menu] = useState(false);
   const [menu_position, set_menu_position] = useState({ x: 0, y: 0 });
 
+  useImperativeHandle(ref, () => ({
+    get_current_data: () => ({ nodes, connections })
+  }));
+
   const node_types = [
     { type: "input", label: "Input", description: "User input entry point" },
     { type: "llm", label: "AI Chat", description: "Language model processing" },
@@ -323,4 +327,8 @@ const Workflow_editor = forwardRef<workflow_editor_ref, workflow_editor_props>((
       </div>
     </div>
   );
-}
+});
+
+Workflow_editor.displayName = "Workflow_editor";
+
+export default Workflow_editor;

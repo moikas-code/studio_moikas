@@ -77,13 +77,13 @@ const BaseNode: React.FC<node_props & { icon: React.ReactNode; color: string; ti
 
       {/* Content */}
       <div className="p-3">
-        {node.data.label && (
-          <div className="text-sm font-medium mb-2">{node.data.label}</div>
-        )}
+        {node.data.label && typeof node.data.label === 'string' ? (
+          <div className="text-sm font-medium mb-2">{node.data.label as string}</div>
+        ) : null}
         
         {show_settings && (
           <div className="space-y-2 text-sm">
-            {node.data.prompt !== undefined && (
+            {node.data.prompt !== undefined && typeof node.data.prompt === 'string' && (
               <div>
                 <label className="label text-xs">Prompt</label>
                 <textarea
@@ -97,7 +97,7 @@ const BaseNode: React.FC<node_props & { icon: React.ReactNode; color: string; ti
               </div>
             )}
             
-            {node.data.system_prompt !== undefined && (
+            {node.data.system_prompt !== undefined && typeof node.data.system_prompt === 'string' && (
               <div>
                 <label className="label text-xs">System Prompt</label>
                 <textarea
@@ -111,7 +111,7 @@ const BaseNode: React.FC<node_props & { icon: React.ReactNode; color: string; ti
               </div>
             )}
             
-            {node.data.model !== undefined && (
+            {node.data.model !== undefined && typeof node.data.model === 'string' && (
               <div>
                 <label className="label text-xs">Model</label>
                 <select
