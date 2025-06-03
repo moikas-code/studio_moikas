@@ -64,7 +64,7 @@ export default function MessageDisplay({ messages, loading }: MessageDisplayProp
               `}>
                 {format_time(message.created_at)}
               </span>
-              {message.metadata?.feature && typeof message.metadata.feature === 'string' && (
+              {message.metadata?.feature && typeof message.metadata.feature === 'string' ? (
                 <span className={`
                   text-xs px-2 py-1 rounded-full
                   ${message.role === 'user' 
@@ -72,9 +72,9 @@ export default function MessageDisplay({ messages, loading }: MessageDisplayProp
                     : 'bg-primary/20 text-primary'
                   }
                 `}>
-                  {message.metadata.feature.replace('_', ' ')}
+                  {(message.metadata.feature as string).replace('_', ' ')}
                 </span>
-              )}
+              ) : null}
             </div>
             
             <div className="prose prose-sm max-w-none">
