@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
 
-interface GenerationParams {
+export interface GenerationParams {
   prompt: string
   model: string
   width: number
@@ -13,7 +13,7 @@ interface GenerationParams {
   seed?: number
 }
 
-interface GenerationResult {
+export interface GenerationResult {
   image_base64: string
   mana_points_used: number
   backend_cost?: number

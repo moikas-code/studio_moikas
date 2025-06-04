@@ -92,13 +92,30 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to create job')
     }
     
-    // 9. Deduct tokens
-    await execute_db_operation(() =>
-      supabase.rpc('deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: cost
-      })
-    )
+    // 9. Deduct tokens - prioritize renewable tokens first, then permanent
+    const renewable_to_deduct = Math.min(cost, subscription.renewable_tokens)
+    const permanent_to_deduct = cost - renewable_to_deduct
+
+    await execute_db_operation(async () => {
+      const { error: deduct_error } = await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+        })
+        .eq('user_id', user.user_id)
+
+      if (deduct_error) throw deduct_error
+
+      // Log the usage
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: cost,
+          description: `Video generation: ${validated.model}`
+        })
+    })
     
     // 10. TODO: Trigger actual video generation
     // This would typically call your video generation service

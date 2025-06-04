@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { invoke_xai_agent_with_tools } from "@/lib/ai-agents"
 import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     
     // 4. Check token balance
     if (!await has_sufficient_tokens(user.user_id, ENHANCE_COST)) {
-      return api_error('Insufficient tokens for enhancement', 402)
+      return NextResponse.json({ error: 'Insufficient tokens for enhancement' }, { status: 402 })
     }
     
     // 5. Apply rate limiting
@@ -59,27 +59,44 @@ export async function POST(req: NextRequest) {
       }
     )
     
-    // 6. Deduct tokens
+    // 6. Deduct tokens - prioritize renewable tokens first, then permanent
     const supabase = get_service_role_client()
-    await execute_db_operation(() =>
-      supabase.rpc('deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: ENHANCE_COST
-      })
-    )
+    const renewable_to_deduct = Math.min(ENHANCE_COST, subscription.renewable_tokens)
+    const permanent_to_deduct = ENHANCE_COST - renewable_to_deduct
+
+    await execute_db_operation(async () => {
+      const { error: deduct_error } = await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+        })
+        .eq('user_id', user.user_id)
+
+      if (deduct_error) throw deduct_error
+
+      // Log the usage
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: ENHANCE_COST,
+          description: `Prompt enhancement`
+        })
+    })
     
     try {
       // 7. Enhance prompt using AI
-      const messages = [
-        new SystemMessage(`You are a helpful assistant that enhances image generation prompts.
+      const system_message = new SystemMessage(`You are a helpful assistant that enhances image generation prompts.
 Your goal is to take a simple prompt and make it more detailed and descriptive 
 while maintaining the original intent. Add artistic details, lighting, style, 
-and composition suggestions.`),
-        new HumanMessage(`Enhance this prompt for image generation: "${prompt}"`)
-      ]
+and composition suggestions.`)
       
-      const result = await invoke_xai_agent_with_tools(messages)
-      const enhanced_prompt = result.output
+      const result = await invoke_xai_agent_with_tools({
+        system_message,
+        prompt: new HumanMessage(`Enhance this prompt for image generation: "${prompt}"`)
+      })
+      const enhanced_prompt = result
       
       // 8. Return enhanced prompt
       return api_success({
@@ -89,13 +106,25 @@ and composition suggestions.`),
       })
       
     } catch {
-      // Refund on AI failure
-      await execute_db_operation(() =>
-        supabase.rpc('refund_tokens', {
-          p_user_id: user.user_id,
-          p_amount: ENHANCE_COST
-        })
-      )
+      // Refund on AI failure - add back the same way we deducted
+      await execute_db_operation(async () => {
+        await supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens, // restore original values
+            permanent_tokens: subscription.permanent_tokens
+          })
+          .eq('user_id', user.user_id)
+
+        // Log the refund
+        await supabase
+          .from('usage')
+          .insert({
+            user_id: user.user_id,
+            tokens_used: -ENHANCE_COST, // negative for refund
+            description: `Prompt enhancement refund: enhancement failed`
+          })
+      })
       
       throw new Error('Enhancement failed. Tokens refunded.')
     }

@@ -72,7 +72,9 @@ export async function POST(req: NextRequest) {
     const cache_key = generate_imggen_cache_key(
       user.user_id,
       validated.model,
-      prompt
+      prompt,
+      validated.width || 1024,
+      validated.height || 1024
     )
     
     const redis = get_redis_client()
@@ -92,14 +94,31 @@ export async function POST(req: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 2000))
     }
     
-    // 9. Deduct tokens
+    // 9. Deduct tokens - prioritize renewable tokens first, then permanent
     const supabase = get_service_role_client()
-    await execute_db_operation(() =>
-      supabase.rpc('deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: model_cost
-      })
-    )
+    const renewable_to_deduct = Math.min(model_cost, subscription.renewable_tokens)
+    const permanent_to_deduct = model_cost - renewable_to_deduct
+
+    await execute_db_operation(async () => {
+      const { error: deduct_error } = await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+        })
+        .eq('user_id', user.user_id)
+
+      if (deduct_error) throw deduct_error
+
+      // Log the usage
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: model_cost,
+          description: `Image generation: ${validated.model}`
+        })
+    })
     
     // 10. Generate image
     try {
@@ -133,7 +152,10 @@ export async function POST(req: NextRequest) {
       )
       
       // 11. Apply watermark for free users
-      let final_image = result.images[0].url
+      interface GenerationResult {
+        images: Array<{ url: string }>
+      }
+      let final_image = (result as unknown as GenerationResult).images[0].url
       if (is_free_user) {
         final_image = await add_overlay_to_image_node(final_image)
       }
@@ -158,13 +180,25 @@ export async function POST(req: NextRequest) {
       return api_success(cache_data)
       
     } catch {
-      // Refund tokens on failure
-      await execute_db_operation(() =>
-        supabase.rpc('refund_tokens', {
-          p_user_id: user.user_id,
-          p_amount: model_cost
-        })
-      )
+      // Refund tokens on failure - add back the same way we deducted
+      await execute_db_operation(async () => {
+        await supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens, // restore original values
+            permanent_tokens: subscription.permanent_tokens
+          })
+          .eq('user_id', user.user_id)
+
+        // Log the refund
+        await supabase
+          .from('usage')
+          .insert({
+            user_id: user.user_id,
+            tokens_used: -model_cost, // negative for refund
+            description: `Image generation refund: generation failed`
+          })
+      })
       
       throw new Error('Image generation failed')
     }

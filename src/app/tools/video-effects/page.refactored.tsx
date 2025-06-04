@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Navbar } from '@/app/components/navbar'
+import Navbar from '@/app/components/navbar'
 import { PromptInputBar } from './components/prompt_input_bar'
 import { VideoSettingsPanel } from './components/video_settings_panel'
 import { VideoProgressIndicator } from './components/video_progress_indicator'
@@ -155,7 +155,7 @@ export default function VideoEffectsPage() {
               duration={video_settings.duration}
               on_aspect_change={video_settings.update_aspect}
               on_duration_change={video_settings.update_duration}
-              model_cost={selected_model?.cost || 0}
+              model_cost={selected_model?.manaPoints || 0}
             />
           </>
         )}

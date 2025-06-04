@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { PromptInput } from './components/input/prompt_input'
 import { EnhanceButton } from './components/input/enhance_button'
 import { SettingsPanel } from './components/settings/settings_panel'
-import { ErrorDisplay } from '@/app/components/error_display'
-import { ImageGrid } from '@/app/components/image_grid'
-import { useImageGeneration } from './hooks/use_image_generation'
+import ErrorDisplay from '@/app/components/error_display'
+import ImageGrid from '@/app/components/image_grid'
+import { useImageGeneration, type GenerationParams } from './hooks/use_image_generation'
 import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
 import { useAspectRatio } from './hooks/use_aspect_ratio'
 import { useSanaSettings } from './hooks/use_sana_settings'
@@ -45,7 +45,7 @@ export function ImageGenerator({
   }[]>([])
   
   // Hooks
-  const { is_loading, error_message, generate_image, clear_error } = useImageGeneration()
+  const { is_loading, error_message, generate_image } = useImageGeneration()
   const { is_enhancing, enhancement_count, enhance_prompt } = usePromptEnhancement()
   const aspect_ratio = useAspectRatio()
   const sana = useSanaSettings()
@@ -63,17 +63,11 @@ export function ImageGenerator({
     if (!prompt_text.trim()) return
     
     const dimensions = aspect_ratio.get_dimensions()
-    const params: {
-      prompt: string
-      model: string
-      width?: number
-      height?: number
-      aspect_ratio?: string
-      [key: string]: string | number | undefined
-    } = {
+    const params = {
       prompt: prompt_text,
       model: model_id,
-      ...dimensions
+      width: dimensions.width,
+      height: dimensions.height
     }
     
     // Add SANA-specific params
@@ -81,11 +75,11 @@ export function ImageGenerator({
       Object.assign(params, sana.get_sana_params())
     }
     
-    const result = await generate_image(params)
+    const result = await generate_image(params as GenerationParams)
     
     if (result) {
       set_generated_images(prev => [{
-        ...result,
+        url: `data:image/png;base64,${result.image_base64}`,
         prompt: prompt_text,
         model: model_id,
         timestamp: Date.now()
@@ -162,12 +156,15 @@ export function ImageGenerator({
           </div>
           
           {error_message && (
-            <ErrorDisplay error={error_message} onDismiss={clear_error} />
+            <ErrorDisplay error_message={error_message} />
           )}
           
           {generated_images.length > 0 && (
             <ImageGrid 
-              images={generated_images}
+              image_base64={generated_images.map(img => img.url.replace('data:image/png;base64,', ''))}
+              prompt_text={generated_images[0]?.prompt || ''}
+              mana_points_used={null}
+              model_id={model_id}
               onEdit={() => router.push('/tools/image-editor')}
             />
           )}

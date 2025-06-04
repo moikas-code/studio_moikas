@@ -2,7 +2,7 @@
 import React, { useContext } from "react";
 import { useUser } from "@clerk/nextjs";
 import { MpContext } from "../components/../context/mp_context";
-import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot } from "react-icons/fa";
+import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot, FaMicrophone } from "react-icons/fa";
 import Link from "next/link";
 
 export default function Tools_home_page() {
@@ -49,6 +49,14 @@ export default function Tools_home_page() {
       icon: FaFileAlt,
       href: "/tools/text-analyzer",
       color: "from-green-500 to-teal-500",
+      available: true
+    },
+    {
+      title: "Audio",
+      description: "Convert text to speech, record, and edit audio with AI",
+      icon: FaMicrophone,
+      href: "/tools/audio",
+      color: "from-pink-500 to-rose-500",
       available: true
     },
 

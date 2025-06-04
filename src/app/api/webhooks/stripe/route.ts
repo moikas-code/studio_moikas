@@ -17,7 +17,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 30 // Webhooks may need time to process
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia'
+  apiVersion: '2025-04-30.basil'
 })
 
 const webhook_secret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -57,15 +57,15 @@ export async function POST(req: NextRequest) {
         
         // Update user subscription
         if (session.customer && session.metadata?.user_id) {
-          await execute_db_operation(() =>
-            supabase
+          await execute_db_operation(async () =>
+            await supabase
               .from('subscriptions')
               .update({
                 stripe_customer_id: session.customer,
                 plan_name: session.metadata?.plan || 'standard',
                 status: 'active'
               })
-              .eq('user_id', session.metadata.user_id)
+              .eq('user_id', session.metadata?.user_id || '')
           )
         }
         break
@@ -75,12 +75,14 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         
         // Update subscription status
-        await execute_db_operation(() =>
-          supabase
+        await execute_db_operation(async () =>
+          await supabase
             .from('subscriptions')
             .update({
               status: subscription.status,
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+              current_period_end: 'current_period_end' in subscription 
+                ? new Date((subscription as { current_period_end: number }).current_period_end * 1000).toISOString()
+                : new Date().toISOString()
             })
             .eq('stripe_subscription_id', subscription.id)
         )
@@ -91,8 +93,8 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         
         // Cancel subscription
-        await execute_db_operation(() =>
-          supabase
+        await execute_db_operation(async () =>
+          await supabase
             .from('subscriptions')
             .update({
               status: 'cancelled',
@@ -108,12 +110,28 @@ export async function POST(req: NextRequest) {
         
         // Add tokens for successful payment
         if (invoice.metadata?.user_id && invoice.metadata?.tokens) {
-          await execute_db_operation(() =>
-            supabase.rpc('add_permanent_tokens', {
-              p_user_id: invoice.metadata.user_id,
-              p_amount: parseInt(invoice.metadata.tokens)
-            })
-          )
+          const token_amount = parseInt(invoice.metadata.tokens)
+          
+          await execute_db_operation(async () => {
+            // Add permanent tokens directly
+            const { error: add_error } = await supabase
+              .from('subscriptions')
+              .update({
+                permanent_tokens: supabase.raw(`permanent_tokens + ${token_amount}`)
+              })
+              .eq('user_id', invoice.metadata!.user_id)
+
+            if (add_error) throw add_error
+
+            // Log the token purchase
+            await supabase
+              .from('usage')
+              .insert({
+                user_id: invoice.metadata!.user_id,
+                tokens_used: -token_amount, // negative to indicate addition
+                description: `Token purchase: ${token_amount} permanent tokens`
+              })
+          })
         }
         break
       }

@@ -93,10 +93,45 @@ export async function POST(req: NextRequest) {
         
         // Refund tokens
         if (job.user_id && job.cost) {
-          await supabase.rpc('refund_tokens', {
-            p_user_id: job.user_id,
-            p_amount: job.cost
-          })
+          // Get current subscription to properly refund tokens
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('renewable_tokens, permanent_tokens, plan')
+            .eq('user_id', job.user_id)
+            .single()
+
+          if (subscription) {
+            // Add tokens back based on plan limits
+            const plan_limits = {
+              'free': 125,
+              'standard': 20480
+            }
+            const renewable_limit = plan_limits[subscription.plan as keyof typeof plan_limits] || subscription.renewable_tokens + job.cost
+
+            const new_renewable = Math.min(
+              subscription.renewable_tokens + job.cost,
+              renewable_limit
+            )
+            const remaining_refund = job.cost - (new_renewable - subscription.renewable_tokens)
+            const new_permanent = subscription.permanent_tokens + remaining_refund
+
+            await supabase
+              .from('subscriptions')
+              .update({
+                renewable_tokens: new_renewable,
+                permanent_tokens: new_permanent
+              })
+              .eq('user_id', job.user_id)
+
+            // Log the refund
+            await supabase
+              .from('usage')
+              .insert({
+                user_id: job.user_id,
+                tokens_used: -job.cost, // negative for refund
+                description: `Video generation refund: ${validated.error || 'generation failed'}`
+              })
+          }
         }
         return result
       })

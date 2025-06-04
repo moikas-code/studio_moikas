@@ -105,25 +105,42 @@ export async function POST(req: NextRequest) {
     )
     
     // 12. Calculate token cost
-    const estimated_tokens = estimate_tokens(result.output)
+    const estimated_tokens = estimate_tokens(result.response)
     const token_cost = Math.max(
       MIN_COST,
       Math.ceil(estimated_tokens / TOKENS_PER_MP)
     )
     
-    // 13. Deduct tokens
-    await execute_db_operation(() =>
-      supabase.rpc('deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: token_cost
-      })
-    )
+    // 13. Deduct tokens - prioritize renewable tokens first, then permanent
+    const renewable_to_deduct = Math.min(token_cost, subscription.renewable_tokens)
+    const permanent_to_deduct = token_cost - renewable_to_deduct
+
+    await execute_db_operation(async () => {
+      const { error: deduct_error } = await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+        })
+        .eq('user_id', user.user_id)
+
+      if (deduct_error) throw deduct_error
+
+      // Log the usage
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: token_cost,
+          description: `MEMU workflow execution`
+        })
+    })
     
     // 14. Save message to history
     await save_message(
       supabase,
       session_data.id,
-      result.output,
+      result.response,
       'assistant',
       token_cost
     )
@@ -138,7 +155,7 @@ export async function POST(req: NextRequest) {
     
     // 16. Return response
     return api_success({
-      output: result.output,
+      output: result.response,
       session_id: session_data.id,
       tokens_used: token_cost,
       remaining_tokens: subscription.renewable_tokens + 
@@ -168,7 +185,7 @@ async function handle_dev_mode(message: string) {
     )
     
     return api_success({
-      output: result.output,
+      output: result.response,
       session_id: "test-session",
       tokens_used: 0,
       dev_mode: true

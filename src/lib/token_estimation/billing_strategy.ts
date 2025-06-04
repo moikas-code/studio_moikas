@@ -69,11 +69,13 @@ export class billing_strategy {
       const renewable_to_use = Math.min(subscription.renewable_tokens, pre_charge_amount);
       const permanent_to_use = Math.max(0, pre_charge_amount - renewable_to_use);
       
-      const { error: deduct_error } = await this.supabase.rpc('deduct_tokens', {
-        p_user_id: user_id,
-        p_renewable_tokens: renewable_to_use,
-        p_permanent_tokens: permanent_to_use
-      });
+      const { error: deduct_error } = await this.supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens - renewable_to_use,
+          permanent_tokens: subscription.permanent_tokens - permanent_to_use
+        })
+        .eq('user_id', user_id);
       
       if (deduct_error) {
         return { success: false, transaction_id: '', pre_charge_amount: 0, error: 'Token deduction failed' };
@@ -152,11 +154,13 @@ export class billing_strategy {
         const renewable_to_use = Math.min(subscription.renewable_tokens, adjustment);
         const permanent_to_use = Math.max(0, adjustment - renewable_to_use);
         
-        await this.supabase.rpc('deduct_tokens', {
-          p_user_id: user_id,
-          p_renewable_tokens: renewable_to_use,
-          p_permanent_tokens: permanent_to_use
-        });
+        await this.supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens - renewable_to_use,
+            permanent_tokens: subscription.permanent_tokens - permanent_to_use
+          })
+          .eq('user_id', user_id);
         
       } else if (adjustment < 0) {
         // Refund excess
