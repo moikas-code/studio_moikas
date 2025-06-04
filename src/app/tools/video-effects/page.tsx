@@ -257,11 +257,17 @@ export default function Video_effects_page() {
         set_loading(false);
         return;
       }
-      if (res.ok && data.job_id) {
-        set_job_id(data.job_id);
-        localStorage.setItem("jobState", JSON.stringify({ job_id: data.job_id }));
+      if (res.ok) {
+        // Handle wrapped response structure from api_success
+        const job_data = data.data || data;
+        if (job_data.job_id) {
+          set_job_id(job_data.job_id);
+          localStorage.setItem("jobState", JSON.stringify({ job_id: job_data.job_id }));
+        } else {
+          set_error(data.error || job_data.error || "Failed to start video job");
+        }
       } else {
-        set_error(data.error || "Failed to start video job");
+        set_error(data.error || data.message || "Failed to start video job");
       }
     } catch (err: unknown) {
       set_error(err instanceof Error ? err.message : String(err));
