@@ -1,138 +1,132 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-// Ensure you have 'stripe' and '@types/stripe' installed in your project
-import Stripe from "stripe";
-import { log_event } from "@/lib/generate_helpers";
+import { NextRequest } from "next/server"
+import { headers } from "next/headers"
+import Stripe from "stripe"
+import { 
+  get_service_role_client,
+  execute_db_operation 
+} from "@/lib/utils/database/supabase"
+import { 
+  api_success, 
+  api_error, 
+  handle_api_error 
+} from "@/lib/utils/api/response"
 
-// Stripe secret key and webhook secret from environment variables
-const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
-const stripe_webhook_secret = process.env.STRIPE_WEBHOOK_SECRET!;
-const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabase_service_key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Next.js route configuration
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 30 // Webhooks may need time to process
 
-const stripe = new Stripe(stripe_secret_key, {
-  apiVersion: "2025-04-30.basil",
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-12-18.acacia'
+})
 
-// Map Stripe price IDs to token amounts
-const price_id_to_tokens: Record<string, number> = {
-  // Example: 'price_1RRgF7QJcKXoJgq7QczD4a0N': 250,
-  // Fill in with your actual Stripe price IDs and token amounts
-  prod_SMOj2uZ9YSSDIB: 2048,
-  prod_SMOkzIx2sykhIT: 6144,
-  prod_SMOmkz8PBtRM0l: 16384,
-};
-
-async function get_first_price_id_from_session(session: Stripe.Checkout.Session): Promise<string | undefined> {
-  // If expanded, use it directly
-  if (session.line_items && Array.isArray(session.line_items.data) && session.line_items.data.length > 0) {
-    return session.line_items.data[0].price?.id;
-  }
-  // Otherwise, fetch line items from Stripe
-  if (session.id) {
-    const line_items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
-    if (line_items.data.length > 0) {
-      return line_items.data[0].price?.id;
-    }
-  }
-  return undefined;
-}
+const webhook_secret = process.env.STRIPE_WEBHOOK_SECRET!
 
 export async function POST(req: NextRequest) {
-  const sig = req.headers.get("stripe-signature");
-  const buf = await req.arrayBuffer();
-  let event: Stripe.Event;
-
-  log_event("stripe_webhook_received", { headers: Object.fromEntries(req.headers.entries()) });
-
   try {
-    event = stripe.webhooks.constructEvent(
-      Buffer.from(buf),
-      sig!,
-      stripe_webhook_secret
-    );
-  } catch (err: unknown) {
-    const error_message = err instanceof Error ? err.message : String(err);
-    log_event("stripe_signature_verification_failed", { error_message });
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-  }
-
-  // Handle the event
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    // Always look up the user in Supabase by Clerk ID or Stripe customer ID
-    let user_id: string | null = null;
-    const supabase = createClient(supabase_url, supabase_service_key);
-
-    // Try to find user by Clerk ID (client_reference_id)
-    if (session?.client_reference_id) {
-      const { data: user_row, error: user_row_error } = await supabase
-        .from("users")
-        .select("id")
-        .eq("clerk_id", session.client_reference_id)
-        .single();
-      if (user_row && user_row.id) {
-        user_id = user_row.id;
-      } else if (user_row_error) {
-        log_event("stripe_webhook_clerk_id_lookup_failed", { error: user_row_error.message, client_reference_id: session.client_reference_id });
+    // 1. Get raw body for signature verification
+    const body = await req.text()
+    
+    // 2. Get signature header
+    const header_list = await headers()
+    const signature = header_list.get('stripe-signature')
+    
+    if (!signature) {
+      return api_error('Missing stripe-signature header', 400)
+    }
+    
+    // 3. Verify webhook signature
+    let event: Stripe.Event
+    try {
+      event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        webhook_secret
+      )
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err)
+      return api_error('Invalid signature', 400)
+    }
+    
+    // 4. Handle different event types
+    const supabase = get_service_role_client()
+    
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session
+        
+        // Update user subscription
+        if (session.customer && session.metadata?.user_id) {
+          await execute_db_operation(() =>
+            supabase
+              .from('subscriptions')
+              .update({
+                stripe_customer_id: session.customer,
+                plan_name: session.metadata?.plan || 'standard',
+                status: 'active'
+              })
+              .eq('user_id', session.metadata.user_id)
+          )
+        }
+        break
       }
-    }
-
-    // If not found, try to find user by Stripe customer ID
-    if (!user_id && session.customer) {
-      const { data: user_row, error: user_row_error } = await supabase
-        .from("users")
-        .select("id")
-        .eq("stripe_customer_id", session.customer)
-        .single();
-      if (user_row && user_row.id) {
-        user_id = user_row.id;
-      } else if (user_row_error) {
-        log_event("stripe_webhook_stripe_customer_id_lookup_failed", { error: user_row_error.message, stripe_customer_id: session.customer });
+      
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription
+        
+        // Update subscription status
+        await execute_db_operation(() =>
+          supabase
+            .from('subscriptions')
+            .update({
+              status: subscription.status,
+              current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+            })
+            .eq('stripe_subscription_id', subscription.id)
+        )
+        break
       }
+      
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription
+        
+        // Cancel subscription
+        await execute_db_operation(() =>
+          supabase
+            .from('subscriptions')
+            .update({
+              status: 'cancelled',
+              plan_name: 'free'
+            })
+            .eq('stripe_subscription_id', subscription.id)
+        )
+        break
+      }
+      
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice
+        
+        // Add tokens for successful payment
+        if (invoice.metadata?.user_id && invoice.metadata?.tokens) {
+          await execute_db_operation(() =>
+            supabase.rpc('add_permanent_tokens', {
+              p_user_id: invoice.metadata.user_id,
+              p_amount: parseInt(invoice.metadata.tokens)
+            })
+          )
+        }
+        break
+      }
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`)
     }
-
-    // Validate user_id is a UUID
-    function is_valid_uuid(uuid: string): boolean {
-      return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid);
-    }
-
-    if (!user_id || !is_valid_uuid(user_id)) {
-      log_event("stripe_webhook_missing_or_invalid_user", { user_id, session });
-      return NextResponse.json({ error: "User not found or invalid for this session" }, { status: 400 });
-    }
-
-    let price_id = session?.metadata?.price_id;
-    if (!price_id) {
-      price_id = await get_first_price_id_from_session(session);
-    }
-    // Fallback: retrieve by amount if price_id missing
-    let tokens_to_add = 0;
-    if (price_id && price_id_to_tokens[price_id]) {
-      tokens_to_add = price_id_to_tokens[price_id];
-    } else if (session?.amount_total) {
-      if (session.amount_total === 2000) tokens_to_add = 2048;
-      if (session.amount_total === 6000) tokens_to_add = 6144;
-      if (session.amount_total === 16000) tokens_to_add = 16384;
-    }
-    if (!tokens_to_add) {
-      log_event("stripe_webhook_missing_tokens_to_add", { user_id, tokens_to_add, price_id, session });
-      return NextResponse.json({ error: "Missing tokens_to_add" }, { status: 400 });
-    }
-    // Update user's permanent tokens in Supabase
-    const { error } = await supabase.rpc("add_permanent_tokens", {
-      in_user_id: user_id, // must match parameter name
-      in_tokens_to_add: tokens_to_add,
-    });
-    if (error) {
-      log_event("supabase_token_update_failed", { user_id, tokens_to_add, error });
-      return NextResponse.json({ error: "Supabase update failed" }, { status: 500 });
-    }
-    log_event("token_fulfillment_success", { user_id, tokens_to_add, price_id, session_id: session.id });
-    return NextResponse.json({ received: true });
+    
+    // 5. Return success
+    return api_success({ received: true })
+    
+  } catch (error) {
+    console.error('Webhook error:', error)
+    return handle_api_error(error)
   }
-
-  // Log unhandled event types
-  log_event("stripe_webhook_unhandled_event", { event_type: event.type });
-  return NextResponse.json({ received: true });
 }
