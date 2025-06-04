@@ -51,8 +51,19 @@ export const TTS_LIMITS = {
   max_seed: 2147483647
 }
 
-// Cost calculation: $0.04 per 1000 characters
+// Cost calculation: $0.016 per 250 characters (includes 1.6x markup)
 // 1 MP = $0.001
-// $0.04 = 40 MP for 1000 characters
-// Therefore: 1 character = 40/1000 = 0.04 MP
+// $0.016 = 16 MP for 250 characters
+// Charges are rounded up to the nearest 250 character increment
 export const TTS_MP_COST_PER_CHARACTER = 0.04
+export const TTS_MIN_CHARGE_CHARACTERS = 250
+export const TTS_MIN_CHARGE_MP = 16 // $0.016 in MP (includes 1.6x markup)
+export const TTS_MARKUP_MULTIPLIER = 1.6
+
+// Helper function to calculate actual cost with minimum charge and markup
+export function calculateTTSCost(characterCount: number): number {
+  // Round up to nearest 250 character increment
+  const chargeableCharacters = Math.ceil(characterCount / TTS_MIN_CHARGE_CHARACTERS) * TTS_MIN_CHARGE_CHARACTERS
+  const baseCost = chargeableCharacters * TTS_MP_COST_PER_CHARACTER
+  return Math.ceil(baseCost * TTS_MARKUP_MULTIPLIER)
+}

@@ -10,7 +10,8 @@ import { VoiceSelectionPanel } from './components/voice_selection_panel'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
 import { 
   TTS_LIMITS, 
-  TTS_MP_COST_PER_CHARACTER,
+  TTS_MIN_CHARGE_CHARACTERS,
+  calculateTTSCost,
   type TTSParams 
 } from './types'
 
@@ -41,7 +42,7 @@ export default function AudioPage() {
   
   // Calculate cost
   const text_length = text_input.length
-  const estimated_cost = Math.ceil(text_length * TTS_MP_COST_PER_CHARACTER)
+  const estimated_cost = calculateTTSCost(text_length)
   const can_generate = text_length > 0 && 
                       text_length <= TTS_LIMITS.max_text_length && 
                       (mp_tokens ?? 0) >= estimated_cost &&
@@ -104,9 +105,24 @@ export default function AudioPage() {
                 
                 <div className="flex justify-between text-sm text-base-content/60 mt-2">
                   <span>{text_length} / {TTS_LIMITS.max_text_length} characters</span>
-                  <span className="font-semibold">
-                    Cost: <span className="text-primary">{estimated_cost} MP</span>
-                  </span>
+                  <div className="text-right">
+                    <span className="font-semibold">
+                      Cost: <span className="text-primary">{estimated_cost} MP</span>
+                    </span>
+                    {text_length < TTS_MIN_CHARGE_CHARACTERS && text_length > 0 && (
+                      <div className="text-xs text-base-content/50">
+                        Minimum charge: {TTS_MIN_CHARGE_CHARACTERS} characters
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="alert alert-info mt-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  <div>
+                    <p className="font-semibold text-sm">Pricing: $0.016 per 250 characters</p>
+                    <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
+                  </div>
                 </div>
               </div>
             </div>

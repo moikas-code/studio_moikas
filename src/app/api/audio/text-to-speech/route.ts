@@ -4,7 +4,7 @@ import * as fal from '@fal-ai/serverless-client'
 import { create_service_role_client } from '../../../../lib/supabase_server'
 import { track } from '@vercel/analytics/server'
 import { z } from 'zod'
-import { TTS_LIMITS, TTS_MP_COST_PER_CHARACTER } from '@/app/tools/audio/types'
+import { TTS_LIMITS, calculateTTSCost } from '@/app/tools/audio/types'
 
 fal.config({
   credentials: process.env.FAL_KEY!
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     // Calculate MP cost
     const text_length = params.text.length
-    const mp_cost = Math.ceil(text_length * TTS_MP_COST_PER_CHARACTER)
+    const mp_cost = calculateTTSCost(text_length)
 
     // Get user from database
     const supabase = create_service_role_client()
