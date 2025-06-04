@@ -9,7 +9,6 @@ import {
   handle_api_error 
 } from "@/lib/utils/api/response"
 import { 
-  fal_webhook_schema,
   validate_request 
 } from "@/lib/utils/api/validation"
 
@@ -62,8 +61,8 @@ export async function POST(req: NextRequest) {
         validated.error = 'No video URL in response'
       } else {
         // Update job with success
-        await execute_db_operation(() =>
-          supabase
+        await execute_db_operation(async () =>
+          await supabase
             .from('video_jobs')
             .update({
               status: 'completed',
@@ -83,7 +82,7 @@ export async function POST(req: NextRequest) {
       // Update job with failure and refund
       await execute_db_operation(async () => {
         // Update job status
-        await supabase
+        const result = await supabase
           .from('video_jobs')
           .update({
             status: 'failed',
@@ -99,6 +98,7 @@ export async function POST(req: NextRequest) {
             p_amount: job.cost
           })
         }
+        return result
       })
     }
     
@@ -106,8 +106,8 @@ export async function POST(req: NextRequest) {
       // Update progress if available
       const progress = validated.logs?.find(log => log.type === 'progress')?.progress || 50
       
-      await execute_db_operation(() =>
-        supabase
+      await execute_db_operation(async () =>
+        await supabase
           .from('video_jobs')
           .update({
             status: 'processing',

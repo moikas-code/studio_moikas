@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { ASPECT_PRESETS } from '../utils/constants'
 
-export function use_aspect_ratio() {
+export function useAspectRatio() {
   const [aspect_index, set_aspect_index] = useState(0)
   
   const current_preset = ASPECT_PRESETS[aspect_index]

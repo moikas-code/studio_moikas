@@ -12,7 +12,7 @@ interface PanelState {
   layers: boolean
 }
 
-export function use_panel_manager() {
+export function usePanelManager() {
   const [panel_state, set_panel_state] = useState<PanelState>({
     text: false,
     templates: false,

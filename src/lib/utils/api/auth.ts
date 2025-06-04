@@ -1,7 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { get_service_role_client } from '../database/supabase'
 import { api_error } from './response'
-import type { NextRequest } from 'next/server'
 
 interface AuthUser {
   clerk_id: string
@@ -11,12 +10,9 @@ interface AuthUser {
 
 /**
  * Verify user authentication and get user details
- * @param request - Next.js request object (optional)
  * @returns User details or null
  */
-export async function get_authenticated_user(
-  request?: NextRequest
-): Promise<AuthUser | null> {
+export async function get_authenticated_user(): Promise<AuthUser | null> {
   try {
     const { userId } = await auth()
     
@@ -52,13 +48,10 @@ export async function get_authenticated_user(
 
 /**
  * Require authentication for API route
- * @param request - Next.js request object
  * @returns User details or throws error response
  */
-export async function require_auth(
-  request?: NextRequest
-): Promise<AuthUser> {
-  const user = await get_authenticated_user(request)
+export async function require_auth(): Promise<AuthUser> {
+  const user = await get_authenticated_user()
   
   if (!user) {
     throw api_error('Unauthorized', 401)

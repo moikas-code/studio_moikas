@@ -50,7 +50,7 @@ export function sanitize_url(url: string): string | null {
  * @param sensitive_keys - Keys to remove
  * @returns Sanitized object
  */
-export function remove_sensitive_data<T extends Record<string, any>>(
+export function remove_sensitive_data<T extends Record<string, unknown>>(
   obj: T,
   sensitive_keys: string[] = ['password', 'token', 'secret', 'key', 'api_key']
 ): Partial<T> {

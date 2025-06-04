@@ -38,7 +38,8 @@ export const video_effects_tool = new DynamicTool({
       .describe("Effect intensity (0-100)")
   }),
   func: async ({ video_url, effect, intensity }) => {
-    // Mock implementation
+    // Mock implementation - video_url will be used in real implementation
+    void video_url // Mark as intentionally unused for now
     return JSON.stringify({
       status: "success",
       message: `Applied ${effect} effect to video`,

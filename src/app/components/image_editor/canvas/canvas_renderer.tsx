@@ -4,10 +4,30 @@ import React, { useEffect, useRef } from 'react'
 import { draw_grid } from '../utils/draw_utils'
 import { draw_text_element } from '../utils/text_utils'
 
+interface TextElement {
+  id: string
+  text: string
+  x: number
+  y: number
+  color: string
+  size: number
+  font: string
+  weight: string
+  width?: number
+  height?: number
+  opacity?: number
+  shadow?: {
+    blur: number
+    color: string
+    offset_x: number
+    offset_y: number
+  }
+}
+
 interface CanvasState {
   image_base64: string | null
   background_base64: string | null
-  text_elements: any[]
+  text_elements: TextElement[]
   canvas_width: number
   canvas_height: number
   zoom: number
@@ -26,7 +46,6 @@ interface CanvasState {
 interface CanvasRendererProps {
   canvas_state: CanvasState
   selected_text_id: string | null
-  is_image_selected: boolean
   viewport_width: number
   viewport_height: number
 }
@@ -34,12 +53,10 @@ interface CanvasRendererProps {
 export function CanvasRenderer({
   canvas_state,
   selected_text_id,
-  is_image_selected,
   viewport_width,
   viewport_height
 }: CanvasRendererProps) {
   const canvas_ref = useRef<HTMLCanvasElement>(null)
-  const image_cache = useRef<{ [key: string]: HTMLImageElement }>({})
   
   useEffect(() => {
     const canvas = canvas_ref.current

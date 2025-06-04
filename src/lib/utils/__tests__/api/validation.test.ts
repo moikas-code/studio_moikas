@@ -4,7 +4,6 @@ import {
   image_generation_schema,
   enhance_prompt_schema,
   validate_request,
-  user_id_schema,
   memu_message_schema
 } from '../../api/validation'
 

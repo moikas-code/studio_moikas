@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Move, RotateCw } from 'lucide-react'
 
 interface ImageTransform {
   x: number
@@ -68,6 +67,92 @@ export function ImagePropertiesPanel({
         </div>
         
         {/* Position and size controls */}
+        <div>
+          <label className="label">
+            <span className="label-text">Position</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label text-xs">
+                <span className="label-text">X</span>
+              </label>
+              <input 
+                type="number" 
+                className="input input-sm input-bordered w-full"
+                value={image_transform.x}
+                onChange={(e) => handle_position_change('x', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label text-xs">
+                <span className="label-text">Y</span>
+              </label>
+              <input 
+                type="number" 
+                className="input input-sm input-bordered w-full"
+                value={image_transform.y}
+                onChange={(e) => handle_position_change('y', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label className="label">
+            <span className="label-text">Size</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="label text-xs">
+                <span className="label-text">Width</span>
+              </label>
+              <input 
+                type="number" 
+                className="input input-sm input-bordered w-full"
+                value={image_transform.width}
+                onChange={(e) => handle_size_change('width', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label text-xs">
+                <span className="label-text">Height</span>
+              </label>
+              <input 
+                type="number" 
+                className="input input-sm input-bordered w-full"
+                value={image_transform.height}
+                onChange={(e) => handle_size_change('height', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <label className="label">
+            <span className="label-text">Rotation</span>
+          </label>
+          <div className="flex items-center gap-2">
+            <input 
+              type="range" 
+              min="-180" 
+              max="180" 
+              className="range range-sm flex-1"
+              value={image_transform.rotation}
+              onChange={(e) => on_transform_change({ rotation: parseInt(e.target.value) })}
+            />
+            <input 
+              type="number" 
+              className="input input-sm input-bordered w-16"
+              value={image_transform.rotation}
+              onChange={(e) => on_transform_change({ rotation: parseInt(e.target.value) || 0 })}
+            />
+            <span className="text-xs">°</span>
+          </div>
+        </div>
+        
+        <div className="text-xs text-base-content/60">
+          Original size: {original_image_size.width} x {original_image_size.height}
+        </div>
       </div>
     </div>
   )

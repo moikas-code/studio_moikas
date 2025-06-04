@@ -18,7 +18,7 @@ export const runtime = 'nodejs'
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 2. Get job_id from query params
     const job_id = req.nextUrl.searchParams.get("job_id")

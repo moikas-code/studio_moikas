@@ -41,7 +41,7 @@ const video_effects_schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 2. Validate request
     const body = await req.json()

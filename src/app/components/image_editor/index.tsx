@@ -1,17 +1,16 @@
 'use client'
 
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { useCanvasState } from '@/hooks/use_canvas_state'
 import { useZoomPan } from '@/hooks/use_zoom_pan'
 import { useEditorSession } from '@/hooks/use_editor_session'
-import { use_panel_manager } from './hooks/use_panel_manager'
+import { usePanelManager } from './hooks/use_panel_manager'
 import { Image_editor_header } from '../image_editor/image_editor_header'
 import { Image_editor_toolbar } from '../image_editor/image_editor_toolbar'
 import { CanvasRenderer } from './canvas/canvas_renderer'
 import { TextPropertiesPanel } from './panels/text_properties_panel'
 import { BackgroundPanel } from './panels/background_panel'
 import { ImagePropertiesPanel } from './panels/image_properties_panel'
-import { viewport_to_canvas } from './utils/canvas_utils'
 
 type Tool = 'select' | 'text' | 'pan'
 
@@ -19,8 +18,6 @@ export function ImageEditor() {
   // Canvas state management
   const {
     canvas_state,
-    set_canvas_state,
-    save_to_history,
     undo,
     redo,
     can_undo,
@@ -31,11 +28,7 @@ export function ImageEditor() {
   const {
     zoom,
     pan_x,
-    pan_y,
-    handle_wheel,
-    start_pan,
-    update_pan,
-    end_pan
+    pan_y
   } = useZoomPan()
   
   // Session management
@@ -50,14 +43,12 @@ export function ImageEditor() {
   const {
     panel_state,
     toggle_panel,
-    close_all_panels,
     close_panel
-  } = use_panel_manager()
+  } = usePanelManager()
   
   // UI state
   const [active_tool, set_active_tool] = useState<Tool>('select')
-  const [selected_text_id, set_selected_text_id] = useState<string | null>(null)
-  const [is_image_selected, set_is_image_selected] = useState(false)
+  const [selected_text_id] = useState<string | null>(null)
   
   // Refs
   const canvas_container_ref = useRef<HTMLDivElement>(null)
@@ -83,7 +74,7 @@ export function ImageEditor() {
   const [gradient_start, set_gradient_start] = useState('#ffffff')
   const [gradient_end, set_gradient_end] = useState('#000000')
   const [gradient_direction, set_gradient_direction] = useState('to bottom')
-  const [user_background_colors, set_user_background_colors] = useState<string[]>([])
+  const [user_background_colors] = useState<string[]>([])
   
   // Event handlers would go here...
   
@@ -112,7 +103,6 @@ export function ImageEditor() {
           <CanvasRenderer
             canvas_state={{ ...canvas_state, zoom, pan_x, pan_y }}
             selected_text_id={selected_text_id}
-            is_image_selected={is_image_selected}
             viewport_width={viewport_size.current.width}
             viewport_height={viewport_size.current.height}
           />

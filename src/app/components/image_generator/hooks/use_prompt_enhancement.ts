@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 
-export function use_prompt_enhancement() {
+export function usePromptEnhancement() {
   const [is_enhancing, set_is_enhancing] = useState(false)
   const [enhancement_count, set_enhancement_count] = useState(0)
   

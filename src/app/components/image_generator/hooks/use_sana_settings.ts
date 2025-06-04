@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { DEFAULT_SANA_SETTINGS } from '../utils/constants'
 import type { SanaSettings } from '../types'
 
-export function use_sana_settings() {
+export function useSanaSettings() {
   const [settings, set_settings] = useState<SanaSettings>(DEFAULT_SANA_SETTINGS)
   
   const update_setting = useCallback(<K extends keyof SanaSettings>(
@@ -34,6 +34,7 @@ export function use_sana_settings() {
   
   const get_sana_params = useCallback(() => {
     if (settings.seed === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { seed, ...params } = settings
       return params
     }

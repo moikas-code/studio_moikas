@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { POLLING_INTERVAL, MAX_POLL_RETRIES } from '../utils/video-constants'
 import type { JobStatus } from '../types/video-effects'
 
-export function use_job_polling() {
+export function useJobPolling() {
   const [job_id, set_job_id] = useState<string | null>(null)
   const [status, set_status] = useState<JobStatus | null>(null)
   const [error, set_error] = useState<string>('')
@@ -61,7 +61,7 @@ export function use_job_polling() {
         }
         
         retry_count = 0 // Reset on success
-      } catch (err) {
+      } catch {
         retry_count++
         if (retry_count >= MAX_POLL_RETRIES) {
           set_error('Failed to check job status. Please try again.')

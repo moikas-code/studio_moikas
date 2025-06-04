@@ -10,6 +10,7 @@ import {
   get_service_role_client, 
   execute_db_operation 
 } from "@/lib/utils/database/supabase"
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { 
   require_auth, 
   get_user_subscription
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
     
     // 3. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 4. Validate request
     const validated = validate_request(memu_workflow_schema, body)
@@ -172,13 +173,13 @@ async function handle_dev_mode(message: string) {
       tokens_used: 0,
       dev_mode: true
     })
-  } catch (error) {
+  } catch {
     return api_error('Dev mode test failed', 500)
   }
 }
 
 async function get_or_create_session(
-  supabase: any,
+  supabase: SupabaseClient,
   user_id: string,
   session_id?: string,
   workflow_id?: string
@@ -208,7 +209,7 @@ async function get_or_create_session(
   return data
 }
 
-async function get_workflow(supabase: any, workflow_id?: string) {
+async function get_workflow(supabase: SupabaseClient, workflow_id?: string) {
   if (!workflow_id) {
     return { graph_data: null }
   }
@@ -222,7 +223,7 @@ async function get_workflow(supabase: any, workflow_id?: string) {
   return data || { graph_data: null }
 }
 
-async function get_user_settings(supabase: any, user_id: string) {
+async function get_user_settings(supabase: SupabaseClient, user_id: string) {
   const { data } = await supabase
     .from('memu_user_chat_defaults')
     .select('*')
@@ -233,7 +234,7 @@ async function get_user_settings(supabase: any, user_id: string) {
 }
 
 async function save_message(
-  supabase: any,
+  supabase: SupabaseClient,
   session_id: string,
   content: string,
   role: 'user' | 'assistant',

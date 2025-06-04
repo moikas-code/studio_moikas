@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Workflow, Settings, History, MoreVertical } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import CompactTokenDisplay from "@/app/components/CompactTokenDisplay";
@@ -51,12 +52,13 @@ function Header({
               <div className="px-2 py-1">
                 {user && (
                   <div className="flex items-center gap-2 mb-2 pb-2 border-b border-base-300">
-                    <div className="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-base-300 flex items-center justify-center overflow-hidden relative">
                       {user.hasImage ? (
-                        <img 
+                        <Image 
                           src={user.imageUrl} 
                           alt={user.fullName || user.firstName || "User"} 
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
                         />
                       ) : (
                         <span className="text-xs font-medium">

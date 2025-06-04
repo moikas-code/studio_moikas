@@ -3,14 +3,6 @@
  * Max 60 lines per function
  */
 
-interface Transform {
-  x: number
-  y: number
-  width: number
-  height: number
-  rotation: number
-}
-
 interface Point {
   x: number
   y: number

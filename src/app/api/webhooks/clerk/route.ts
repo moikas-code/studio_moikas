@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     
     // 4. Verify webhook signature
     const wh = new Webhook(webhook_secret)
-    let evt: any
+    let evt: ReturnType<typeof wh.verify>
     
     try {
       evt = wh.verify(body, {
@@ -107,22 +107,23 @@ export async function POST(req: NextRequest) {
             if (user_error) throw user_error
             
             // Create subscription
-            const { error: sub_error } = await supabase
+            const result = await supabase
               .from('subscriptions')
               .insert({
                 user_id: new_user.id,
                 plan_name: 'free',
                 renewable_tokens: 125,
-                permanent_tokens: 0,
+                permanent_tokens: 100,
                 created_at: new Date().toISOString()
               })
             
-            if (sub_error) throw sub_error
+            if (result.error) throw result.error
+            return result
           })
         } else {
           // Update existing user
-          await execute_db_operation(() =>
-            supabase
+          await execute_db_operation(async () =>
+            await supabase
               .from('users')
               .update({
                 email,
@@ -138,8 +139,8 @@ export async function POST(req: NextRequest) {
         // Soft delete user
         const clerk_id = validated.data.id
         
-        await execute_db_operation(() =>
-          supabase
+        await execute_db_operation(async () =>
+          await supabase
             .from('users')
             .update({
               deleted_at: new Date().toISOString()

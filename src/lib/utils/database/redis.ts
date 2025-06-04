@@ -1,4 +1,4 @@
-import Redis from '@upstash/redis'
+import { Redis } from '@upstash/redis'
 
 let redis_instance: Redis | null = null
 
@@ -40,7 +40,6 @@ export async function check_rate_limit(
     await redis.expire(key, window_seconds)
   }
   
-  const ttl = await redis.ttl(key)
   const remaining = Math.max(0, limit - current)
   
   return {

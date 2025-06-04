@@ -1,5 +1,6 @@
 import { describe, test, expect, mock, beforeEach } from 'bun:test'
 import { get_redis_client, check_rate_limit } from '../../database/redis'
+import * as redis_module from '../../database/redis'
 
 // Mock the Redis module
 mock.module('@upstash/redis', () => ({
@@ -7,14 +8,18 @@ mock.module('@upstash/redis', () => ({
     constructor() {}
     
     async incr(key: string) {
+      void key // Mark as intentionally unused
       return 1
     }
     
     async expire(key: string, seconds: number) {
+      void key // Mark as intentionally unused
+      void seconds // Mark as intentionally unused
       return 1
     }
     
     async ttl(key: string) {
+      void key // Mark as intentionally unused
       return 60
     }
   }
@@ -23,7 +28,7 @@ mock.module('@upstash/redis', () => ({
 describe('Redis Utilities', () => {
   beforeEach(() => {
     // Clear any cached instance
-    const redis_module = require('../../database/redis')
+    // @ts-expect-error - accessing internal property for testing
     redis_module.redis_instance = null
   })
   
@@ -57,7 +62,7 @@ describe('Redis Utilities', () => {
       }
       
       // Mock the get_redis_client to return our mock
-      const redis_module = require('../../database/redis')
+      // @ts-expect-error - mocking function for testing
       redis_module.get_redis_client = () => mock_redis
       
       const result = await redis_module.check_rate_limit('test', 10, 60)

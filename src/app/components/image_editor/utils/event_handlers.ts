@@ -4,14 +4,31 @@
 
 import { viewport_to_canvas, is_point_in_rect } from './canvas_utils'
 
+interface TextElement {
+  id: string
+  x: number
+  y: number
+  width?: number
+  height?: number
+  [key: string]: unknown
+}
+
+interface ImageTransform {
+  x: number
+  y: number
+  width: number
+  height: number
+  [key: string]: unknown
+}
+
 interface MouseHandlerOptions {
   canvas_rect: DOMRect
   zoom: number
   pan_x: number
   pan_y: number
   active_tool: 'select' | 'text' | 'pan'
-  text_elements: any[]
-  image_transform: any
+  text_elements: TextElement[]
+  image_transform: ImageTransform | null
   on_text_select: (id: string | null) => void
   on_image_select: (selected: boolean) => void
   on_text_drag_start: (id: string, offset: { x: number; y: number }) => void

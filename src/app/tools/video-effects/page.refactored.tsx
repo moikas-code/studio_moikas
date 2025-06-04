@@ -1,15 +1,14 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Navbar } from '@/app/components/navbar'
 import { PromptInputBar } from './components/prompt_input_bar'
 import { VideoSettingsPanel } from './components/video_settings_panel'
 import { VideoProgressIndicator } from './components/video_progress_indicator'
 import { VideoResultDisplay } from './components/video_result_display'
-import { use_video_settings } from './hooks/use_video_settings'
-import { use_job_polling } from './hooks/use_job_polling'
-import { use_file_upload } from './hooks/use_file_upload'
+import { useVideoSettings } from './hooks/use_video_settings'
+import { useJobPolling } from './hooks/use_job_polling'
+import { useFileUpload } from './hooks/use_file_upload'
 import { 
   VIDEO_MODELS, 
   sort_models_by_cost, 
@@ -18,7 +17,6 @@ import {
 import toast, { Toaster } from 'react-hot-toast'
 
 export default function VideoEffectsPage() {
-  const router = useRouter()
   const [prompt, set_prompt] = useState('')
   const [is_generating, set_is_generating] = useState(false)
   const [is_enhancing, set_is_enhancing] = useState(false)
@@ -29,9 +27,9 @@ export default function VideoEffectsPage() {
   ).filter(m => !m.is_image_to_video)
   
   // Custom hooks
-  const video_settings = use_video_settings(sorted_models[0]?.value || '')
-  const job_polling = use_job_polling()
-  const file_upload = use_file_upload()
+  const video_settings = useVideoSettings(sorted_models[0]?.value || '')
+  const job_polling = useJobPolling()
+  const file_upload = useFileUpload()
   
   const selected_model = sorted_models.find(m => m.value === video_settings.model_id)
   
@@ -52,7 +50,7 @@ export default function VideoEffectsPage() {
       const data = await response.json()
       set_prompt(data.enhanced_prompt)
       toast.success('Prompt enhanced!')
-    } catch (error) {
+    } catch {
       toast.error('Failed to enhance prompt')
     } finally {
       set_is_enhancing(false)

@@ -16,7 +16,6 @@ import {
 } from "@/lib/utils/api/auth"
 import { 
   api_success, 
-  api_error, 
   handle_api_error 
 } from "@/lib/utils/api/response"
 import { 
@@ -34,7 +33,7 @@ const ENHANCE_COST = 1 // 1 MP per enhancement
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 2. Validate request
     const body = await req.json()
@@ -89,7 +88,7 @@ and composition suggestions.`),
         tokens_used: ENHANCE_COST
       })
       
-    } catch (ai_error) {
+    } catch {
       // Refund on AI failure
       await execute_db_operation(() =>
         supabase.rpc('refund_tokens', {

@@ -2,26 +2,6 @@
  * Drawing utilities for canvas rendering
  */
 
-interface TextElement {
-  id: string
-  text: string
-  x: number
-  y: number
-  color: string
-  size: number
-  font: string
-  weight: string
-  width?: number
-  height?: number
-  opacity?: number
-  shadow?: {
-    blur: number
-    color: string
-    offset_x: number
-    offset_y: number
-  }
-}
-
 interface DrawGridOptions {
   ctx: CanvasRenderingContext2D
   width: number

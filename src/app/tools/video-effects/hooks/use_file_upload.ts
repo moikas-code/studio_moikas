@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 
-export function use_file_upload() {
+export function useFileUpload() {
   const [image_file, set_image_file] = useState<File | null>(null)
   const [upload_error, set_upload_error] = useState<string>('')
   

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { 
   Undo, 
   Redo, 
@@ -290,11 +291,14 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
                   >
                     <figure className="px-4 pt-4">
                       {session.thumbnail ? (
-                        <img
-                          src={session.thumbnail}
-                          alt={`Preview of ${session.name}`}
-                          className="rounded-xl h-32 w-full object-cover"
-                        />
+                        <div className="relative h-32 w-full">
+                          <Image
+                            src={session.thumbnail}
+                            alt={`Preview of ${session.name}`}
+                            fill
+                            className="rounded-xl object-cover"
+                          />
+                        </div>
                       ) : (
                         <div className="h-32 w-full bg-base-300 rounded-xl flex items-center justify-center">
                           <span className="text-base-content/40">No preview</span>

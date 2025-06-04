@@ -32,7 +32,7 @@ export async function GET(
     const { session_id } = await params
     
     // 2. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 3. Get pagination params
     const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50")
@@ -94,7 +94,7 @@ export async function POST(
     const { session_id } = await params
     
     // 2. Authenticate user
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 3. Validate request body
     const body = await req.json()

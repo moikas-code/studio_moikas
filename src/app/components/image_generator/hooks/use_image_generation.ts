@@ -19,7 +19,7 @@ interface GenerationResult {
   backend_cost?: number
 }
 
-export function use_image_generation() {
+export function useImageGeneration() {
   const [is_loading, set_is_loading] = useState(false)
   const [error_message, set_error_message] = useState<string | null>(null)
   

@@ -1,16 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PromptInput } from './components/input/prompt_input'
 import { EnhanceButton } from './components/input/enhance_button'
 import { SettingsPanel } from './components/settings/settings_panel'
 import { ErrorDisplay } from '@/app/components/error_display'
 import { ImageGrid } from '@/app/components/image_grid'
-import { use_image_generation } from './hooks/use_image_generation'
-import { use_prompt_enhancement } from './hooks/use_prompt_enhancement'
-import { use_aspect_ratio } from './hooks/use_aspect_ratio'
-import { use_sana_settings } from './hooks/use_sana_settings'
+import { useImageGeneration } from './hooks/use_image_generation'
+import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
+import { useAspectRatio } from './hooks/use_aspect_ratio'
+import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster } from 'react-hot-toast'
 import { Settings } from 'lucide-react'
 
@@ -36,13 +36,19 @@ export function ImageGenerator({
   const [prompt_text, set_prompt_text] = useState('')
   const [model_id, set_model_id] = useState('sana')
   const [show_settings, set_show_settings] = useState(false)
-  const [generated_images, set_generated_images] = useState<any[]>([])
+  const [generated_images, set_generated_images] = useState<{
+    id?: string
+    url: string
+    prompt: string
+    model: string
+    timestamp: number
+  }[]>([])
   
   // Hooks
-  const { is_loading, error_message, generate_image, clear_error } = use_image_generation()
-  const { is_enhancing, enhancement_count, enhance_prompt } = use_prompt_enhancement()
-  const aspect_ratio = use_aspect_ratio()
-  const sana = use_sana_settings()
+  const { is_loading, error_message, generate_image, clear_error } = useImageGeneration()
+  const { is_enhancing, enhancement_count, enhance_prompt } = usePromptEnhancement()
+  const aspect_ratio = useAspectRatio()
+  const sana = useSanaSettings()
   
   // Handle prompt enhancement
   const handle_enhance = async () => {
@@ -57,7 +63,14 @@ export function ImageGenerator({
     if (!prompt_text.trim()) return
     
     const dimensions = aspect_ratio.get_dimensions()
-    const params: any = {
+    const params: {
+      prompt: string
+      model: string
+      width?: number
+      height?: number
+      aspect_ratio?: string
+      [key: string]: string | number | undefined
+    } = {
       prompt: prompt_text,
       model: model_id,
       ...dimensions
@@ -155,7 +168,7 @@ export function ImageGenerator({
           {generated_images.length > 0 && (
             <ImageGrid 
               images={generated_images}
-              onEdit={(image) => router.push('/tools/image-editor')}
+              onEdit={() => router.push('/tools/image-editor')}
             />
           )}
         </div>

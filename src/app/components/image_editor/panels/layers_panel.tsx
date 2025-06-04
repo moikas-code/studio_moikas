@@ -16,7 +16,6 @@ interface LayersPanelProps {
   selected_layer_id: string | null
   on_layer_select: (id: string) => void
   on_layer_visibility_toggle: (id: string) => void
-  on_layer_lock_toggle: (id: string) => void
   on_layer_delete: (id: string) => void
   on_layer_reorder: (from_index: number, to_index: number) => void
   on_close: () => void
@@ -27,7 +26,6 @@ export function LayersPanel({
   selected_layer_id,
   on_layer_select,
   on_layer_visibility_toggle,
-  on_layer_lock_toggle,
   on_layer_delete,
   on_layer_reorder,
   on_close

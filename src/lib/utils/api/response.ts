@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -74,7 +74,7 @@ export function handle_api_error(error: unknown): NextResponse<ApiResponse> {
 export function validate_env_vars<T extends Record<string, string>>(
   vars: T
 ): Record<keyof T, string> {
-  const result: any = {}
+  const result: Record<string, string> = {}
   
   for (const [key, env_name] of Object.entries(vars)) {
     const value = process.env[env_name]
@@ -84,5 +84,5 @@ export function validate_env_vars<T extends Record<string, string>>(
     result[key] = value
   }
   
-  return result
+  return result as Record<keyof T, string>
 }

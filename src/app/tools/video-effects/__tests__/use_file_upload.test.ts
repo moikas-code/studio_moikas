@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach } from 'bun:test'
 import { renderHook, act } from '@testing-library/react'
-import { use_file_upload } from '../hooks/use_file_upload'
+import { useFileUpload } from '../hooks/use_file_upload'
 
-describe('use_file_upload hook', () => {
+describe('useFileUpload hook', () => {
   let mock_file: File
   
   beforeEach(() => {
@@ -10,14 +10,14 @@ describe('use_file_upload hook', () => {
   })
   
   test('initializes with default values', () => {
-    const { result } = renderHook(() => use_file_upload())
+    const { result } = renderHook(() => useFileUpload())
     
     expect(result.current.image_file).toBeNull()
     expect(result.current.upload_error).toBe('')
   })
   
   test('accepts valid image file', async () => {
-    const { result } = renderHook(() => use_file_upload())
+    const { result } = renderHook(() => useFileUpload())
     
     let base64_result: string | null = null
     await act(async () => {
@@ -30,7 +30,7 @@ describe('use_file_upload hook', () => {
   })
   
   test('rejects non-image file', async () => {
-    const { result } = renderHook(() => use_file_upload())
+    const { result } = renderHook(() => useFileUpload())
     const text_file = new File(['text'], 'test.txt', { type: 'text/plain' })
     
     let base64_result: string | null = null
@@ -44,7 +44,7 @@ describe('use_file_upload hook', () => {
   })
   
   test('rejects oversized file', async () => {
-    const { result } = renderHook(() => use_file_upload())
+    const { result } = renderHook(() => useFileUpload())
     // Create a mock large file
     const large_content = new Array(11 * 1024 * 1024).fill('x').join('')
     const large_file = new File([large_content], 'large.jpg', { type: 'image/jpeg' })
@@ -60,7 +60,7 @@ describe('use_file_upload hook', () => {
   })
   
   test('clear_file resets state', async () => {
-    const { result } = renderHook(() => use_file_upload())
+    const { result } = renderHook(() => useFileUpload())
     
     // First upload a file
     await act(async () => {

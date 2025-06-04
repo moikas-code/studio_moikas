@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Bot, User } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { message } from "../types";
@@ -40,13 +41,14 @@ function MessageArea({
             className={`chat ${message.role === "user" ? "chat-end" : "chat-start"}`}
           >
             <div className="chat-image avatar">
-              <div className="w-10 rounded-full bg-base-300 flex items-center justify-center overflow-hidden">
+              <div className="w-10 h-10 rounded-full bg-base-300 flex items-center justify-center overflow-hidden relative">
                 {message.role === "user" ? (
                   user?.hasImage ? (
-                    <img 
+                    <Image 
                       src={user.imageUrl} 
                       alt={user.fullName || user.firstName || "User"} 
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
                     />
                   ) : (
                     <User className="w-6 h-6" />

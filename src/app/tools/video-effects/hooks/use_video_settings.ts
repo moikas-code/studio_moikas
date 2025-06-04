@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { ASPECT_OPTIONS } from '../utils/video-constants'
 import type { VideoSettings } from '../types/video-effects'
 
-export function use_video_settings(default_model_id: string) {
+export function useVideoSettings(default_model_id: string) {
   const [settings, set_settings] = useState<VideoSettings>({
     aspect: "1:1",
     aspect_slider: 1,

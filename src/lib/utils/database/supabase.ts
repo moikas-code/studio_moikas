@@ -53,7 +53,7 @@ export function get_anon_client(): SupabaseClient {
  * @returns Result or throws formatted error
  */
 export async function execute_db_operation<T>(
-  operation: () => Promise<{ data: T | null; error: any }>
+  operation: () => Promise<{ data: T | null; error: Error | null }>
 ): Promise<T> {
   const { data, error } = await operation()
   

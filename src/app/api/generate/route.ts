@@ -16,7 +16,6 @@ import {
 } from "@/lib/utils/api/auth"
 import { 
   api_success, 
-  api_error, 
   handle_api_error 
 } from "@/lib/utils/api/response"
 import { 
@@ -33,14 +32,14 @@ import {
 import { sanitize_text } from "@/lib/utils/security/sanitization"
 import {
   generate_imggen_cache_key,
-  get_model_cost,
-  apply_watermark_to_image
+  get_model_cost
 } from "@/lib/generate_helpers"
+import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
 
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate
-    const user = await require_auth(req)
+    const user = await require_auth()
     
     // 2. Parse and validate request
     const body = await req.json()
@@ -104,35 +103,39 @@ export async function POST(req: NextRequest) {
     
     // 10. Generate image
     try {
-      const generation_params: any = {
-        prompt,
-        model: validated.model,
-        image_size: {
-          width: validated.width || 1024,
-          height: validated.height || 1024
-        }
-      }
+      const generation_options: {
+        num_inference_steps?: number;
+        guidance_scale?: number;
+        style_name?: string;
+        seed?: number;
+      } = {}
       
       // Add optional params
       if (validated.inference_steps) {
-        generation_params.num_inference_steps = validated.inference_steps
+        generation_options.num_inference_steps = validated.inference_steps
       }
       if (validated.guidance_scale) {
-        generation_params.guidance_scale = validated.guidance_scale
+        generation_options.guidance_scale = validated.guidance_scale
       }
       if (validated.style_preset) {
-        generation_params.style_preset = validated.style_preset
+        generation_options.style_name = validated.style_preset
       }
       if (validated.seed !== undefined) {
-        generation_params.seed = validated.seed
+        generation_options.seed = validated.seed
       }
       
-      const result = await generate_flux_image(generation_params)
+      const result = await generate_flux_image(
+        prompt,
+        validated.width || 1024,
+        validated.height || 1024,
+        validated.model,
+        generation_options
+      )
       
       // 11. Apply watermark for free users
       let final_image = result.images[0].url
       if (is_free_user) {
-        final_image = await apply_watermark_to_image(final_image)
+        final_image = await add_overlay_to_image_node(final_image)
       }
       
       // 12. Cache result
@@ -154,7 +157,7 @@ export async function POST(req: NextRequest) {
       
       return api_success(cache_data)
       
-    } catch (generation_error) {
+    } catch {
       // Refund tokens on failure
       await execute_db_operation(() =>
         supabase.rpc('refund_tokens', {
@@ -163,7 +166,7 @@ export async function POST(req: NextRequest) {
         })
       )
       
-      throw generation_error
+      throw new Error('Image generation failed')
     }
     
   } catch (error) {
