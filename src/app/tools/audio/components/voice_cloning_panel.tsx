@@ -111,7 +111,7 @@ export function VoiceCloningPanel({
                     localStorage.removeItem('voice_clone_sample')
                     localStorage.removeItem('voice_clone_timestamp')
                     set_has_saved_voice(false)
-                    toast.info('Saved voice sample cleared')
+                    toast.success('Saved voice sample cleared')
                   } catch (e) {
                     console.error('Failed to clear saved voice:', e)
                   }

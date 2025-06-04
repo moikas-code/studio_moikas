@@ -113,7 +113,7 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
         // Auto-stop at max duration
         if (elapsed >= max_duration) {
           stop_recording()
-          toast.info(`Recording stopped at ${max_duration} seconds`)
+          toast(`Recording stopped at ${max_duration} seconds`)
         }
       }, 100)
       
