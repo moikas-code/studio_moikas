@@ -115,7 +115,7 @@ export default function AudioPage() {
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="card-title">Voice Selection</h2>
+                  <h2 className="card-title"></h2>
                   <button
                     onClick={() => set_show_advanced(!show_advanced)}
                     className="btn btn-ghost btn-sm gap-2"

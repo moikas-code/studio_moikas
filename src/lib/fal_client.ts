@@ -11,6 +11,20 @@ interface FalQueueUpdate {
   progress?: number;
 }
 
+interface FalQueueResult {
+  request_id?: string;
+  id?: string;
+  requestId?: string;
+}
+
+interface FalSyncResult {
+  video_url?: string;
+  url?: string;
+  images?: { url: string }[];
+}
+
+type FalResult = FalQueueResult | FalSyncResult;
+
 // Accept extra options for fal-ai/sana
 export async function generate_flux_image(
   prompt: string,
@@ -61,5 +75,63 @@ export async function generate_flux_image(
     },
   });
   console.log('Fal.ai raw result:', JSON.stringify(result, null, 2));
+  return result;
+}
+
+// Generate video using fal.ai
+export async function generate_video(
+  model_id: string,
+  params: {
+    prompt: string;
+    negative_prompt?: string;
+    duration?: number;
+    aspect_ratio?: string;
+    image_url?: string;
+    num_inference_steps?: number;
+    guidance_scale?: number;
+    seed?: number;
+  },
+  options?: {
+    webhook_url?: string;
+    poll_interval?: number;
+    logs?: boolean;
+  }
+): Promise<FalResult> {
+  const input: Record<string, unknown> = {
+    prompt: params.prompt,
+    ...(params.negative_prompt && { negative_prompt: params.negative_prompt }),
+    ...(params.duration && { duration: params.duration }),
+    ...(params.aspect_ratio && { aspect_ratio: params.aspect_ratio }),
+    ...(params.image_url && { image_url: params.image_url }),
+    ...(params.num_inference_steps && { num_inference_steps: params.num_inference_steps }),
+    ...(params.guidance_scale && { guidance_scale: params.guidance_scale }),
+    ...(params.seed !== undefined && { seed: params.seed })
+  };
+
+  // If webhook URL is provided, use queue API for async processing
+  if (options?.webhook_url) {
+    const result = await fal.queue.submit(model_id, {
+      input,
+      webhookUrl: options.webhook_url
+    });
+    
+    console.log('Video generation queued:', result);
+    return result;
+  }
+
+  // Otherwise use subscribe for sync processing with progress updates
+  const result = await fal.subscribe(model_id, {
+    input,
+    logs: options?.logs ?? true,
+    pollInterval: options?.poll_interval ?? 5000,
+    onQueueUpdate: (update: FalQueueUpdate) => {
+      console.log(`Video generation ${update.status}:`, update.progress || 0, '%');
+      if (update.logs) {
+        update.logs.map((log) => log.message).forEach(console.log);
+      }
+    },
+  });
+
+  console.log('Video generation result:', JSON.stringify(result, null, 2));
   return result;
 }

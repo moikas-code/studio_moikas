@@ -103,17 +103,20 @@ export default function Video_effects_page() {
           }
         }
         
-        const data = await res.json();
+        const response = await res.json();
         
         // Reset retry count on successful response
         retryCount = 0;
         
-        if (data.status === "done" && data.video_url) {
+        // Handle the wrapped response structure from api_success
+        const data = response.data || response;
+        
+        if (data.status === "completed" && data.video_url) {
           set_video_url(data.video_url);
           set_job_id(null); // Clear job_id after successful completion
           clearInterval(interval);
           localStorage.removeItem("jobState");
-        } else if (data.status === "error") {
+        } else if (data.status === "failed") {
           set_error(data.error || "Video generation failed.");
           set_job_id(null); // Clear job_id after error
           clearInterval(interval);

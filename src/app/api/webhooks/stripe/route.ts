@@ -117,11 +117,22 @@ export async function POST(req: NextRequest) {
         if (invoice.metadata?.user_id && invoice.metadata?.tokens) {
           const token_amount = parseInt(invoice.metadata.tokens)
           
-          // Add permanent tokens directly
+          // Add permanent tokens - first get current value, then increment
+          const { data: current_subscription, error: fetch_error } = await supabase
+            .from('subscriptions')
+            .select('permanent_tokens')
+            .eq('user_id', invoice.metadata!.user_id)
+            .single()
+          
+          if (fetch_error) {
+            throw new Error(`Failed to fetch current subscription: ${fetch_error.message}`)
+          }
+
+          const new_permanent_tokens = (current_subscription?.permanent_tokens || 0) + token_amount
           const { error: add_error } = await supabase
             .from('subscriptions')
             .update({
-              permanent_tokens: supabase.raw(`permanent_tokens + ${token_amount}`)
+              permanent_tokens: new_permanent_tokens
             })
             .eq('user_id', invoice.metadata!.user_id)
 

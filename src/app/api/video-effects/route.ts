@@ -23,6 +23,7 @@ import { sanitize_text } from "@/lib/utils/security/sanitization"
 import { z } from "zod"
 import { track } from "@vercel/analytics/server"
 import { get_video_model_config } from "@/lib/ai_models"
+import { generate_video } from "@/lib/fal_client"
 
 // Next.js route configuration
 export const dynamic = 'force-dynamic'
@@ -132,16 +133,70 @@ export async function POST(req: NextRequest) {
         description: `Video generation: ${validated.model}`
       })
     
-    // 10. Trigger actual video generation via webhook
-    // For production, this would be handled by a webhook from fal.ai
-    // For now, update job to simulate processing
-    await supabase
-      .from('video_jobs')
-      .update({ 
-        status: 'processing',
-        progress: 10
-      })
-      .eq('id', job.id)
+    // 10. Trigger actual video generation
+    try {
+      // Construct webhook URL for this job
+      const webhook_url = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}/api/webhooks/fal-ai`
+        : process.env.NEXT_PUBLIC_APP_URL 
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/fal-ai`
+          : null
+      
+      // Call fal.ai to generate video
+      const fal_result = await generate_video(
+        validated.model,
+        {
+          prompt,
+          negative_prompt: validated.negative_prompt,
+          duration: validated.duration,
+          aspect_ratio: validated.aspect_ratio,
+          image_url: validated.image_url
+        },
+        webhook_url ? { webhook_url } : undefined
+      )
+      
+      // Update job with fal.ai request ID (check multiple possible ID field names)
+      const is_queue_result = 'request_id' in fal_result || 'id' in fal_result || 'requestId' in fal_result
+      const is_sync_result = 'video_url' in fal_result || 'url' in fal_result
+      
+      if (is_queue_result) {
+        const queue_result = fal_result as Record<string, unknown>
+        const fal_id = queue_result.request_id || queue_result.id || queue_result.requestId
+        await supabase
+          .from('video_jobs')
+          .update({ 
+            fal_request_id: String(fal_id),
+            status: 'processing',
+            progress: 5
+          })
+          .eq('id', job.id)
+      } else if (is_sync_result) {
+        // If synchronous response (no webhook), update immediately
+        const sync_result = fal_result as Record<string, unknown>
+        const video_url = sync_result.video_url || sync_result.url
+        await supabase
+          .from('video_jobs')
+          .update({ 
+            status: 'completed',
+            video_url: String(video_url),
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', job.id)
+      }
+    } catch (generation_error) {
+      console.error('Failed to start video generation:', generation_error)
+      
+      // Update job as failed
+      await supabase
+        .from('video_jobs')
+        .update({ 
+          status: 'failed',
+          error: generation_error instanceof Error ? generation_error.message : 'Failed to start generation'
+        })
+        .eq('id', job.id)
+      
+      throw generation_error
+    }
     
     // 11. Track event
     track('video_generation_started', {
