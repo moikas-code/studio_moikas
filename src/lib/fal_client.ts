@@ -1,9 +1,18 @@
 import { fal } from "@fal-ai/client";
 
-// Configure fal client with API key
-fal.config({
-  credentials: process.env.FAL_KEY
-});
+// Configure fal client with API key - but only if we have the key
+// This allows the module to be imported even if FAL_KEY is not set
+if (process.env.FAL_KEY) {
+  try {
+    fal.config({
+      credentials: process.env.FAL_KEY
+    });
+  } catch (error) {
+    console.error('Failed to configure fal client:', error);
+  }
+} else {
+  console.warn('FAL_KEY environment variable is not set - video generation will not work');
+}
 
 interface FalQueueUpdate {
   status: string;
@@ -42,6 +51,10 @@ export async function generate_flux_image(
     aspect_ratio?: string;
   } = {}
 ) {
+  // Ensure FAL_KEY is set before attempting to generate
+  if (!process.env.FAL_KEY) {
+    throw new Error('FAL_KEY environment variable is required for image generation');
+  }
   // Compose image_size if not provided
   const image_size = options.image_size || {
     width,
@@ -97,6 +110,10 @@ export async function generate_video(
     logs?: boolean;
   }
 ): Promise<FalResult> {
+  // Ensure FAL_KEY is set before attempting to generate
+  if (!process.env.FAL_KEY) {
+    throw new Error('FAL_KEY environment variable is required for video generation');
+  }
   const input: Record<string, unknown> = {
     prompt: params.prompt,
     ...(params.negative_prompt && { negative_prompt: params.negative_prompt }),

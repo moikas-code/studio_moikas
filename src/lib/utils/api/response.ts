@@ -55,15 +55,23 @@ export function handle_api_error(error: unknown): NextResponse<ApiResponse> {
   console.error('API Error:', error)
   
   if (error instanceof Error) {
-    // Don't expose internal error details in production
-    const message = process.env.NODE_ENV === 'production' 
-      ? 'An error occurred' 
-      : error.message
+    // Show the actual error message for debugging
+    const message = error.message
     
+    // Common error patterns to handle
+    if (message.includes('Missing environment variable')) {
+      return api_error('Server configuration error', 500)
+    }
+    
+    if (message.includes('FAL_KEY') || message.includes('credentials')) {
+      return api_error('Video service configuration error', 500)
+    }
+    
+    // Return the actual error message for now to help debug
     return api_error(message, 500)
   }
   
-  return api_error('Unknown error occurred', 500)
+  return api_error('An error occurred', 500)
 }
 
 /**

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { 
   get_service_role_client
 } from "@/lib/utils/database/supabase"
@@ -28,7 +28,7 @@ import { generate_video } from "@/lib/fal_client"
 // Next.js route configuration
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 30 // Video processing can take time
+export const maxDuration = 60 // Video processing can take more time
 
 // Validation schema
 const video_effects_schema = z.object({
@@ -42,9 +42,12 @@ const video_effects_schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  console.log('Video effects API called');
+  
   try {
     // 1. Authenticate user
     const user = await require_auth()
+    console.log('User authenticated:', user.user_id)
     
     // 2. Validate request
     const body = await req.json()
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest) {
     const supabase = get_service_role_client()
     
     // Generate a unique job_id for external tracking
-    const job_id = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const job_id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
     
     const { data: job, error: job_error } = await supabase
       .from('video_jobs')
@@ -99,7 +102,8 @@ export async function POST(req: NextRequest) {
         aspect: validated.aspect_ratio, // Fix: table uses aspect not aspect_ratio
         duration: validated.duration,
         status: 'pending',
-        image_url: validated.image_url || null
+        image_url: validated.image_url || null,
+        cost: cost // Add the cost field
       })
       .select()
       .single()
@@ -185,6 +189,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (generation_error) {
       console.error('Failed to start video generation:', generation_error)
+      console.error('Full error details:', JSON.stringify(generation_error, null, 2))
       
       // Update job as failed
       await supabase
@@ -194,6 +199,19 @@ export async function POST(req: NextRequest) {
           error: generation_error instanceof Error ? generation_error.message : 'Failed to start generation'
         })
         .eq('id', job.id)
+      
+      // Refund tokens on failure
+      const { error: refund_error } = await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens + renewable_to_deduct,
+          permanent_tokens: subscription.permanent_tokens + permanent_to_deduct
+        })
+        .eq('user_id', user.user_id)
+      
+      if (refund_error) {
+        console.error('Failed to refund tokens:', refund_error)
+      }
       
       throw generation_error
     }
@@ -215,6 +233,10 @@ export async function POST(req: NextRequest) {
     })
     
   } catch (error) {
+    // If error is already a NextResponse (from require_auth), return it directly
+    if (error instanceof Response || (error && typeof error === 'object' && 'headers' in error)) {
+      return error as NextResponse
+    }
     return handle_api_error(error)
   }
 }
