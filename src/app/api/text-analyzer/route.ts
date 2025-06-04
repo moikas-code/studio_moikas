@@ -7,7 +7,6 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { PdfReader } from "pdfreader";
 import { track } from '@vercel/analytics/server';
 import { create_clerk_supabase_client_ssr } from '@/lib/supabase_server';
-import { deduct_tokens } from '@/lib/generate_helpers';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -102,11 +101,50 @@ export async function POST(req: NextRequest) {
     if (user_error || !user_row?.id) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    try {
-      await deduct_tokens({ supabase, user_id: user_row.id, required_tokens: 25 });
-    } catch (err) {
-      return NextResponse.json({ error: err instanceof Error ? err.message : "Insufficient tokens" }, { status: 402 });
+    // Get subscription to check token balance and deduct tokens
+    const { data: subscription, error: sub_error } = await supabase
+      .from('subscriptions')
+      .select('renewable_tokens, permanent_tokens')
+      .eq('user_id', user_row.id)
+      .single()
+
+    if (sub_error || !subscription) {
+      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
+
+    const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
+    if (total_tokens < 25) {
+      return NextResponse.json({ 
+        error: 'Insufficient tokens', 
+        required: 25, 
+        available: total_tokens 
+      }, { status: 402 })
+    }
+
+    // Deduct tokens - prioritize renewable tokens first, then permanent
+    const renewable_to_deduct = Math.min(25, subscription.renewable_tokens)
+    const permanent_to_deduct = 25 - renewable_to_deduct
+
+    const { error: deduct_error } = await supabase
+      .from('subscriptions')
+      .update({
+        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+      })
+      .eq('user_id', user_row.id)
+
+    if (deduct_error) {
+      return NextResponse.json({ error: 'Failed to deduct tokens' }, { status: 500 })
+    }
+
+    // Log the usage
+    await supabase
+      .from('usage')
+      .insert({
+        user_id: user_row.id,
+        tokens_used: 25,
+        description: `Text analysis: ${feature}`
+      })
     // Track analytics event
     await track('Text Analyzer Used', {
       feature: String(feature),

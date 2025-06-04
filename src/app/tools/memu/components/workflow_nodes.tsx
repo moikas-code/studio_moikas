@@ -150,6 +150,7 @@ export const llm_node: React.FC<node_props> = (props) => (
 );
 
 export const image_node: React.FC<node_props> = (props) => (
+  // eslint-disable-next-line jsx-a11y/alt-text
   <BaseNode {...props} icon={<Image className="w-4 h-4" />} color="from-purple-500 to-pink-500" title="Image Gen" />
 );
 

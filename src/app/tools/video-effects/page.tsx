@@ -103,17 +103,20 @@ export default function Video_effects_page() {
           }
         }
         
-        const data = await res.json();
+        const response = await res.json();
         
         // Reset retry count on successful response
         retryCount = 0;
         
-        if (data.status === "done" && data.video_url) {
+        // Handle the wrapped response structure from api_success
+        const data = response.data || response;
+        
+        if (data.status === "completed" && data.video_url) {
           set_video_url(data.video_url);
           set_job_id(null); // Clear job_id after successful completion
           clearInterval(interval);
           localStorage.removeItem("jobState");
-        } else if (data.status === "error") {
+        } else if (data.status === "failed") {
           set_error(data.error || "Video generation failed.");
           set_job_id(null); // Clear job_id after error
           clearInterval(interval);
@@ -221,18 +224,29 @@ export default function Video_effects_page() {
         main_prompt = split[0].trim();
         negative_prompt = split[1]?.trim() || "";
       }
+      // Prepare the request body - only include image_url if it's a valid URL
+      const request_body: Record<string, unknown> = {
+        prompt: main_prompt,
+        negative_prompt,
+        aspect_ratio: aspect, // Fix: API expects aspect_ratio not aspect
+        model: model_id, // Fix: API expects model not model_id
+        duration: video_duration,
+      }
+      
+      // Only include image_url if we have a valid URL
+      if (final_image_url && final_image_url.trim()) {
+        request_body.image_url = final_image_url
+      }
+      
+      // Include base64 data if available
+      if (image_base64) {
+        request_body.image_file_base64 = image_base64
+      }
+      
       const res = await fetch("/api/video-effects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: main_prompt,
-          negative_prompt,
-          image_url: final_image_url,
-          image_file_base64: image_base64, // Send base64 data
-          aspect,
-          model_id,
-          duration: video_duration,
-        }),
+        body: JSON.stringify(request_body),
       });
       const text = await res.text();
       let data;

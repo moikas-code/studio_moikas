@@ -1,286 +1,220 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { create_clerk_supabase_client_ssr, create_service_role_client } from "@/lib/supabase_server";
-import {
-  calculateGenerationMP,
-  deduct_tokens,
-  VIDEO_MODELS,
-  video_model_to_legacy_model,
-} from "@/lib/generate_helpers";
-import { track } from "@vercel/analytics/server";
-import { fal } from "@fal-ai/client";
-import { v4 as uuidv4 } from "uuid";
-import fetch from "node-fetch";
+import { NextRequest } from "next/server"
+import { 
+  get_service_role_client
+} from "@/lib/utils/database/supabase"
+import { 
+  require_auth, 
+  get_user_subscription,
+  has_sufficient_tokens
+} from "@/lib/utils/api/auth"
+import { 
+  api_success, 
+  api_error, 
+  handle_api_error 
+} from "@/lib/utils/api/response"
+import { 
+  validate_request 
+} from "@/lib/utils/api/validation"
+import { 
+  enforce_rate_limit, 
+  RATE_LIMITS
+} from "@/lib/utils/api/rate_limiter"
+import { sanitize_text } from "@/lib/utils/security/sanitization"
+import { z } from "zod"
+import { track } from "@vercel/analytics/server"
+import { get_video_model_config } from "@/lib/ai_models"
+import { generate_video } from "@/lib/fal_client"
 
-const SUPPORTED_ASPECTS = {
-  "16:9": { width: 1280, height: 720 },
-  "1:1": { width: 1024, height: 1024 },
-  "9:16": { width: 720, height: 1280 },
-};
+// Next.js route configuration
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const maxDuration = 30 // Video processing can take time
 
-// Helper to upload a buffer as a File to FAL.AI
-async function upload_buffer_to_fal(
-  buffer: Buffer,
-  filename: string,
-  mime_type: string
-) {
-  const file = new File([buffer], filename, { type: mime_type });
-  return await fal.storage.upload(file);
-}
-
-// Helper to fetch a remote image and upload to FAL.AI
-async function upload_remote_image_to_fal(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch remote image: ${url}`);
-  const buffer = Buffer.from(await res.arrayBuffer());
-  const content_type = res.headers.get("content-type") || "image/png";
-  return await upload_buffer_to_fal(buffer, "remote_image.png", content_type);
-}
+// Validation schema
+const video_effects_schema = z.object({
+  prompt: z.string().min(1).max(1000),
+  negative_prompt: z.string().optional(),
+  model: z.string(),
+  aspect_ratio: z.enum(['16:9', '1:1', '9:16']),
+  duration: z.number().int().min(1).max(10),
+  image_url: z.string().url().optional(),
+  image_file_base64: z.string().optional()
+})
 
 export async function POST(req: NextRequest) {
-  // --- Refund mechanism variables ---
-  let previous_renewable_tokens = 0;
-  let previous_permanent_tokens = 0;
-  let tokens_deducted = false;
-  let user_id_for_refund: string | null = null;
   try {
-    const { userId } = await auth();
-    if (!userId)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const body = await req.json();
-    const {
-      prompt = "",
-      negative_prompt = "",
-      image_url = "",
-      aspect = "16:9",
-      model_id = "fal-ai/kling-video/v2.1/master/text-to-video",
-      duration = 5,
-      image_file_base64 = "", // Optionally support base64-encoded file
-    } = body;
-    if (
-      !prompt ||
-      !SUPPORTED_ASPECTS[aspect as keyof typeof SUPPORTED_ASPECTS] ||
-      !model_id
-    ) {
-      return NextResponse.json(
-        { error: "Missing or invalid input." },
-        { status: 400 }
-      );
-    }
-    const selected_model = VIDEO_MODELS.find((m) => m.value === model_id);
-    if (!selected_model) {
-      return NextResponse.json(
-        { error: "Invalid model selected." },
-        { status: 400 }
-      );
-    }
-
-    // Deduct tokens (scale by duration)
-    // Use service role client to bypass RLS for user lookup
-    const serviceClient = create_service_role_client();
-    const { data: user_row, error: user_error } = await serviceClient
-      .from("users")
-      .select("id")
-      .eq("clerk_id", userId)
-      .single();
-    if (user_error || !user_row?.id) {
-      console.error(`User lookup failed for clerk_id ${userId}:`, user_error);
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    // 1. Authenticate user
+    const user = await require_auth()
+    
+    // 2. Validate request
+    const body = await req.json()
+    const validated = validate_request(video_effects_schema, body)
+    
+    // 3. Sanitize prompt
+    const prompt = sanitize_text(validated.prompt)
+    
+    // 4. Get user subscription
+    const subscription = await get_user_subscription(user.user_id)
+    const is_free = subscription.plan_name === 'free'
+    
+    // 5. Apply rate limiting
+    await enforce_rate_limit(
+      user.user_id,
+      is_free ? RATE_LIMITS.video_processing : {
+        ...RATE_LIMITS.video_processing,
+        requests: 10 // More for paid users
+      }
+    )
+    
+    // 6. Calculate cost based on model
+    const model_config = get_video_model_config(validated.model)
+    if (!model_config) {
+      return api_error(`Invalid video model: ${validated.model}`, 400)
     }
     
-    // Use the regular client for token operations
-    const supabase = await create_clerk_supabase_client_ssr();
-    user_id_for_refund = user_row.id;
-    // --- Fetch current token balances before deduction ---
-    const { data: subscription } = await supabase
-      .from("subscriptions")
-      .select("renewable_tokens, permanent_tokens")
-      .eq("user_id", user_row.id)
-      .single();
-    previous_renewable_tokens = subscription?.renewable_tokens ?? 0;
-    previous_permanent_tokens = subscription?.permanent_tokens ?? 0;
-    try {
-      await deduct_tokens({
-        supabase,
-        user_id: user_row.id,
-        required_tokens: calculateGenerationMP(video_model_to_legacy_model(selected_model)) * duration,
-      });
-      tokens_deducted = true;
-    } catch (error) {
-      await track("Video Job Token Deduction Failed", {
-        user_id: userId,
-        model_id,
-        error: error instanceof Error ? error.message : "Insufficient tokens",
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json(
-        {
-          error: error instanceof Error ? error.message : "Insufficient tokens",
-        },
-        { status: 402 }
-      );
+    // Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
+    // For video, multiply by duration in seconds
+    const base_mp_cost = Math.ceil((model_config.custom_cost * 1.6) / 0.001)
+    const cost = base_mp_cost * validated.duration
+    
+    // 7. Check token balance
+    if (!await has_sufficient_tokens(user.user_id, cost)) {
+      return api_error('Insufficient tokens for video generation', 402)
     }
-
-    // --- Robust image handling for FAL.AI ---
-    let final_image_url = image_url;
-    if (selected_model.is_image_to_video) {
-      if (image_file_base64) {
-        // 1. User uploaded a file (base64-encoded)
-        const buffer = Buffer.from(image_file_base64, "base64");
-        final_image_url = await upload_buffer_to_fal(
-          buffer,
-          "user_upload.png",
-          "image/png"
-        );
-      } else if (image_url && image_url.startsWith("http")) {
-        // 2. User provided a URL (use directly, or optionally upload to FAL.AI for reliability)
-        final_image_url = await upload_remote_image_to_fal(image_url);
-        // final_image_url = image_url;
-      } else {
-        // 3. No image: use black PNG placeholder, upload to FAL.AI
-        const black_png_buffer = Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2ZkAAAAASUVORK5CYII=",
-          "base64"
-        );
-        final_image_url = await upload_buffer_to_fal(
-          black_png_buffer,
-          "black.png",
-          "image/png"
-        );
-      }
-    }
-
-    // Submit FAL.AI job and return job_id immediately
-    let job_id: string;
-    try {
-      // Construct webhook URL
-      const base_url =
-        process.env.NEXT_PUBLIC_APP_URL || "https://studio.moikas.com";
-      const webhook_url = `${base_url}/api/webhooks/fal-ai`;
-      // Submit with webhook URL for async processing
-      const falRes = await fal.queue.submit(model_id, {
-        input: {
-          prompt,
-          ...(negative_prompt.length > 0 && { negative_prompt }),
-          ...(selected_model.is_image_to_video && {
-            image_url: final_image_url,
-          }),
-          aspect_ratio: aspect,
-          duration: duration.toString(),
-        },
-        webhookUrl: webhook_url,
-      });
-      job_id = falRes.request_id;
-    } catch (err) {
-      // --- Refund tokens if job creation fails ---
-      if (tokens_deducted && user_id_for_refund) {
-        await supabase
-          .from("subscriptions")
-          .update({
-            renewable_tokens: previous_renewable_tokens,
-            permanent_tokens: previous_permanent_tokens,
-          })
-          .eq("user_id", user_id_for_refund);
-      }
-      await track("Video Job Creation Failed", {
-        user_id: userId,
-        model_id,
-        error: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json(
-        { error: "Failed to start video job" },
-        { status: 500 }
-      );
-    }
-
-    // Store job metadata for analytics/history (optional, no polling required)
-    try {
-      const job_record = {
-        id: uuidv4(),
-        user_id: user_row.id,
-        job_id,
-        status: "pending",
+    
+    // 8. Create job record
+    const supabase = get_service_role_client()
+    
+    // Generate a unique job_id for external tracking
+    const job_id = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const { data: job, error: job_error } = await supabase
+      .from('video_jobs')
+      .insert({
+        user_id: user.user_id,
+        job_id: job_id,
         prompt,
-        negative_prompt,
-        model_id,
-        aspect,
-        duration,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+        negative_prompt: validated.negative_prompt || null,
+        model_id: validated.model, // Fix: table uses model_id not model
+        aspect: validated.aspect_ratio, // Fix: table uses aspect not aspect_ratio
+        duration: validated.duration,
+        status: 'pending',
+        image_url: validated.image_url || null
+      })
+      .select()
+      .single()
+    
+    if (job_error || !job) {
+      throw new Error('Failed to create job')
+    }
+    
+    // 9. Deduct tokens - prioritize renewable tokens first, then permanent
+    const renewable_to_deduct = Math.min(cost, subscription.renewable_tokens)
+    const permanent_to_deduct = cost - renewable_to_deduct
+
+    const { error: deduct_error } = await supabase
+      .from('subscriptions')
+      .update({
+        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+      })
+      .eq('user_id', user.user_id)
+
+    if (deduct_error) {
+      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    }
+
+    // Log the usage
+    await supabase
+      .from('usage')
+      .insert({
+        user_id: user.user_id,
+        tokens_used: cost,
+        description: `Video generation: ${validated.model}`
+      })
+    
+    // 10. Trigger actual video generation
+    try {
+      // Construct webhook URL for this job
+      const webhook_url = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}/api/webhooks/fal-ai`
+        : process.env.NEXT_PUBLIC_APP_URL 
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/fal-ai`
+          : null
       
-      console.log(`Creating video job in DB: job_id=${job_id}, user_id=${user_row.id}`);
-      console.log(`Full job record:`, JSON.stringify(job_record, null, 2));
+      // Call fal.ai to generate video
+      const fal_result = await generate_video(
+        validated.model,
+        {
+          prompt,
+          negative_prompt: validated.negative_prompt,
+          duration: validated.duration,
+          aspect_ratio: validated.aspect_ratio,
+          image_url: validated.image_url
+        },
+        webhook_url ? { webhook_url } : undefined
+      )
       
-      // Use service role client to bypass RLS for job creation
-      const { error: insertError } = await serviceClient
-        .from("video_jobs")
-        .insert(job_record);
-        
-      if (insertError) {
-        console.error(`Failed to insert job record:`, insertError);
-        throw insertError;
-      }
+      // Update job with fal.ai request ID (check multiple possible ID field names)
+      const is_queue_result = 'request_id' in fal_result || 'id' in fal_result || 'requestId' in fal_result
+      const is_sync_result = 'video_url' in fal_result || 'url' in fal_result
       
-      // Verify the job was created
-      const { data: verifyJob, error: verifyError } = await serviceClient
-        .from("video_jobs")
-        .select("job_id, user_id, status")
-        .eq("job_id", job_id)
-        .single();
-        
-      console.log(`Video job verification:`, { verifyJob, verifyError });
-      console.log(`Video job created successfully in DB: ${job_id}`);
-    } catch (err) {
-      // --- Refund tokens if DB insert fails ---
-      if (tokens_deducted && user_id_for_refund) {
+      if (is_queue_result) {
+        const queue_result = fal_result as Record<string, unknown>
+        const fal_id = queue_result.request_id || queue_result.id || queue_result.requestId
         await supabase
-          .from("subscriptions")
-          .update({
-            renewable_tokens: previous_renewable_tokens,
-            permanent_tokens: previous_permanent_tokens,
+          .from('video_jobs')
+          .update({ 
+            fal_request_id: String(fal_id),
+            status: 'processing',
+            progress: 5
           })
-          .eq("user_id", user_id_for_refund);
+          .eq('id', job.id)
+      } else if (is_sync_result) {
+        // If synchronous response (no webhook), update immediately
+        const sync_result = fal_result as Record<string, unknown>
+        const video_url = sync_result.video_url || sync_result.url
+        await supabase
+          .from('video_jobs')
+          .update({ 
+            status: 'completed',
+            video_url: String(video_url),
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', job.id)
       }
-      await track("Video Job DB Insert Failed", {
-        user_id: userId,
-        model_id,
-        error: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString(),
-      });
-      return NextResponse.json(
-        { error: "Failed to record video job" },
-        { status: 500 }
-      );
-    }
-    await track("Video Job Created", {
-      user_id: userId,
-      model_id,
-      aspect,
-      duration,
-      job_id,
-      timestamp: new Date().toISOString(),
-    });
-    // Return only the job_id and pending status
-    return NextResponse.json({ job_id, status: "pending" });
-  } catch (err) {
-    // --- Refund tokens if any other error occurs after deduction ---
-    if (tokens_deducted && user_id_for_refund) {
-      const supabase = await create_clerk_supabase_client_ssr();
+    } catch (generation_error) {
+      console.error('Failed to start video generation:', generation_error)
+      
+      // Update job as failed
       await supabase
-        .from("subscriptions")
-        .update({
-          renewable_tokens: previous_renewable_tokens,
-          permanent_tokens: previous_permanent_tokens,
+        .from('video_jobs')
+        .update({ 
+          status: 'failed',
+          error: generation_error instanceof Error ? generation_error.message : 'Failed to start generation'
         })
-        .eq("user_id", user_id_for_refund);
+        .eq('id', job.id)
+      
+      throw generation_error
     }
-    await track("Video Job Server Error", {
-      error: err instanceof Error ? err.message : String(err),
-      timestamp: new Date().toISOString(),
-    });
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    
+    // 11. Track event
+    track('video_generation_started', {
+      user_id: user.user_id,
+      model: validated.model,
+      duration: validated.duration,
+      cost
+    })
+    
+    // 12. Return job info
+    return api_success({
+      job_id: job.job_id, // Return the string job_id, not the UUID id
+      status: 'processing',
+      estimated_time: validated.duration * 10, // seconds
+      cost
+    })
+    
+  } catch (error) {
+    return handle_api_error(error)
   }
 }

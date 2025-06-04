@@ -130,6 +130,7 @@ export const Image_editor_toolbar: React.FC<Image_editor_toolbar_props> = ({
             on_toggle_image_panel?.();
           }}
         >
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
           <Image className="w-4 h-4" />
         </button>
       )}
