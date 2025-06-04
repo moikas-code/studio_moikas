@@ -36,10 +36,28 @@ export function useImageGeneration() {
         body: JSON.stringify(params)
       })
       
-      const data = await response.json()
+      const response_data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`)
+        throw new Error(response_data.error || `HTTP error! status: ${response.status}`)
+      }
+      
+      // Debug logging
+      console.log('API Response:', response_data)
+      
+      // Extract data from the success response wrapper
+      const data = response_data.data || response_data
+      
+      console.log('Extracted data:', {
+        hasBase64: !!data.base64Image,
+        base64Length: data.base64Image?.length || 0,
+        model: data.model,
+        mpUsed: data.mpUsed
+      })
+      
+      if (!data || !data.base64Image) {
+        console.error('No base64Image in response data:', data)
+        throw new Error('Invalid response from server - missing image data')
       }
       
       track('image_generated', {

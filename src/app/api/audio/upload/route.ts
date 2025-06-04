@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
-import { create_service_role_client } from '../../../../lib/supabase_server'
-import { track } from '@vercel/analytics'
+import { track } from '@vercel/analytics/server'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_MIME_TYPES = [
@@ -15,6 +14,13 @@ const ALLOWED_MIME_TYPES = [
   'audio/mp4',
   'audio/m4a'
 ]
+
+// Since fal.ai doesn't support base64 URLs, we need to provide a temporary upload solution
+// In production, you would use a temporary file hosting service like:
+// - Cloudflare R2 with temporary URLs
+// - AWS S3 with pre-signed URLs
+// - Google Cloud Storage with temporary access
+// For now, we'll return an error message explaining this limitation
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,62 +54,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get user from database
-    const supabase = create_service_role_client()
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', userId)
-      .single()
-
-    if (userError || !userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-
-    // Generate unique filename
-    const timestamp = Date.now()
-    const fileExtension = file.name.split('.').pop() || 'webm'
-    const fileName = `voice-samples/${userData.id}/${timestamp}.${fileExtension}`
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('audio-uploads')
-      .upload(fileName, buffer, {
-        contentType: file.type,
-        cacheControl: '3600',
-        upsert: false
-      })
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError)
-      return NextResponse.json(
-        { error: 'Failed to upload audio file' },
-        { status: 500 }
-      )
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('audio-uploads')
-      .getPublicUrl(fileName)
-
-    // Track upload
-    track('voice_sample_uploaded', {
+    // Track the attempt
+    track('voice_clone_attempted', {
       userId,
       fileSize: file.size,
-      fileType: file.type,
-      duration: formData.get('duration') || 'unknown'
+      fileType: file.type
     })
 
+    // For now, return an informative error
+    // In production, implement temporary file hosting here
     return NextResponse.json({
-      success: true,
-      url: publicUrl,
-      fileName: fileName
-    })
+      error: 'Voice cloning requires a temporary file hosting service. Please use the pre-defined voices for now.',
+      suggestion: 'To enable voice cloning, configure a temporary file hosting service (e.g., Cloudflare R2, AWS S3) in production.'
+    }, { status: 501 })
 
   } catch (error) {
     console.error('Audio upload error:', error)

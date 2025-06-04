@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Mic, Upload, X, Loader2 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Mic, Upload, X, Loader2, Save } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { VoiceRecorder } from './voice_recorder'
 import { AudioFileUploader } from './audio_file_uploader'
@@ -15,11 +15,42 @@ export function VoiceCloningPanel({
 }: VoiceCloningPanelProps) {
   const [mode, set_mode] = useState<'record' | 'upload' | null>(null)
   const [uploaded_url, set_uploaded_url] = useState<string | null>(null)
+  const [has_saved_voice, set_has_saved_voice] = useState(false)
   
-  const handle_audio_upload = async (audio: Blob | File) => {
+  // Check for saved voice on mount
+  useEffect(() => {
+    const saved_voice = localStorage.getItem('voice_clone_sample')
+    const saved_timestamp = localStorage.getItem('voice_clone_timestamp')
+    
+    if (saved_voice && saved_timestamp) {
+      const age = Date.now() - parseInt(saved_timestamp)
+      const twenty_four_hours = 24 * 60 * 60 * 1000
+      
+      if (age < twenty_four_hours) {
+        set_has_saved_voice(true)
+      } else {
+        // Clear expired voice
+        localStorage.removeItem('voice_clone_sample')
+        localStorage.removeItem('voice_clone_timestamp')
+      }
+    }
+  }, [])
+  
+  const handle_audio_upload = async (audio_data: string | File) => {
     try {
+      // If it's a base64 string from recording, convert to blob
+      let file: File
+      if (typeof audio_data === 'string') {
+        // Convert base64 to blob
+        const response = await fetch(audio_data)
+        const blob = await response.blob()
+        file = new File([blob], 'recording.webm', { type: blob.type })
+      } else {
+        file = audio_data
+      }
+      
       const formData = new FormData()
-      formData.append('audio', audio instanceof Blob ? new File([audio], 'recording.webm', { type: audio.type }) : audio)
+      formData.append('audio', file)
       
       const response = await fetch('/api/audio/upload', {
         method: 'POST',
@@ -32,12 +63,15 @@ export function VoiceCloningPanel({
         throw new Error(data.error || 'Upload failed')
       }
       
-      set_uploaded_url(data.url)
-      on_voice_ready(data.url)
-      toast.success('Voice sample uploaded successfully!')
+      // If upload successful, use the URL
+      if (data.url) {
+        set_uploaded_url(data.url)
+        on_voice_ready(data.url)
+        toast.success('Voice sample uploaded successfully!')
+      }
       
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to upload audio'
+      const message = error instanceof Error ? error.message : 'Failed to process audio'
       toast.error(message)
     }
   }
@@ -45,6 +79,16 @@ export function VoiceCloningPanel({
   const clear_voice = () => {
     set_mode(null)
     set_uploaded_url(null)
+  }
+  
+  const use_saved_voice = () => {
+    const saved_voice = localStorage.getItem('voice_clone_sample')
+    if (saved_voice) {
+      // Convert base64 to data URL and use it directly
+      set_uploaded_url(saved_voice)
+      on_voice_ready(saved_voice)
+      toast.success('Using saved voice sample')
+    }
   }
   
   if (uploaded_url) {

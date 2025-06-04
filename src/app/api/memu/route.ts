@@ -7,8 +7,7 @@ export const dynamic = 'force-dynamic' // Workflow execution is always dynamic
 export const runtime = 'nodejs' // Required for AI and database operations
 export const maxDuration = 60 // Allow up to 60 seconds for complex workflows
 import { 
-  get_service_role_client, 
-  execute_db_operation 
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { 
@@ -115,26 +114,26 @@ export async function POST(req: NextRequest) {
     const renewable_to_deduct = Math.min(token_cost, subscription.renewable_tokens)
     const permanent_to_deduct = token_cost - renewable_to_deduct
 
-    await execute_db_operation(async () => {
-      const { error: deduct_error } = await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-        })
-        .eq('user_id', user.user_id)
+    const { error: deduct_error } = await supabase
+      .from('subscriptions')
+      .update({
+        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+      })
+      .eq('user_id', user.user_id)
 
-      if (deduct_error) throw deduct_error
+    if (deduct_error) {
+      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    }
 
-      // Log the usage
-      await supabase
-        .from('usage')
-        .insert({
-          user_id: user.user_id,
-          tokens_used: token_cost,
-          description: `MEMU workflow execution`
-        })
-    })
+    // Log the usage
+    await supabase
+      .from('usage')
+      .insert({
+        user_id: user.user_id,
+        tokens_used: token_cost,
+        description: `MEMU workflow execution`
+      })
     
     // 14. Save message to history
     await save_message(

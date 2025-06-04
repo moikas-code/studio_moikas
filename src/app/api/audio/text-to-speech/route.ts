@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import * as fal from '@fal-ai/serverless-client'
 import { create_service_role_client } from '../../../../lib/supabase_server'
-import { track } from '@vercel/analytics'
+import { track } from '@vercel/analytics/server'
 import { z } from 'zod'
 import { TTS_LIMITS, TTS_MP_COST_PER_CHARACTER } from '@/app/tools/audio/types'
 

@@ -52,13 +52,13 @@ export function SettingsPanel({
   on_sana_change
 }: SettingsPanelProps) {
   if (!is_open) return null
-  
+
   return (
     <div className="absolute top-0 right-0 w-80 h-full bg-base-200 
                     shadow-xl z-50 overflow-y-auto">
       <div className="sticky top-0 bg-base-200 p-4 border-b border-base-300
                       flex items-center justify-between">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
+        <h3 className="text-lg font-semibold flex items-center gap-2 z-50">
           <Settings className="w-5 h-5" />
           Generation Settings
         </h3>
@@ -66,7 +66,7 @@ export function SettingsPanel({
           <X className="w-5 h-5" />
         </button>
       </div>
-      
+
       <div className="p-4 space-y-6">
         <AspectRatioControl
           presets={aspect_presets}
@@ -74,14 +74,14 @@ export function SettingsPanel({
           on_select={on_aspect_change}
           get_label={get_aspect_label}
         />
-        
+
         <ModelSelector
           models={models}
           selected_model_id={selected_model_id}
           on_select={on_model_change}
           user_mp={user_mp}
         />
-        
+
         {show_sana_options && (
           <SanaAdvancedOptions
             {...sana_settings}

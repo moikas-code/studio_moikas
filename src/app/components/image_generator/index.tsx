@@ -13,28 +13,42 @@ import { useAspectRatio } from './hooks/use_aspect_ratio'
 import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster } from 'react-hot-toast'
 import { Settings } from 'lucide-react'
+import { FREE_IMAGE_MODELS, PREMIUM_IMAGE_MODELS } from '@/lib/ai_models'
 
 interface ImageGeneratorProps {
   available_mp: number
   on_mp_update?: () => void
+  user_plan?: string
 }
 
-// Mock models data - should come from props or API
-const MODELS = [
-  { id: 'flux-pro', name: 'FLUX Pro', cost: 4 },
-  { id: 'flux-dev', name: 'FLUX Dev', cost: 2 },
-  { id: 'sana', name: 'SANA 1.0', cost: 1 }
-]
+// Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
+const cost_to_mp = (cost: number) => Math.ceil((cost * 1.6) / 0.001)
+
+// Get models based on user plan
+const get_available_models = (plan: string = 'free') => {
+  const all_models = [...FREE_IMAGE_MODELS, ...PREMIUM_IMAGE_MODELS]
+  return all_models
+    .filter(model => model.plans.includes(plan))
+    .map(model => ({
+      id: model.value,
+      name: model.name,
+      cost: cost_to_mp(model.custom_cost)
+    }))
+}
 
 export function ImageGenerator({ 
   available_mp, 
-  on_mp_update 
+  on_mp_update,
+  user_plan = 'free'
 }: ImageGeneratorProps) {
   const router = useRouter()
   
+  // Get available models based on user plan
+  const available_models = get_available_models(user_plan)
+  
   // State
   const [prompt_text, set_prompt_text] = useState('')
-  const [model_id, set_model_id] = useState('sana')
+  const [model_id, set_model_id] = useState(available_models[0]?.id || 'fal-ai/sana/sprint')
   const [show_settings, set_show_settings] = useState(false)
   const [generated_images, set_generated_images] = useState<{
     id?: string
@@ -63,7 +77,7 @@ export function ImageGenerator({
     if (!prompt_text.trim()) return
     
     const dimensions = aspect_ratio.get_dimensions()
-    const params = {
+    const params: GenerationParams = {
       prompt: prompt_text,
       model: model_id,
       width: dimensions.width,
@@ -71,15 +85,24 @@ export function ImageGenerator({
     }
     
     // Add SANA-specific params
-    if (model_id === 'sana') {
-      Object.assign(params, sana.get_sana_params())
+    if (model_id.includes('sana')) {
+      const sana_params = sana.get_sana_params()
+      params.num_inference_steps = sana_params.num_inference_steps
+      params.guidance_scale = sana_params.guidance_scale
+      params.style_name = sana_params.style_name
+      if (sana.seed !== undefined) {
+        params.seed = sana.seed
+      }
     }
     
-    const result = await generate_image(params as GenerationParams)
+    const result = await generate_image(params)
     
     if (result) {
+      console.log('Generated image result:', result)
+      console.log('Base64 length:', result.image_base64?.length)
+      
       set_generated_images(prev => [{
-        url: `data:image/png;base64,${result.image_base64}`,
+        url: result.image_base64, // Store just the base64 string
         prompt: prompt_text,
         model: model_id,
         timestamp: Date.now()
@@ -92,7 +115,7 @@ export function ImageGenerator({
   }
   
   // Check if can generate
-  const selected_model = MODELS.find(m => m.id === model_id)
+  const selected_model = available_models.find(m => m.id === model_id)
   const can_generate = prompt_text.trim() && 
                       !is_loading && 
                       selected_model && 
@@ -109,8 +132,8 @@ export function ImageGenerator({
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6">
+        <div className="order-2 lg:order-1 lg:col-span-2 space-y-4">
           <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
               <PromptInput
@@ -161,7 +184,7 @@ export function ImageGenerator({
           
           {generated_images.length > 0 && (
             <ImageGrid 
-              image_base64={generated_images.map(img => img.url.replace('data:image/png;base64,', ''))}
+              image_base64={generated_images.map(img => img.url)}
               prompt_text={generated_images[0]?.prompt || ''}
               mana_points_used={null}
               model_id={model_id}
@@ -170,11 +193,42 @@ export function ImageGenerator({
           )}
         </div>
         
-        <div className="relative">
+        <div className="order-1 lg:order-2 relative">
+          {/* Mobile Settings - Always visible */}
+          <div className="lg:hidden mb-4">
+            <SettingsPanel
+              is_open={true}
+              on_close={() => {}}
+              models={available_models}
+              selected_model_id={model_id}
+              on_model_change={set_model_id}
+              user_mp={available_mp}
+              aspect_presets={aspect_ratio.aspect_presets}
+              aspect_index={aspect_ratio.aspect_index}
+              on_aspect_change={aspect_ratio.set_aspect_preset}
+              get_aspect_label={aspect_ratio.get_aspect_label}
+              show_sana_options={model_id.includes('sana')}
+              sana_settings={{
+                num_inference_steps: sana.num_inference_steps,
+                guidance_scale: sana.guidance_scale,
+                style_name: sana.style_name,
+                seed: sana.seed
+              }}
+              on_sana_change={{
+                steps: sana.update_inference_steps,
+                scale: sana.update_guidance_scale,
+                style: sana.update_style,
+                seed: sana.update_seed
+              }}
+            />
+          </div>
+          
+          {/* Desktop Settings - Toggleable */}
+          <div className="hidden lg:block">
           <SettingsPanel
             is_open={show_settings}
             on_close={() => set_show_settings(false)}
-            models={MODELS}
+            models={available_models}
             selected_model_id={model_id}
             on_model_change={set_model_id}
             user_mp={available_mp}
@@ -182,7 +236,7 @@ export function ImageGenerator({
             aspect_index={aspect_ratio.aspect_index}
             on_aspect_change={aspect_ratio.set_aspect_preset}
             get_aspect_label={aspect_ratio.get_aspect_label}
-            show_sana_options={model_id === 'sana'}
+            show_sana_options={model_id.includes('sana')}
             sana_settings={{
               num_inference_steps: sana.num_inference_steps,
               guidance_scale: sana.guidance_scale,
@@ -196,6 +250,7 @@ export function ImageGenerator({
               seed: sana.update_seed
             }}
           />
+          </div>
         </div>
       </div>
     </div>

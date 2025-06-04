@@ -24,7 +24,7 @@ export default function CTASection() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <SignedIn>
-            <Link href="/tools/create">
+            <Link href="/tools">
               <button
                 className="group relative inline-flex items-center justify-center px-10 py-4 text-lg font-medium dark:text-white bg-gradient-to-r from-jade to-jade-dark rounded-full shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 overflow-hidden"
                 onClick={() => track("Landing-CTA-Start_Creating_Now-Click")}

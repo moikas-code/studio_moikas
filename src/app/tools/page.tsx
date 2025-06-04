@@ -12,6 +12,14 @@ export default function Tools_home_page() {
 
   const tools = [
     {
+      title: "Audio",
+      description: "Convert text to speech, record, and edit audio with AI",
+      icon: FaMicrophone,
+      href: "/tools/audio",
+      color: "from-pink-500 to-rose-500",
+      available: true
+    },
+    {
       title: "MEMU",
       description: "Create and run AI workflows with a visual editor",
       icon: FaRobot,
@@ -51,14 +59,7 @@ export default function Tools_home_page() {
       color: "from-green-500 to-teal-500",
       available: true
     },
-    {
-      title: "Audio",
-      description: "Convert text to speech, record, and edit audio with AI",
-      icon: FaMicrophone,
-      href: "/tools/audio",
-      color: "from-pink-500 to-rose-500",
-      available: true
-    },
+
 
   ];
 

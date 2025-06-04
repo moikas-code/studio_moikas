@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
           tokens_used: ENHANCE_COST,
           description: `Prompt enhancement`
         })
+
+      return { data: null, error: null }
     })
     
     try {
@@ -124,6 +126,8 @@ and composition suggestions.`)
             tokens_used: -ENHANCE_COST, // negative for refund
             description: `Prompt enhancement refund: enhancement failed`
           })
+
+        return { data: null, error: null }
       })
       
       throw new Error('Enhancement failed. Tokens refunded.')

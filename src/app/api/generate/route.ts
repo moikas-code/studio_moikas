@@ -6,8 +6,7 @@ import { track } from "@vercel/analytics/server"
 export const dynamic = 'force-dynamic' // Always fresh data
 export const runtime = 'nodejs' // Use Node.js runtime for full compatibility
 import { 
-  get_service_role_client, 
-  execute_db_operation 
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
 import { get_redis_client } from "@/lib/utils/database/redis"
 import { 
@@ -31,9 +30,9 @@ import {
 } from "@/lib/utils/errors/handlers"
 import { sanitize_text } from "@/lib/utils/security/sanitization"
 import {
-  generate_imggen_cache_key,
-  get_model_cost
+  generate_imggen_cache_key
 } from "@/lib/generate_helpers"
+import { get_image_model_config } from "@/lib/ai_models"
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
 
 export async function POST(req: NextRequest) {
@@ -61,7 +60,13 @@ export async function POST(req: NextRequest) {
     )
     
     // 6. Calculate cost
-    const model_cost = get_model_cost(validated.model)
+    const model_config = get_image_model_config(validated.model)
+    if (!model_config) {
+      throw new Error(`Invalid model: ${validated.model}`)
+    }
+    
+    // Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
+    const model_cost = Math.ceil((model_config.custom_cost * 1.6) / 0.001)
     const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
     
     if (total_tokens < model_cost) {
@@ -78,7 +83,11 @@ export async function POST(req: NextRequest) {
     )
     
     const redis = get_redis_client()
-    const cached = await redis.get(cache_key)
+    let cached = null
+    
+    if (redis) {
+      cached = await redis.get(cache_key)
+    }
     
     if (cached) {
       track('image_generation_cache_hit', {
@@ -86,7 +95,15 @@ export async function POST(req: NextRequest) {
         model: validated.model
       })
       
-      return api_success(cached)
+      // Ensure cached data has correct structure
+      if (typeof cached === 'string') {
+        // Old cache format, skip it
+        if (redis) {
+          await redis.del(cache_key)
+        }
+      } else {
+        return api_success(cached)
+      }
     }
     
     // 8. Apply queue delay for free users
@@ -99,26 +116,27 @@ export async function POST(req: NextRequest) {
     const renewable_to_deduct = Math.min(model_cost, subscription.renewable_tokens)
     const permanent_to_deduct = model_cost - renewable_to_deduct
 
-    await execute_db_operation(async () => {
-      const { error: deduct_error } = await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-        })
-        .eq('user_id', user.user_id)
+    // Deduct tokens directly without execute_db_operation
+    const { error: deduct_error } = await supabase
+      .from('subscriptions')
+      .update({
+        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+      })
+      .eq('user_id', user.user_id)
 
-      if (deduct_error) throw deduct_error
+    if (deduct_error) {
+      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    }
 
-      // Log the usage
-      await supabase
-        .from('usage')
-        .insert({
-          user_id: user.user_id,
-          tokens_used: model_cost,
-          description: `Image generation: ${validated.model}`
-        })
-    })
+    // Log the usage
+    await supabase
+      .from('usage')
+      .insert({
+        user_id: user.user_id,
+        tokens_used: model_cost,
+        description: `Image generation: ${validated.model}`
+      })
     
     // 10. Generate image
     try {
@@ -151,24 +169,107 @@ export async function POST(req: NextRequest) {
         generation_options
       )
       
+      console.log('Fal.ai result structure:', {
+        hasData: 'data' in result,
+        dataKeys: result.data ? Object.keys(result.data) : 'no data',
+        topLevelKeys: Object.keys(result)
+      })
+      console.log('Full result:', JSON.stringify(result, null, 2))
+      
       // 11. Apply watermark for free users
-      interface GenerationResult {
-        images: Array<{ url: string }>
+      // Check different possible result structures
+      let final_image: string = ''
+      
+      if (result && typeof result === 'object') {
+        // Check for data wrapper (fal.ai client response)
+        if ('data' in result && result.data && typeof result.data === 'object') {
+          const data = result.data
+          // Check for images array in data (standard fal.ai response)
+          if ('images' in data && Array.isArray(data.images) && data.images.length > 0) {
+            const firstImage = data.images[0]
+            if (typeof firstImage === 'string') {
+              final_image = firstImage
+            } else if (firstImage && typeof firstImage === 'object' && 'url' in firstImage) {
+              final_image = firstImage.url
+              console.log('Extracted image URL:', final_image)
+            } else {
+              throw new Error('Invalid image format in data.images array')
+            }
+          }
+          // Check for single image in data
+          else if ('image' in data && typeof data.image === 'string') {
+            final_image = data.image
+          }
+          // Check for URL in data
+          else if ('url' in data && typeof data.url === 'string') {
+            final_image = data.url
+          }
+          else {
+            console.error('Unknown data structure:', JSON.stringify(data, null, 2))
+            throw new Error(`Unexpected data structure. Keys found in data: ${Object.keys(data).join(', ')}`)
+          }
+        }
+        // Fallback: Check for images array at top level
+        else if ('images' in result && Array.isArray(result.images) && result.images.length > 0) {
+          const firstImage = result.images[0]
+          if (typeof firstImage === 'string') {
+            final_image = firstImage
+          } else if (firstImage && typeof firstImage === 'object' && 'url' in firstImage) {
+            final_image = firstImage.url
+          } else {
+            throw new Error('Invalid image format in images array')
+          }
+        }
+        // Other fallback options...
+        else {
+          console.error('Unknown result structure:', JSON.stringify(result, null, 2))
+          throw new Error(`Unexpected result structure from image generation. Keys found: ${Object.keys(result).join(', ')}`)
+        }
+      } else {
+        throw new Error('Invalid result from image generation')
       }
-      let final_image = (result as unknown as GenerationResult).images[0].url
+      
+      if (!final_image) {
+        throw new Error('Failed to extract image URL from response')
+      }
+      
+      // Convert URL to base64 if needed
+      let base64_image: string
+      if (final_image.startsWith('data:image')) {
+        // Already base64
+        base64_image = final_image.split(',')[1]
+      } else if (final_image.startsWith('http')) {
+        // Fetch and convert to base64
+        try {
+          const image_response = await fetch(final_image)
+          const buffer = await image_response.arrayBuffer()
+          base64_image = Buffer.from(buffer).toString('base64')
+        } catch (e) {
+          console.error('Failed to fetch and convert image:', e)
+          throw new Error('Failed to process generated image')
+        }
+      } else {
+        // Assume it's already base64
+        base64_image = final_image
+      }
+      
+      // Apply watermark for free users
       if (is_free_user) {
-        final_image = await add_overlay_to_image_node(final_image)
+        const watermarked = await add_overlay_to_image_node(`data:image/png;base64,${base64_image}`)
+        base64_image = watermarked.split(',')[1]
       }
       
       // 12. Cache result
       const cache_data = {
-        base64Image: final_image,
+        base64Image: base64_image,
         model: validated.model,
         mpUsed: model_cost,
         timestamp: new Date().toISOString()
       }
       
-      await redis.setex(cache_key, 3600, cache_data)
+      if (redis) {
+        await redis.setex(cache_key, 3600, cache_data)
+      }
       
       // 13. Track success
       track('image_generation_success', {
@@ -177,30 +278,37 @@ export async function POST(req: NextRequest) {
         cost: model_cost
       })
       
-      return api_success(cache_data)
-      
-    } catch {
-      // Refund tokens on failure - add back the same way we deducted
-      await execute_db_operation(async () => {
-        await supabase
-          .from('subscriptions')
-          .update({
-            renewable_tokens: subscription.renewable_tokens, // restore original values
-            permanent_tokens: subscription.permanent_tokens
-          })
-          .eq('user_id', user.user_id)
-
-        // Log the refund
-        await supabase
-          .from('usage')
-          .insert({
-            user_id: user.user_id,
-            tokens_used: -model_cost, // negative for refund
-            description: `Image generation refund: generation failed`
-          })
+      console.log('Returning cache_data:', {
+        hasBase64: !!cache_data.base64Image,
+        base64Length: cache_data.base64Image?.length || 0,
+        model: cache_data.model,
+        mpUsed: cache_data.mpUsed
       })
       
-      throw new Error('Image generation failed')
+      return api_success(cache_data)
+      
+    } catch (generation_error) {
+      // Refund tokens on failure - add back the same way we deducted
+      await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens, // restore original values
+          permanent_tokens: subscription.permanent_tokens
+        })
+        .eq('user_id', user.user_id)
+
+      // Log the refund
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: -model_cost, // negative for refund
+          description: `Image generation refund: generation failed`
+        })
+      
+      console.error('Image generation failed:', generation_error)
+      const error_message = generation_error instanceof Error ? generation_error.message : 'Unknown error'
+      throw new Error(`Image generation failed: ${error_message}`)
     }
     
   } catch (error) {

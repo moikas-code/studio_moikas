@@ -104,7 +104,7 @@ export default function HeroSection({
   description = "Fast • Flexible • Professional",
   primaryCTA = {
     text: "Start Creating",
-    href: "/tools/create",
+    href: "/tools",
     onClick: () => track("Landing-HERO-Start_Creating-Click"),
     icon: ArrowRight,
   },

@@ -2,8 +2,7 @@ import { NextRequest } from "next/server"
 import { headers } from "next/headers"
 import Stripe from "stripe"
 import { 
-  get_service_role_client,
-  execute_db_operation 
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
 import { 
   api_success, 
@@ -57,16 +56,18 @@ export async function POST(req: NextRequest) {
         
         // Update user subscription
         if (session.customer && session.metadata?.user_id) {
-          await execute_db_operation(async () =>
-            await supabase
-              .from('subscriptions')
-              .update({
-                stripe_customer_id: session.customer,
-                plan_name: session.metadata?.plan || 'standard',
-                status: 'active'
-              })
-              .eq('user_id', session.metadata?.user_id || '')
-          )
+          const { error } = await supabase
+            .from('subscriptions')
+            .update({
+              stripe_customer_id: session.customer,
+              plan_name: session.metadata?.plan || 'standard',
+              status: 'active'
+            })
+            .eq('user_id', session.metadata?.user_id || '')
+          
+          if (error) {
+            throw new Error(`Failed to update subscription: ${error.message}`)
+          }
         }
         break
       }
@@ -75,17 +76,19 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         
         // Update subscription status
-        await execute_db_operation(async () =>
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: subscription.status,
-              current_period_end: 'current_period_end' in subscription 
-                ? new Date((subscription as { current_period_end: number }).current_period_end * 1000).toISOString()
-                : new Date().toISOString()
-            })
-            .eq('stripe_subscription_id', subscription.id)
-        )
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({
+            status: subscription.status,
+            current_period_end: 'current_period_end' in subscription 
+              ? new Date((subscription as { current_period_end: number }).current_period_end * 1000).toISOString()
+              : new Date().toISOString()
+          })
+          .eq('stripe_subscription_id', subscription.id)
+        
+        if (error) {
+          throw new Error(`Failed to update subscription status: ${error.message}`)
+        }
         break
       }
       
@@ -93,15 +96,17 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription
         
         // Cancel subscription
-        await execute_db_operation(async () =>
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: 'cancelled',
-              plan_name: 'free'
-            })
-            .eq('stripe_subscription_id', subscription.id)
-        )
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            plan_name: 'free'
+          })
+          .eq('stripe_subscription_id', subscription.id)
+        
+        if (error) {
+          throw new Error(`Failed to cancel subscription: ${error.message}`)
+        }
         break
       }
       
@@ -112,26 +117,26 @@ export async function POST(req: NextRequest) {
         if (invoice.metadata?.user_id && invoice.metadata?.tokens) {
           const token_amount = parseInt(invoice.metadata.tokens)
           
-          await execute_db_operation(async () => {
-            // Add permanent tokens directly
-            const { error: add_error } = await supabase
-              .from('subscriptions')
-              .update({
-                permanent_tokens: supabase.raw(`permanent_tokens + ${token_amount}`)
-              })
-              .eq('user_id', invoice.metadata!.user_id)
+          // Add permanent tokens directly
+          const { error: add_error } = await supabase
+            .from('subscriptions')
+            .update({
+              permanent_tokens: supabase.raw(`permanent_tokens + ${token_amount}`)
+            })
+            .eq('user_id', invoice.metadata!.user_id)
 
-            if (add_error) throw add_error
+          if (add_error) {
+            throw new Error(`Failed to add tokens: ${add_error.message}`)
+          }
 
-            // Log the token purchase
-            await supabase
-              .from('usage')
-              .insert({
+          // Log the token purchase
+          await supabase
+            .from('usage')
+            .insert({
                 user_id: invoice.metadata!.user_id,
                 tokens_used: -token_amount, // negative to indicate addition
                 description: `Token purchase: ${token_amount} permanent tokens`
               })
-          })
         }
         break
       }

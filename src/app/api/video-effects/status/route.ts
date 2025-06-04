@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const { data: job, error } = await supabase
       .from('video_jobs')
       .select('*')
-      .eq('id', job_id)
+      .eq('job_id', job_id) // Use job_id field, not id
       .eq('user_id', user.user_id) // Ensure user owns this job
       .single()
     
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     
     // 4. Return job status
     return api_success({
-      job_id: job.id,
+      job_id: job.job_id, // Return the string job_id
       status: job.status,
       video_url: job.video_url,
       error: job.error,

@@ -1,5 +1,10 @@
 import { fal } from "@fal-ai/client";
 
+// Configure fal client with API key
+fal.config({
+  credentials: process.env.FAL_KEY
+});
+
 interface FalQueueUpdate {
   status: string;
   logs?: { message: string }[];
@@ -54,5 +59,6 @@ export async function generate_flux_image(
       }
     },
   });
+  console.log('Fal.ai raw result:', JSON.stringify(result, null, 2));
   return result;
 }

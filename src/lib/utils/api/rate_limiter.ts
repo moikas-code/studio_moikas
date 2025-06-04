@@ -54,7 +54,7 @@ export async function apply_rate_limit(
   
   // Get TTL for reset time
   const redis = get_redis_client()
-  const ttl = await redis.ttl(key)
+  const ttl = redis ? await redis.ttl(key) : -1
   
   return {
     allowed: result.allowed,

@@ -3,7 +3,7 @@ import { Mic, Square, Trash2, Upload } from 'lucide-react'
 import { useVoiceRecorder } from '../hooks/use_voice_recorder'
 
 interface VoiceRecorderProps {
-  on_recording_complete: (blob: Blob) => void
+  on_recording_complete: (base64_url: string) => void
   max_duration?: number
 }
 
@@ -14,8 +14,8 @@ export function VoiceRecorder({
   const {
     is_recording,
     recording_time,
-    audio_blob,
     audio_url,
+    audio_base64_url,
     error,
     start_recording,
     stop_recording,
@@ -23,8 +23,8 @@ export function VoiceRecorder({
   } = useVoiceRecorder({ max_duration })
   
   const handle_use_recording = () => {
-    if (audio_blob) {
-      on_recording_complete(audio_blob)
+    if (audio_base64_url) {
+      on_recording_complete(audio_base64_url)
     }
   }
   
