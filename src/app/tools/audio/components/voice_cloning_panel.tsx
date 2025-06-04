@@ -92,23 +92,51 @@ export function VoiceCloningPanel({
   }
   
   if (uploaded_url) {
+    const is_saved_voice = uploaded_url.startsWith('data:audio')
+    
     return (
       <div className="bg-success/10 border border-success/20 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-success rounded-full" />
-            <span className="text-sm font-medium">Voice sample ready</span>
+            <span className="text-sm font-medium">
+              {is_saved_voice ? 'Using saved voice sample' : 'Voice sample ready'}
+            </span>
           </div>
-          <button
-            onClick={clear_voice}
-            className="btn btn-ghost btn-sm btn-square"
-            aria-label="Remove voice sample"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {is_saved_voice && (
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('voice_clone_sample')
+                    localStorage.removeItem('voice_clone_timestamp')
+                    set_has_saved_voice(false)
+                    toast.info('Saved voice sample cleared')
+                  } catch (e) {
+                    console.error('Failed to clear saved voice:', e)
+                  }
+                  clear_voice()
+                }}
+                className="btn btn-ghost btn-sm"
+                aria-label="Clear saved voice"
+              >
+                Clear Saved
+              </button>
+            )}
+            <button
+              onClick={clear_voice}
+              className="btn btn-ghost btn-sm btn-square"
+              aria-label="Remove voice sample"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <p className="text-xs text-base-content/60 mt-1">
-          Your voice will be used to generate speech
+          {is_saved_voice 
+            ? 'Your saved voice will be used for text-to-speech generation'
+            : 'Your voice will be used to generate speech'
+          }
         </p>
       </div>
     )
@@ -131,40 +159,58 @@ export function VoiceCloningPanel({
       </p>
       
       {!mode && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => set_mode('record')}
-            className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Mic className="w-8 h-8 text-primary" />
+        <div className="space-y-4">
+          {has_saved_voice && (
+            <div className="alert alert-info">
+              <Save className="w-5 h-5" />
+              <div className="flex-1">
+                <p className="font-medium">Saved voice sample available</p>
+                <p className="text-sm opacity-80">You have a voice sample saved from a previous session</p>
               </div>
-              <div className="text-center">
-                <p className="font-medium">Record Voice</p>
-                <p className="text-xs text-base-content/60 mt-1">
-                  Record up to 8 seconds
-                </p>
-              </div>
+              <button
+                onClick={use_saved_voice}
+                className="btn btn-sm btn-primary"
+              >
+                Use Saved Voice
+              </button>
             </div>
-          </button>
+          )}
           
-          <button
-            onClick={() => set_mode('upload')}
-            className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Upload className="w-8 h-8 text-primary" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => set_mode('record')}
+              className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Mic className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="font-medium">Record Voice</p>
+                  <p className="text-xs text-base-content/60 mt-1">
+                    Record up to 8 seconds
+                  </p>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="font-medium">Upload File</p>
-                <p className="text-xs text-base-content/60 mt-1">
-                  MP3, WAV, M4A up to 10MB
-                </p>
+            </button>
+            
+            <button
+              onClick={() => set_mode('upload')}
+              className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Upload className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="font-medium">Upload File</p>
+                  <p className="text-xs text-base-content/60 mt-1">
+                    MP3, WAV, M4A up to 10MB
+                  </p>
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
       )}
       

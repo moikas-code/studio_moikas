@@ -6,10 +6,9 @@ import { Mic, Settings, Sparkles } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import ErrorDisplay from '@/app/components/error_display'
 import { AudioPlayer } from './components/audio_player'
-import { VoiceCloningPanel } from './components/voice_cloning_panel'
+import { VoiceSelectionPanel } from './components/voice_selection_panel'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
 import { 
-  VOICE_OPTIONS, 
   TTS_LIMITS, 
   TTS_MP_COST_PER_CHARACTER,
   type TTSParams 
@@ -22,8 +21,6 @@ export default function AudioPage() {
   const [text_input, set_text_input] = useState('')
   const [selected_voice, set_selected_voice] = useState('Richard')
   const [show_advanced, set_show_advanced] = useState(false)
-  const [voice_clone_url, set_voice_clone_url] = useState<string | null>(null)
-  const [show_voice_cloning, set_show_voice_cloning] = useState(false)
   
   // Advanced settings
   const [exaggeration, set_exaggeration] = useState(TTS_LIMITS.default_exaggeration)
@@ -55,13 +52,8 @@ export default function AudioPage() {
     
     const params: TTSParams = {
       text: text_input,
-      voice: voice_clone_url ? undefined : selected_voice, // Use voice only if not cloning
+      voice: selected_voice,
       high_quality_audio: high_quality
-    }
-    
-    // Add voice clone URL if available
-    if (voice_clone_url) {
-      params.source_audio_url = voice_clone_url
     }
     
     // Add advanced params if modified from defaults
@@ -76,8 +68,6 @@ export default function AudioPage() {
   const handle_new_generation = () => {
     clear_audio()
     set_text_input('')
-    set_voice_clone_url(null)
-    set_show_voice_cloning(false)
   }
   
   return (
@@ -126,76 +116,20 @@ export default function AudioPage() {
               <div className="card-body">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="card-title">Voice Selection</h2>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => set_show_voice_cloning(!show_voice_cloning)}
-                      className="btn btn-ghost btn-sm gap-2"
-                    >
-                      <Mic className="w-4 h-4" />
-                      Clone Voice
-                    </button>
-                    <button
-                      onClick={() => set_show_advanced(!show_advanced)}
-                      className="btn btn-ghost btn-sm gap-2"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Advanced
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => set_show_advanced(!show_advanced)}
+                    className="btn btn-ghost btn-sm gap-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Advanced
+                  </button>
                 </div>
                 
-                {voice_clone_url && (
-                  <div className="alert alert-info mb-4">
-                    <span className="text-sm">Voice cloning is active. The selected voice below will be ignored.</span>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {VOICE_OPTIONS.map((voice) => (
-                    <label
-                      key={voice.id}
-                      className={`card cursor-pointer transition-all ${
-                        voice_clone_url 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : selected_voice === voice.id 
-                            ? 'bg-primary/20 border-primary' 
-                            : 'bg-base-200 hover:bg-base-300'
-                      }`}
-                    >
-                      <div className="card-body p-4">
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="radio"
-                            name="voice"
-                            value={voice.id}
-                            checked={selected_voice === voice.id}
-                            onChange={(e) => set_selected_voice(e.target.value)}
-                            className="radio radio-primary"
-                            disabled={!!voice_clone_url}
-                          />
-                          <div className="flex-1">
-                            <p className="font-semibold">{voice.name}</p>
-                            <p className="text-xs text-base-content/60">
-                              {voice.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                
-                {/* Voice Cloning Panel */}
-                {show_voice_cloning && (
-                  <div className="mt-6 p-4 bg-base-200 rounded-lg">
-                    <VoiceCloningPanel
-                      on_voice_ready={(url) => {
-                        set_voice_clone_url(url)
-                        set_selected_voice('') // Clear voice selection when using clone
-                      }}
-                    />
-                  </div>
-                )}
+                <VoiceSelectionPanel
+                  selected_voice={selected_voice}
+                  on_voice_change={set_selected_voice}
+                  disabled={is_generating}
+                />
                 
                 {/* Advanced Settings */}
                 {show_advanced && (

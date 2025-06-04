@@ -8,6 +8,7 @@ fal.config({
 interface FalQueueUpdate {
   status: string;
   logs?: { message: string }[];
+  progress?: number;
 }
 
 // Accept extra options for fal-ai/sana
