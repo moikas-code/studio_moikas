@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return api_error('User not found', 404)
     }
-
+    const supabase = get_anon_client()
     // 4. Get parent job
     const { data: parent_job, error: parent_error } = await supabase
       .from('audio_jobs')
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       progress?: number
       metadata?: { chunk_index?: number }
     }> = []
-    const supabase = get_anon_client()
+    
     if (chunk_job_ids.length > 0) {
       const { data: chunks } = await supabase
         .from('audio_jobs')
