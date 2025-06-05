@@ -21,10 +21,10 @@ function extract_text_content(html: string): string {
     
   // Second pass: Extract text from HTML
   const text = cleaned
-    // Replace common block elements with newlines
-    .replace(/<\/?(p|div|section|article|h[1-6]|br)[^>]*>/gi, '\n')
-    // Replace list items with bullet points
-    .replace(/<li[^>]*>/gi, '\n• ')
+    // Replace common block elements with spaces
+    .replace(/<\/?(p|div|section|article|h[1-6]|br)[^>]*>/gi, ' ')
+    // Remove list items and bullet points
+    .replace(/<li[^>]*>/gi, ' ')
     // Remove all remaining tags
     .replace(/<[^>]+>/g, '')
     // Decode HTML entities
@@ -38,7 +38,7 @@ function extract_text_content(html: string): string {
     .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
     // Clean up whitespace
     .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n+/g, ' ')
     .trim()
     
   return text
@@ -47,31 +47,19 @@ function extract_text_content(html: string): string {
 // Clean up excessive whitespace and formatting issues
 function clean_extracted_text(text: string): string {
   return text
-    // Remove lines with just bullet points or single characters
-    .split('\n')
-    .filter(line => {
-      const trimmed = line.trim()
-      return trimmed.length > 1 && trimmed !== '•'
-    })
-    .join('\n')
-    // Remove excessive spaces at the beginning of lines
-    .replace(/^\s+/gm, '')
+    // Remove all newlines and replace with spaces
+    .replace(/\n+/g, ' ')
+    // Remove bullet points
+    .replace(/•/g, '')
     // Replace multiple spaces with single space
     .replace(/ {2,}/g, ' ')
     // Remove space before punctuation
     .replace(/\s+([.,!?;:])/g, '$1')
     // Add space after punctuation if missing
     .replace(/([.,!?;:])(\w)/g, '$1 $2')
-    // Remove multiple newlines but preserve paragraph breaks
-    .replace(/\n{3,}/g, '\n\n')
     // Remove tabs
     .replace(/\t+/g, ' ')
-    // Trim each line
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n')
-    // Final cleanup
-    .replace(/\n{3,}/g, '\n\n')
+    // Final trim
     .trim()
 }
 
@@ -240,11 +228,11 @@ export async function POST(req: NextRequest) {
               
             // Convert to text
             text = wiki_text
-              .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n\n') // Headers
-              .replace(/<br\s*\/?>/gi, '\n')
-              .replace(/<\/p>/gi, '\n\n')
+              .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, ' $1 ') // Headers with spaces
+              .replace(/<br\s*\/?>/gi, ' ')
+              .replace(/<\/p>/gi, ' ')
               .replace(/<p[^>]*>/gi, '')
-              .replace(/<li[^>]*>/gi, '\n• ')
+              .replace(/<li[^>]*>/gi, ' ')
               .replace(/<\/li>/gi, '')
               .replace(/<[^>]+>/g, ' ')
               // Decode entities
@@ -257,7 +245,7 @@ export async function POST(req: NextRequest) {
               .replace(/&#x27;/g, "'")
               .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)))
               // Clean up
-              .replace(/\n{3,}/g, '\n\n')
+              .replace(/\n+/g, ' ')
               .replace(/[ \t]+/g, ' ')
               .trim()
           }

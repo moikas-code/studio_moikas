@@ -20,61 +20,70 @@ export function useChunkedTextToSpeech() {
   const [progress, set_progress] = useState({ current: 0, total: 0 })
   const [generated_audio, set_generated_audio] = useState<ChunkedTTSResult | null>(null)
 
-  const chunk_text = (text: string, chunk_size: number = TTS_LIMITS.max_text_length): string[] => {
+  const chunk_text = (text: string, chunk_size: number = 675): string[] => {
     const chunks: string[] = []
     let current_position = 0
 
     while (current_position < text.length) {
-      // Try to find a good break point (sentence end, paragraph, or word boundary)
+      // Skip any leading spaces
+      while (current_position < text.length && text[current_position] === ' ') {
+        current_position++
+      }
+      
+      if (current_position >= text.length) {
+        break
+      }
+      
       let chunk_end = current_position + chunk_size
       
       if (chunk_end >= text.length) {
         // Last chunk
-        chunks.push(text.substring(current_position))
+        chunks.push(text.substring(current_position).trim())
         break
       }
 
-      // Look for sentence endings first (. ! ?)
-      const sentence_endings = ['. ', '! ', '? ', '.\n', '!\n', '?\n']
+      // Since we removed all newlines, we only need to look for sentence endings and word boundaries
       let best_break = -1
 
+      // Look for sentence endings first (. ! ?)
+      const sentence_endings = ['. ', '! ', '? ']
       for (const ending of sentence_endings) {
         const pos = text.lastIndexOf(ending, chunk_end)
-        if (pos > current_position + chunk_size * 0.8) { // At least 80% of chunk size
+        if (pos > current_position + chunk_size * 0.6) { // At least 60% of chunk size
           best_break = pos + ending.length - 1
           break
         }
       }
 
-      // If no sentence ending, look for paragraph break
+      // If no sentence ending found, look for word boundary
       if (best_break === -1) {
-        const paragraph_break = text.lastIndexOf('\n\n', chunk_end)
-        if (paragraph_break > current_position + chunk_size * 0.8) {
-          best_break = paragraph_break
-        }
-      }
-
-      // If still no good break, look for any newline
-      if (best_break === -1) {
-        const newline_break = text.lastIndexOf('\n', chunk_end)
-        if (newline_break > current_position + chunk_size * 0.8) {
-          best_break = newline_break
-        }
-      }
-
-      // Last resort: word boundary
-      if (best_break === -1) {
+        // Find the last space before or at chunk_end
         const space_break = text.lastIndexOf(' ', chunk_end)
         if (space_break > current_position) {
-          best_break = space_break
+          best_break = space_break - 1 // Position before the space
         } else {
-          // No good break found, just cut at chunk_size
-          best_break = chunk_end
+          // If no space found, look for the next space after chunk_end
+          const next_space = text.indexOf(' ', chunk_end)
+          if (next_space !== -1) {
+            best_break = next_space - 1
+          } else {
+            // No more spaces, take the rest
+            best_break = text.length - 1
+          }
         }
       }
 
-      chunks.push(text.substring(current_position, best_break + 1).trim())
+      // Extract chunk and trim
+      const chunk = text.substring(current_position, best_break + 1).trim()
+      if (chunk.length > 0) {
+        chunks.push(chunk)
+      }
+      
+      // Move to the next position (skip the space/break)
       current_position = best_break + 1
+      while (current_position < text.length && text[current_position] === ' ') {
+        current_position++
+      }
     }
 
     return chunks

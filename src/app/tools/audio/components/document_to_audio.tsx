@@ -83,7 +83,7 @@ export function DocumentToAudio() {
   // Calculate cost for the full text (all chunks)
   const text_length = extracted_text.length
   const estimated_cost = calculateTTSCost(text_length) // Full cost for all chunks
-  const num_chunks = Math.ceil(text_length / TTS_LIMITS.max_text_length)
+  const num_chunks = Math.ceil(text_length / 675) // 675 character chunks
   const can_generate = text_length > 0 && 
                       (mp_tokens ?? 0) >= estimated_cost &&
                       !is_generating
@@ -166,7 +166,7 @@ export function DocumentToAudio() {
                   </svg>
                   <div>
                     <p className="font-semibold">Document will be converted in {num_chunks} chunks</p>
-                    <p className="text-sm">Each chunk contains up to {TTS_LIMITS.max_text_length.toLocaleString()} characters. All chunks will be generated sequentially.</p>
+                    <p className="text-sm">Each chunk contains up to 675 characters. Words are kept intact to avoid cut-offs.</p>
                   </div>
                 </div>
               )}
