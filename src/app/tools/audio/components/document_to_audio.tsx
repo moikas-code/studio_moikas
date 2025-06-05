@@ -1,12 +1,12 @@
 import React, { useState, useContext } from 'react'
-import { FileText, Link, ArrowRight, Sparkles, Settings } from 'lucide-react'
+import { FileText, Sparkles, Settings, Loader2 } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import { DocumentUploader } from './document_uploader'
-import { UrlInput } from './url_input'
 import { VoiceSelectionPanel } from './voice_selection_panel'
 import { VoiceCloningPanel } from './voice_cloning_panel'
 import { AudioPlayer } from './audio_player'
-import { useTextToSpeech } from '../hooks/use_text_to_speech'
+import { ChunkedAudioPlayer } from './chunked_audio_player'
+import { useChunkedTextToSpeech } from '../hooks/use_chunked_text_to_speech'
 import ErrorDisplay from '@/app/components/error_display'
 import { 
   TTS_LIMITS, 
@@ -15,7 +15,7 @@ import {
   type TTSParams 
 } from '../types'
 
-type SourceType = 'document' | 'url' | null
+type SourceType = 'document' | null
 
 export function DocumentToAudio() {
   const { mp_tokens } = useContext(MpContext)
@@ -38,14 +38,15 @@ export function DocumentToAudio() {
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
-  // Hook for TTS functionality
+  // Hook for chunked TTS functionality
   const { 
     is_generating, 
     error_message, 
     generated_audio, 
-    generate_speech,
+    progress,
+    generate_chunked_speech,
     clear_audio 
-  } = useTextToSpeech()
+  } = useChunkedTextToSpeech()
   
   const handle_text_extracted = (text: string) => {
     set_extracted_text(text)
@@ -56,7 +57,7 @@ export function DocumentToAudio() {
     if (!extracted_text) return
     
     const params: TTSParams = {
-      text: extracted_text,
+      text: extracted_text, // Send full text - chunking will be handled by the hook
       voice: voice_clone_url ? undefined : selected_voice,
       high_quality_audio: high_quality
     }
@@ -70,32 +71,30 @@ export function DocumentToAudio() {
     if (temperature !== TTS_LIMITS.default_temperature) params.temperature = temperature
     if (use_seed) params.seed = seed
     
-    await generate_speech(params)
+    await generate_chunked_speech(params)
   }
   
   const handle_reset = () => {
-    set_source_type(null)
     set_extracted_text('')
     set_voice_clone_url(null)
     clear_audio()
   }
   
-  // Calculate cost
+  // Calculate cost for the full text (all chunks)
   const text_length = extracted_text.length
-  const estimated_cost = calculateTTSCost(text_length)
+  const estimated_cost = calculateTTSCost(text_length) // Full cost for all chunks
+  const num_chunks = Math.ceil(text_length / TTS_LIMITS.max_text_length)
   const can_generate = text_length > 0 && 
-                      text_length <= TTS_LIMITS.max_text_length && 
                       (mp_tokens ?? 0) >= estimated_cost &&
                       !is_generating
   
-  // If audio is generated, show player
+  // If audio is generated, show chunked player
   if (generated_audio) {
     return (
       <div className="space-y-6">
-        <AudioPlayer
-          audio_url={generated_audio.audio_url}
+        <ChunkedAudioPlayer
+          chunked_result={generated_audio}
           text_preview={extracted_text.substring(0, 200) + '...'}
-          mana_points_used={generated_audio.mana_points_used}
         />
         
         <div className="flex justify-center">
@@ -112,58 +111,11 @@ export function DocumentToAudio() {
   
   return (
     <div className="space-y-6">
-      {/* Source Selection */}
-      {!source_type && !extracted_text && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => set_source_type('document')}
-            className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <FileText className="w-8 h-8 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium">Upload Document</p>
-                <p className="text-xs text-base-content/60 mt-1">
-                  PDF, TXT, DOC, DOCX, ODT
-                </p>
-              </div>
-            </div>
-          </button>
-          
-          <button
-            onClick={() => set_source_type('url')}
-            className="card bg-base-200 hover:bg-base-300 transition-colors cursor-pointer p-6"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Link className="w-8 h-8 text-primary" />
-              </div>
-              <div className="text-center">
-                <p className="font-medium">From URL</p>
-                <p className="text-xs text-base-content/60 mt-1">
-                  Articles, blogs, documentation
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
-      )}
-      
       {/* Document Upload */}
-      {source_type === 'document' && !extracted_text && (
+      {!extracted_text && (
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="card-title">Upload Document</h2>
-              <button
-                onClick={() => set_source_type(null)}
-                className="btn btn-ghost btn-sm"
-              >
-                Back
-              </button>
-            </div>
+            <h2 className="card-title mb-4">Upload Document</h2>
             <DocumentUploader
               on_text_extracted={handle_text_extracted}
               is_processing={is_extracting}
@@ -172,26 +124,6 @@ export function DocumentToAudio() {
         </div>
       )}
       
-      {/* URL Input */}
-      {source_type === 'url' && !extracted_text && (
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="card-title">Extract from URL</h2>
-              <button
-                onClick={() => set_source_type(null)}
-                className="btn btn-ghost btn-sm"
-              >
-                Back
-              </button>
-            </div>
-            <UrlInput
-              on_text_extracted={handle_text_extracted}
-              is_processing={is_extracting}
-            />
-          </div>
-        </div>
-      )}
       
       {/* Text Preview & Voice Settings */}
       {extracted_text && !generated_audio && (
@@ -201,17 +133,23 @@ export function DocumentToAudio() {
             <div className="card-body">
               <h2 className="card-title mb-4">Extracted Text</h2>
               
-              <div className="bg-base-200 rounded-lg p-4 max-h-64 overflow-y-auto">
-                <p className="whitespace-pre-wrap">{extracted_text}</p>
-              </div>
+              <textarea
+                className="textarea textarea-bordered w-full h-64 font-mono text-sm bg-base-200"
+                value={extracted_text}
+                readOnly
+                style={{ resize: 'vertical' }}
+              />
               
               <div className="flex justify-between items-center mt-4">
                 <span className="text-sm text-base-content/60">
-                  {text_length} characters
+                  {text_length.toLocaleString()} characters
+                  {num_chunks > 1 && (
+                    <span className="text-info"> ({num_chunks} chunks)</span>
+                  )}
                 </span>
                 <div className="text-right">
                   <span className="font-semibold text-sm">
-                    Cost: <span className="text-primary">{estimated_cost} MP</span>
+                    Total Cost: <span className="text-primary">{estimated_cost} MP</span>
                   </span>
                   {text_length < TTS_MIN_CHARGE_CHARACTERS && (
                     <div className="text-xs text-base-content/50">
@@ -221,12 +159,15 @@ export function DocumentToAudio() {
                 </div>
               </div>
               
-              {text_length > TTS_LIMITS.max_text_length && (
-                <div className="alert alert-warning mt-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              {num_chunks > 1 && (
+                <div className="alert alert-info mt-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
-                  <span>Text exceeds maximum length. Only first {TTS_LIMITS.max_text_length} characters will be converted.</span>
+                  <div>
+                    <p className="font-semibold">Document will be converted in {num_chunks} chunks</p>
+                    <p className="text-sm">Each chunk contains up to {TTS_LIMITS.max_text_length.toLocaleString()} characters. All chunks will be generated sequentially.</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -351,6 +292,26 @@ export function DocumentToAudio() {
             </div>
           </div>
           
+          {/* Progress Bar for Multi-chunk Generation */}
+          {is_generating && progress.total > 1 && (
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <h3 className="font-semibold mb-2">Generation Progress</h3>
+                <div className="w-full">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span>Chunk {progress.current} of {progress.total}</span>
+                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                  </div>
+                  <progress 
+                    className="progress progress-primary w-full" 
+                    value={progress.current} 
+                    max={progress.total}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Generate Button */}
           <div className="flex justify-center gap-4">
             <button
@@ -367,12 +328,20 @@ export function DocumentToAudio() {
               {is_generating ? (
                 <>
                   <span className="loading loading-spinner"></span>
-                  Converting to Audio...
+                  {progress.total > 1 ? (
+                    <span>Converting Chunk {progress.current} of {progress.total}...</span>
+                  ) : (
+                    <span>Converting to Audio...</span>
+                  )}
                 </>
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Convert to Audio ({estimated_cost} MP)
+                  {num_chunks > 1 ? (
+                    <span>Convert to Audio ({num_chunks} chunks, {estimated_cost} MP)</span>
+                  ) : (
+                    <span>Convert to Audio ({estimated_cost} MP)</span>
+                  )}
                 </>
               )}
             </button>

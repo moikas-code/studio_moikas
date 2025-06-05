@@ -6,8 +6,77 @@ import { z } from 'zod'
 export const runtime = 'nodejs'
 export const maxDuration = 30
 
+// Helper function to extract text content from HTML more aggressively
+function extract_text_content(html: string): string {
+  // First pass: Remove all CSS and scripts completely
+  let cleaned = html
+    // Remove everything between style tags
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    // Remove everything between script tags  
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    // Remove CSS rules that might be inline
+    .replace(/\{[^}]*\}/g, '')
+    // Remove CSS class definitions
+    .replace(/\.[a-zA-Z0-9_-]+[\s\S]*?\{[\s\S]*?\}/g, '')
+    
+  // Second pass: Extract text from HTML
+  const text = cleaned
+    // Replace common block elements with newlines
+    .replace(/<\/?(p|div|section|article|h[1-6]|br)[^>]*>/gi, '\n')
+    // Replace list items with bullet points
+    .replace(/<li[^>]*>/gi, '\n• ')
+    // Remove all remaining tags
+    .replace(/<[^>]+>/g, '')
+    // Decode HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#(\d+);/g, (_, num) => String.fromCharCode(parseInt(num)))
+    // Clean up whitespace
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    
+  return text
+}
+
+// Clean up excessive whitespace and formatting issues
+function clean_extracted_text(text: string): string {
+  return text
+    // Remove lines with just bullet points or single characters
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim()
+      return trimmed.length > 1 && trimmed !== '•'
+    })
+    .join('\n')
+    // Remove excessive spaces at the beginning of lines
+    .replace(/^\s+/gm, '')
+    // Replace multiple spaces with single space
+    .replace(/ {2,}/g, ' ')
+    // Remove space before punctuation
+    .replace(/\s+([.,!?;:])/g, '$1')
+    // Add space after punctuation if missing
+    .replace(/([.,!?;:])(\w)/g, '$1 $2')
+    // Remove multiple newlines but preserve paragraph breaks
+    .replace(/\n{3,}/g, '\n\n')
+    // Remove tabs
+    .replace(/\t+/g, ' ')
+    // Trim each line
+    .split('\n')
+    .map(line => line.trim())
+    .join('\n')
+    // Final cleanup
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const MAX_TEXT_LENGTH = 5000 // Maximum characters to extract
+const MAX_TEXT_LENGTH = 50000 // Maximum characters to extract (50k for documents)
 const MIN_TEXT_LENGTH = 50 // Minimum characters for valid content
 
 // Validation schemas
@@ -70,6 +139,17 @@ export async function POST(req: NextRequest) {
           .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
           .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '')
           
+          // Remove any inline styles and CSS classes
+          .replace(/style\s*=\s*"[^"]*"/gi, '')
+          .replace(/style\s*=\s*'[^']*'/gi, '')
+          .replace(/class\s*=\s*"[^"]*"/gi, '')
+          .replace(/class\s*=\s*'[^']*'/gi, '')
+          
+          // Remove CSS rules that might be in the HTML (common in Wikipedia)
+          .replace(/\.mw-[^{]+\{[^}]+\}/gi, '') // Remove .mw-* CSS rules
+          .replace(/\.[a-zA-Z0-9-_]+\{[^}]+\}/gi, '') // Remove any other CSS rules
+          .replace(/@media[^{]+\{[^}]+\}/gi, '') // Remove media queries
+          
           // Remove common navigation and footer patterns
           .replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '')
           .replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '')
@@ -117,18 +197,49 @@ export async function POST(req: NextRequest) {
         
         // For Wikipedia, try to extract main content more specifically
         if (validation.data.url.includes('wikipedia.org')) {
+          // First, clean the HTML from CSS
+          const cleaned_html = html
+            // Remove all style tags and their content
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            // Remove CSS rules that appear in the HTML
+            .replace(/\.mw-[^}]+\}[^<]*/gi, '')
+            .replace(/\.[a-zA-Z0-9-_]+\s*\{[^}]+\}/gi, '')
+            .replace(/@media[^}]+\}[^<]*/gi, '')
+            
           // Look for the main content div
-          const wiki_content_match = html.match(/<div[^>]*id="mw-content-text"[^>]*>([\s\S]*?)<div[^>]*class="printfooter"/i)
+          const wiki_content_match = cleaned_html.match(/<div[^>]*id="mw-content-text"[^>]*>([\s\S]*?)(?=<div[^>]*(?:class="printfooter"|id="catlinks"))/i)
           if (wiki_content_match) {
-            text = wiki_content_match[1]
+            // First remove navigation and UI elements
+            let wiki_text = wiki_content_match[1]
+              // Remove the entire navigation/menu sections
+              .replace(/<div[^>]*id="[^"]*(?:toc|navigation|menu|search)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+              .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+              // Remove "Jump to" and similar navigation text
+              .replace(/Jump to[^<]*/gi, '')
+              .replace(/Main menu[^<]*/gi, '')
+              .replace(/move to sidebar[^<]*/gi, '')
+              .replace(/hide[^<]*/gi, '')
+              // Remove CSS that might still be there
+              .replace(/\.mw-[^}]+\}/gi, '')
+              .replace(/\.[a-zA-Z0-9-_]+\s*\{[^}]+\}/gi, '')
               // Remove edit links
               .replace(/<span[^>]*class="[^"]*mw-editsection[^"]*"[^>]*>[\s\S]*?<\/span>/gi, '')
               // Remove reference numbers like [1], [2], etc
               .replace(/\[\d+\]/g, '')
               // Remove Wikipedia specific elements
               .replace(/<div[^>]*class="[^"]*thumb[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '') // Remove image boxes
-              .replace(/<table[^>]*>[\s\S]*?<\/table>/gi, '') // Remove tables
-              // Convert to text
+              .replace(/<table[^>]*class="[^"]*infobox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '') // Remove infoboxes
+              .replace(/<table[^>]*class="[^"]*navbox[^"]*"[^>]*>[\s\S]*?<\/table>/gi, '') // Remove navboxes
+              .replace(/<div[^>]*class="[^"]*hatnote[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '') // Remove hatnotes
+              .replace(/<div[^>]*class="[^"]*sidebar[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '') // Remove sidebars
+              // Remove table of contents
+              .replace(/<div[^>]*id="toc"[^>]*>[\s\S]*?<\/div>/gi, '')
+              // Remove any remaining style attributes
+              .replace(/style\s*=\s*["'][^"']*["']/gi, '')
+              .replace(/class\s*=\s*["'][^"']*["']/gi, '')
+              
+            // Convert to text
+            text = wiki_text
               .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n\n') // Headers
               .replace(/<br\s*\/?>/gi, '\n')
               .replace(/<\/p>/gi, '\n\n')
@@ -143,7 +254,8 @@ export async function POST(req: NextRequest) {
               .replace(/&gt;/g, '>')
               .replace(/&quot;/g, '"')
               .replace(/&#39;/g, "'")
-              .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+              .replace(/&#x27;/g, "'")
+              .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)))
               // Clean up
               .replace(/\n{3,}/g, '\n\n')
               .replace(/[ \t]+/g, ' ')
@@ -153,17 +265,43 @@ export async function POST(req: NextRequest) {
         
         // Clean up any remaining issues
         text = text
+          // Remove any remaining CSS-like patterns
+          .replace(/\.[a-zA-Z0-9-_]+\s*\{[^}]+\}/g, '') // CSS rules
+          .replace(/\.mw-[a-zA-Z0-9-_]+[^.\s]*/g, '') // CSS class references
+          .replace(/@[a-zA-Z]+[^{]*\{[^}]+\}/g, '') // @ rules
+          // Remove lines that look like CSS selectors
+          .split('\n')
+          .filter(line => {
+            // Filter out lines that look like CSS
+            const trimmed = line.trim()
+            return !trimmed.match(/^\.[\w-]+/) && // Starts with .classname
+                   !trimmed.match(/^\{/) && // Starts with {
+                   !trimmed.match(/\}$/) && // Ends with }
+                   !trimmed.match(/^[a-zA-Z-]+:\s*[^;]+;/) && // CSS property
+                   trimmed.length > 0
+          })
+          .join('\n')
+          // Final cleanup
           .replace(/\s{2,}/g, ' ') // Multiple spaces to single space
           .replace(/\n\s+\n/g, '\n\n') // Remove spaces between newlines
+          .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
           .trim()
         
-        // Limit text length
-        if (text.length > MAX_TEXT_LENGTH) {
-          text = text.substring(0, MAX_TEXT_LENGTH) + '...'
-        }
+        // Don't limit text length for document extraction
+        // The TTS API will handle its own limits
         
         // Log extraction result
         console.log(`Extracted text length: ${text.length} characters`)
+        
+        // If we still have CSS in the text, use the aggressive fallback
+        if (text.includes('.mw-') || text.includes('{') || text.includes('}') || text.match(/\.[a-zA-Z0-9-_]+\s*\{/)) {
+          console.log('CSS detected in extracted text, using fallback extraction method')
+          text = extract_text_content(html)
+        }
+        
+        // Apply final cleanup to remove excessive whitespace
+        text = clean_extracted_text(text)
+        
         console.log(`First 200 chars: ${text.substring(0, 200)}...`)
         
         // Validate we got meaningful content
