@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Download, Play, Pause, SkipForward, SkipBack, List, Archive, RefreshCw, Eye, EyeOff } from 'lucide-react'
-import { ChunkedTTSResult } from '../hooks/use_chunked_text_to_speech'
+import { ChunkedTTSResult } from '../hooks/use_webhook_chunked_tts'
 import { toast } from 'react-hot-toast'
 import JSZip from 'jszip'
 
@@ -24,6 +24,12 @@ export function ChunkedAudioPlayer({
 
   const current_audio = chunked_result.chunks[current_chunk]
   const total_chunks = chunked_result.chunks.length
+  const all_chunks_ready = chunked_result.chunks.every(chunk => 
+    chunk.status === 'completed' && chunk.audio_url
+  )
+  const ready_chunks_count = chunked_result.chunks.filter(chunk => 
+    chunk.status === 'completed' && chunk.audio_url
+  ).length
 
   useEffect(() => {
     // Reset when new result comes in
@@ -88,6 +94,10 @@ export function ChunkedAudioPlayer({
       if (disabled_chunks.has(i)) continue
       
       const chunk = chunked_result.chunks[i]
+      if (!chunk.audio_url) {
+        console.warn(`Skipping chunk ${i + 1}: no audio URL`)
+        continue
+      }
       try {
         const response = await fetch(chunk.audio_url)
         const blob = await response.blob()
@@ -139,8 +149,10 @@ export function ChunkedAudioPlayer({
         throw new Error('Failed to create zip folder')
       }
 
-      // Filter active chunks only
-      const active_chunks = chunked_result.chunks.filter((_, index) => !disabled_chunks.has(index))
+      // Filter active chunks only (must have audio_url)
+      const active_chunks = chunked_result.chunks.filter((chunk, index) => 
+        !disabled_chunks.has(index) && chunk.audio_url && chunk.status === 'completed'
+      )
       
       if (active_chunks.length === 0) {
         toast.error('No active chunks to download', { id: loading_toast })
@@ -153,7 +165,7 @@ export function ChunkedAudioPlayer({
         total_chunks_original: total_chunks,
         disabled_chunks: Array.from(disabled_chunks),
         total_characters: active_chunks.reduce((sum, chunk) => sum + chunk.text.length, 0),
-        total_cost_mp: active_chunks.reduce((sum, chunk) => sum + chunk.mana_points_used, 0),
+        total_cost_mp: active_chunks.reduce((sum, chunk) => sum + (chunk.mana_points_used || 0), 0),
         generated_at: new Date().toISOString(),
         chunks: active_chunks.map((chunk, index) => ({
           original_index: chunked_result.chunks.indexOf(chunk) + 1,
@@ -295,12 +307,27 @@ export function ChunkedAudioPlayer({
 
         {/* Audio Player */}
         <div className="bg-base-300 rounded-lg p-4">
-          <audio
-            ref={audio_ref}
-            src={current_audio.audio_url}
-            onEnded={handle_ended}
-            className="hidden"
-          />
+          {current_audio.audio_url ? (
+            <audio
+              ref={audio_ref}
+              src={current_audio.audio_url}
+              onEnded={handle_ended}
+              className="hidden"
+            />
+          ) : (
+            <div className="text-center p-4">
+              {current_audio.status === 'processing' ? (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="loading loading-spinner loading-md"></span>
+                  <span className="text-sm">Processing chunk {current_chunk + 1}...</span>
+                </div>
+              ) : current_audio.status === 'failed' ? (
+                <span className="text-error">Failed to generate this chunk</span>
+              ) : (
+                <span className="text-base-content/50">Waiting to process...</span>
+              )}
+            </div>
+          )}
           
           {/* Controls */}
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -315,6 +342,7 @@ export function ChunkedAudioPlayer({
             <button
               onClick={handle_play_pause}
               className="btn btn-circle btn-primary"
+              disabled={!current_audio.audio_url || current_audio.status !== 'completed'}
             >
               {is_playing ? (
                 <Pause className="w-5 h-5" />
@@ -384,7 +412,11 @@ export function ChunkedAudioPlayer({
                               Chunk {index + 1}
                             </span>
                             <span className="text-xs opacity-70">
-                              {chunk.text.length} chars · {chunk.mana_points_used} MP
+                              {chunk.text.length} chars
+                              {chunk.mana_points_used !== undefined && ` · ${chunk.mana_points_used} MP`}
+                              {chunk.status === 'processing' && ' · Processing...'}
+                              {chunk.status === 'failed' && ' · Failed'}
+                              {chunk.status === 'pending' && ' · Pending'}
                             </span>
                           </div>
                           <p className={`text-sm mt-1 line-clamp-2 opacity-80 ${is_disabled ? 'line-through' : ''}`}>
@@ -432,9 +464,9 @@ export function ChunkedAudioPlayer({
         {/* Actions */}
         <div className="card-actions justify-end mt-4 gap-2">
           <div className="dropdown dropdown-top dropdown-end">
-            <label tabIndex={0} className="btn btn-outline btn-sm gap-2">
+            <label tabIndex={0} className="btn btn-outline btn-sm gap-2" disabled={ready_chunks_count === 0}>
               <Download className="w-4 h-4" />
-              Download
+              Download {!all_chunks_ready && `(${ready_chunks_count}/${total_chunks})`}
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>

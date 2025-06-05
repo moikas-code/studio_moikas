@@ -6,7 +6,7 @@ import { UrlInput } from './url_input'
 import { VoiceSelectionPanel } from './voice_selection_panel'
 import { VoiceCloningPanel } from './voice_cloning_panel'
 import { ChunkedAudioPlayer } from './chunked_audio_player'
-import { useChunkedTextToSpeech } from '../hooks/use_chunked_text_to_speech'
+import { use_webhook_chunked_tts } from '../hooks/use_webhook_chunked_tts'
 import ErrorDisplay from '@/app/components/error_display'
 import { 
   TTS_LIMITS, 
@@ -38,7 +38,7 @@ export function DocumentToAudio() {
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
-  // Hook for chunked TTS functionality
+  // Hook for webhook-based chunked TTS functionality
   const { 
     is_generating, 
     error_message, 
@@ -48,7 +48,7 @@ export function DocumentToAudio() {
     regenerate_chunk,
     is_regenerating_chunk,
     clear_audio 
-  } = useChunkedTextToSpeech()
+  } = use_webhook_chunked_tts()
   
   const handle_text_extracted = (text: string) => {
     set_extracted_text(text)

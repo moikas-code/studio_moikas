@@ -54,13 +54,29 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // 2. Get job from database
+    // 2. Get job from database - check both video_jobs and audio_jobs
     const supabase = get_service_role_client()
-    const { data: job, error: job_error } = await supabase
+    
+    // First try video_jobs
+    let job_type = 'video';
+    let { data: job, error: job_error } = await supabase
       .from('video_jobs')
       .select('*')
       .eq('fal_request_id', validated.request_id)
       .single()
+    
+    // If not found in video_jobs, try audio_jobs
+    if (job_error || !job) {
+      job_type = 'audio';
+      const audio_result = await supabase
+        .from('audio_jobs')
+        .select('*')
+        .eq('fal_request_id', validated.request_id)
+        .single()
+      
+      job = audio_result.data;
+      job_error = audio_result.error;
+    }
     
     if (job_error || !job) {
       console.error('Job not found for request:', validated.request_id)
@@ -69,57 +85,106 @@ export async function POST(req: NextRequest) {
     
     // 3. Update job based on status
     if (validated.status === 'completed' || validated.status === 'SUCCESS') {
-      // Extract video URL from output - handle different response structures
-      let video_url: string | undefined
-      
-      // Check various possible locations for the video URL
-      if (validated.output) {
-        if (typeof validated.output === 'string') {
-          video_url = validated.output
-        } else {
-          const output = validated.output as Record<string, unknown>
-          if (typeof output.video_url === 'string') {
-            video_url = output.video_url
-          } else if (typeof output.url === 'string') {
-            video_url = output.url
-          } else if (typeof output.video === 'string') {
-            video_url = output.video
+      if (job_type === 'video') {
+        // Extract video URL from output - handle different response structures
+        let video_url: string | undefined
+        
+        // Check various possible locations for the video URL
+        if (validated.output) {
+          if (typeof validated.output === 'string') {
+            video_url = validated.output
+          } else {
+            const output = validated.output as Record<string, unknown>
+            if (typeof output.video_url === 'string') {
+              video_url = output.video_url
+            } else if (typeof output.url === 'string') {
+              video_url = output.url
+            } else if (typeof output.video === 'string') {
+              video_url = output.video
+            }
           }
         }
-      }
-      
-      if (!video_url) {
-        console.error('No video URL in completed job:', validated)
-        // Update as failed
-        await supabase
-          .from('video_jobs')
-          .update({
-            status: 'failed',
-            error: 'No video URL in response',
-            completed_at: new Date().toISOString()
-          })
-          .eq('id', job.id)
+        
+        if (!video_url) {
+          console.error('No video URL in completed job:', validated)
+          // Update as failed
+          await supabase
+            .from('video_jobs')
+            .update({
+              status: 'failed',
+              error: 'No video URL in response',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', job.id)
+        } else {
+          // Update job with success
+          await supabase
+            .from('video_jobs')
+            .update({
+              status: 'completed',
+              video_url,
+              completed_at: new Date().toISOString(),
+              metadata: {
+                ...job.metadata,
+                inference_time: validated.metrics?.inference_time
+              }
+            })
+            .eq('id', job.id)
+        }
       } else {
-        // Update job with success
-        await supabase
-          .from('video_jobs')
-          .update({
-            status: 'completed',
-            video_url,
-            completed_at: new Date().toISOString(),
-            metadata: {
-              ...job.metadata,
-              inference_time: validated.metrics?.inference_time
+        // Handle audio job completion
+        let audio_url: string | undefined
+        
+        // Check various possible locations for the audio URL
+        if (validated.output) {
+          if (typeof validated.output === 'string') {
+            audio_url = validated.output
+          } else {
+            const output = validated.output as Record<string, unknown>
+            if (typeof output.audio_url === 'string') {
+              audio_url = output.audio_url
+            } else if (typeof output.url === 'string') {
+              audio_url = output.url
+            } else if (typeof output.audio === 'string') {
+              audio_url = output.audio
             }
-          })
-          .eq('id', job.id)
+          }
+        }
+        
+        if (!audio_url) {
+          console.error('No audio URL in completed job:', validated)
+          // Update as failed
+          await supabase
+            .from('audio_jobs')
+            .update({
+              status: 'failed',
+              error: 'No audio URL in response',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', job.id)
+        } else {
+          // Update job with success
+          await supabase
+            .from('audio_jobs')
+            .update({
+              status: 'completed',
+              audio_url,
+              completed_at: new Date().toISOString(),
+              metadata: {
+                ...job.metadata,
+                inference_time: validated.metrics?.inference_time
+              }
+            })
+            .eq('id', job.id)
+        }
       }
     }
     
     if (validated.status === 'failed' || validated.status === 'FAILED') {
       // Update job with failure
+      const table_name = job_type === 'video' ? 'video_jobs' : 'audio_jobs'
       await supabase
-        .from('video_jobs')
+        .from(table_name)
         .update({
           status: 'failed',
           error: validated.error || 'Unknown error',
@@ -129,45 +194,12 @@ export async function POST(req: NextRequest) {
       
       // Refund tokens
       if (job.user_id && job.cost) {
-        // Get current subscription to properly refund tokens
-        const { data: subscription } = await supabase
-          .from('subscriptions')
-          .select('renewable_tokens, permanent_tokens, plan')
-          .eq('user_id', job.user_id)
-          .single()
-
-        if (subscription) {
-          // Add tokens back based on plan limits
-          const plan_limits = {
-            'free': 125,
-            'standard': 20480
-          }
-          const renewable_limit = plan_limits[subscription.plan as keyof typeof plan_limits] || subscription.renewable_tokens + job.cost
-
-          const new_renewable = Math.min(
-            subscription.renewable_tokens + job.cost,
-            renewable_limit
-          )
-          const remaining_refund = job.cost - (new_renewable - subscription.renewable_tokens)
-          const new_permanent = subscription.permanent_tokens + remaining_refund
-
-          await supabase
-            .from('subscriptions')
-            .update({
-              renewable_tokens: new_renewable,
-              permanent_tokens: new_permanent
-            })
-            .eq('user_id', job.user_id)
-
-          // Log the refund
-          await supabase
-            .from('usage')
-            .insert({
-              user_id: job.user_id,
-              tokens_used: -job.cost, // negative for refund
-              description: `Video generation refund: ${validated.error || 'generation failed'}`
-            })
-        }
+        // Use simple_deduct_tokens for refund
+        await supabase.rpc('simple_deduct_tokens', {
+          p_user_id: job.user_id,
+          p_amount: -job.cost, // negative for refund
+          p_description: `${job_type === 'video' ? 'Video' : 'Audio'} generation refund: ${validated.error || 'generation failed'}`
+        })
       }
     }
     
@@ -178,8 +210,9 @@ export async function POST(req: NextRequest) {
       ) as { progress?: number } | undefined
       const progress = progress_log?.progress || 50
       
+      const table_name = job_type === 'video' ? 'video_jobs' : 'audio_jobs'
       await supabase
-        .from('video_jobs')
+        .from(table_name)
         .update({
           status: 'processing',
           progress
