@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
-const POLLING_INTERVAL = 15000 // 15 seconds
+const POLLING_INTERVAL = 2000 // 15 seconds
 const MAX_POLLING_DURATION = 5 * 60 * 1000 // 5 minutes
 
 interface AudioJob {
