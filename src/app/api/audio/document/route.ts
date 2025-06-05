@@ -67,6 +67,13 @@ const document_rate_limit = {
   key_prefix: 'rl:audio:doc'
 }
 
+// Document size limits to prevent abuse
+const DOCUMENT_LIMITS = {
+  max_chunks: 50, // Maximum number of chunks per document
+  max_total_characters: 100000, // Maximum total characters across all chunks
+  max_chunk_size: TTS_LIMITS.max_text_length // Already defined in TTS_LIMITS
+}
+
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
@@ -87,16 +94,32 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validated = validate_request(document_audio_schema, body)
 
-    // 5. Calculate total cost for all chunks
+    // 5. Validate document size limits
+    if (validated.chunks.length > DOCUMENT_LIMITS.max_chunks) {
+      return api_error(
+        `Document too large: ${validated.chunks.length} chunks exceeds maximum of ${DOCUMENT_LIMITS.max_chunks}`,
+        400
+      )
+    }
+
     const total_text_length = validated.chunks.reduce((sum, chunk) => sum + chunk.text.length, 0)
+    
+    if (total_text_length > DOCUMENT_LIMITS.max_total_characters) {
+      return api_error(
+        `Document too large: ${total_text_length} characters exceeds maximum of ${DOCUMENT_LIMITS.max_total_characters}`,
+        400
+      )
+    }
+
+    // 6. Calculate total cost for all chunks
     const total_cost = calculateTTSCost(total_text_length, plan)
     
-    // 6. Check token balance
+    // 7. Check token balance
     if (total_tokens < total_cost) {
       return api_error('Insufficient tokens', 402)
     }
 
-    // 7. Deduct tokens using stored function
+    // 8. Deduct tokens using stored function
     const service_supabase = get_service_role_client()
     const { error: deduct_error } = await service_supabase
       .rpc('simple_deduct_tokens', {
@@ -110,7 +133,7 @@ export async function POST(req: NextRequest) {
       return api_error('Failed to deduct tokens', 500)
     }
 
-    // 8. Create parent job record
+    // 9. Create parent job record
     const parent_job_id = `audio_doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
     
     const { data: parent_job, error: parent_job_error } = await service_supabase
@@ -150,7 +173,7 @@ export async function POST(req: NextRequest) {
       return api_error('Failed to create job', 500)
     }
 
-    // 9. Get webhook URL
+    // 10. Get webhook URL
     const base_url = process.env.VERCEL_URL 
       || process.env.NEXT_PUBLIC_APP_URL 
       || process.env.NEXTAUTH_URL 
@@ -160,7 +183,7 @@ export async function POST(req: NextRequest) {
       ? `https://${base_url.replace(/^https?:\/\//, '')}/api/webhooks/fal-ai`
       : undefined
 
-    // 10. Process chunks
+    // 11. Process chunks
     const chunk_jobs = []
     const chunk_results = []
 

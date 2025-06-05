@@ -11,9 +11,6 @@ export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
     const user = await require_auth()
-    if (! user) {
-      return api_error('Unauthorized', 401)
-    }
 
     // 2. Get job_id from query params
     const { searchParams } = new URL(req.url)
@@ -23,11 +20,8 @@ export async function GET(req: NextRequest) {
       return api_error('Missing job_id parameter', 400)
     }
 
-    if (!user) {
-      return api_error('User not found', 404)
-    }
+    // 3. Get parent job
     const supabase = get_anon_client()
-    // 4. Get parent job
     const { data: parent_job, error: parent_error } = await supabase
       .from('audio_jobs')
       .select('*')
@@ -40,7 +34,7 @@ export async function GET(req: NextRequest) {
       return api_error('Document job not found', 404)
     }
 
-    // 5. Get chunk jobs if they exist
+    // 4. Get chunk jobs if they exist
     const chunk_job_ids = parent_job.metadata?.chunk_jobs?.map((c: { job_id: string }) => c.job_id) || []
     let chunks_data: Array<{
       job_id: string
@@ -61,7 +55,7 @@ export async function GET(req: NextRequest) {
       chunks_data = chunks || []
     }
 
-    // 6. Calculate overall progress and status
+    // 5. Calculate overall progress and status
     let overall_status = parent_job.status
     let overall_progress = 0
     const chunk_statuses = chunks_data.map(chunk => ({
@@ -87,7 +81,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 7. Return aggregated status
+    // 6. Return aggregated status
     return api_success({
       job_id: parent_job.job_id,
       status: overall_status,

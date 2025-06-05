@@ -30,6 +30,102 @@ const fal_ai_webhook_schema = z.object({
   }).optional()
 })
 
+/**
+ * Updates parent document job status based on chunk job statuses
+ * This ensures document jobs don't get stuck in 'processing' state
+ */
+async function update_parent_document_status(
+  supabase: ReturnType<typeof get_service_role_client>,
+  parent_job_id: string,
+  user_id: string
+) {
+  try {
+    // Get parent job
+    const { data: parent_job } = await supabase
+      .from('audio_jobs')
+      .select('*')
+      .eq('job_id', parent_job_id)
+      .eq('user_id', user_id)
+      .eq('type', 'document')
+      .single()
+
+    if (!parent_job) {
+      console.error('Parent job not found:', parent_job_id)
+      return
+    }
+
+    // Get all chunk job IDs from parent metadata
+    const chunk_job_ids = parent_job.metadata?.chunk_jobs?.map((c: { job_id: string }) => c.job_id) || []
+    
+    if (chunk_job_ids.length === 0) {
+      console.error('No chunk jobs found for parent:', parent_job_id)
+      return
+    }
+
+    // Get all chunk statuses
+    const { data: chunks } = await supabase
+      .from('audio_jobs')
+      .select('status')
+      .in('job_id', chunk_job_ids)
+      .eq('user_id', user_id)
+
+    if (!chunks || chunks.length === 0) {
+      console.error('No chunks found for parent:', parent_job_id)
+      return
+    }
+
+    // Determine parent status based on chunk statuses
+    const chunk_statuses = chunks.map(c => c.status)
+    const completed_count = chunk_statuses.filter(s => s === 'completed').length
+    const failed_count = chunk_statuses.filter(s => s === 'failed').length
+    const processing_count = chunk_statuses.filter(s => s === 'processing').length
+    
+    let new_parent_status = parent_job.status
+    let completed_at = null
+
+    // All chunks completed successfully
+    if (completed_count === chunks.length) {
+      new_parent_status = 'completed'
+      completed_at = new Date().toISOString()
+    }
+    // Any chunk failed
+    else if (failed_count > 0) {
+      new_parent_status = 'failed'
+      completed_at = new Date().toISOString()
+    }
+    // Still processing
+    else if (processing_count > 0 || completed_count < chunks.length) {
+      new_parent_status = 'processing'
+    }
+
+    // Update parent job if status changed
+    if (new_parent_status !== parent_job.status) {
+      const update_data: Record<string, unknown> = {
+        status: new_parent_status,
+        metadata: {
+          ...parent_job.metadata,
+          chunks_completed: completed_count,
+          chunks_failed: failed_count,
+          chunks_total: chunks.length
+        }
+      }
+      
+      if (completed_at) {
+        update_data.completed_at = completed_at
+      }
+
+      await supabase
+        .from('audio_jobs')
+        .update(update_data)
+        .eq('id', parent_job.id)
+
+      console.log(`Updated parent job ${parent_job_id} status to ${new_parent_status}`)
+    }
+  } catch (error) {
+    console.error('Error updating parent document status:', error)
+  }
+}
+
 export async function POST(req: NextRequest) {
   console.log('fal.ai webhook called');
   
@@ -176,6 +272,11 @@ export async function POST(req: NextRequest) {
               }
             })
             .eq('id', job.id)
+          
+          // Check if this is a chunk job and update parent if needed
+          if (job.metadata?.parent_job_id) {
+            await update_parent_document_status(supabase, job.metadata.parent_job_id, job.user_id)
+          }
         }
       }
     }
@@ -191,6 +292,11 @@ export async function POST(req: NextRequest) {
           completed_at: new Date().toISOString()
         })
         .eq('id', job.id)
+      
+      // Check if this is a chunk job and update parent if needed
+      if (job_type === 'audio' && job.metadata?.parent_job_id) {
+        await update_parent_document_status(supabase, job.metadata.parent_job_id, job.user_id)
+      }
       
       // Refund tokens
       if (job.user_id && job.cost) {
