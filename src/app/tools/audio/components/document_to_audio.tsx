@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react'
-import { FileText, Sparkles, Settings, Loader2 } from 'lucide-react'
+import { Sparkles, Settings, Globe, Upload } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import { DocumentUploader } from './document_uploader'
+import { UrlInput } from './url_input'
 import { VoiceSelectionPanel } from './voice_selection_panel'
 import { VoiceCloningPanel } from './voice_cloning_panel'
-import { AudioPlayer } from './audio_player'
 import { ChunkedAudioPlayer } from './chunked_audio_player'
 import { useChunkedTextToSpeech } from '../hooks/use_chunked_text_to_speech'
 import ErrorDisplay from '@/app/components/error_display'
@@ -15,13 +15,13 @@ import {
   type TTSParams 
 } from '../types'
 
-type SourceType = 'document' | null
+type InputMethod = 'document' | 'url'
 
 export function DocumentToAudio() {
   const { mp_tokens, plan } = useContext(MpContext)
   
   // Source selection
-  const [source_type, set_source_type] = useState<SourceType>(null)
+  const [input_method, set_input_method] = useState<InputMethod>('document')
   const [extracted_text, set_extracted_text] = useState('')
   const [is_extracting, set_is_extracting] = useState(false)
   
@@ -119,7 +119,7 @@ export function DocumentToAudio() {
           is_regenerating_chunk={is_regenerating_chunk}
         />
         
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-16 md:mb-0">
           <button
             onClick={handle_reset}
             className="btn btn-primary"
@@ -133,15 +133,42 @@ export function DocumentToAudio() {
   
   return (
     <div className="space-y-6">
-      {/* Document Upload */}
+      {/* Input Method Selection */}
       {!extracted_text && (
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <h2 className="card-title mb-4">Upload Document</h2>
-            <DocumentUploader
-              on_text_extracted={handle_text_extracted}
-              is_processing={is_extracting}
-            />
+            <h2 className="card-title mb-4">Extract Text From</h2>
+            
+            {/* Method Tabs */}
+            <div className="tabs tabs-boxed mb-6">
+              <button
+                className={`tab ${input_method === 'document' ? 'tab-active' : ''}`}
+                onClick={() => set_input_method('document')}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Document
+              </button>
+              <button
+                className={`tab ${input_method === 'url' ? 'tab-active' : ''}`}
+                onClick={() => set_input_method('url')}
+              >
+                <Globe className="w-4 h-4 mr-2" />
+                URL
+              </button>
+            </div>
+            
+            {/* Input Component */}
+            {input_method === 'document' ? (
+              <DocumentUploader
+                on_text_extracted={handle_text_extracted}
+                is_processing={is_extracting}
+              />
+            ) : (
+              <UrlInput
+                on_text_extracted={handle_text_extracted}
+                is_processing={is_extracting}
+              />
+            )}
           </div>
         </div>
       )}
@@ -335,7 +362,7 @@ export function DocumentToAudio() {
           )}
           
           {/* Generate Button */}
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4 mb-16 md:mb-0">
             <button
               onClick={handle_reset}
               className="btn btn-ghost"

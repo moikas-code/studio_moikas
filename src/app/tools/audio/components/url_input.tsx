@@ -111,7 +111,7 @@ export function UrlInput({
         
         <label className="label">
           <span className="label-text-alt text-base-content/60">
-            We'll extract the main content from the webpage
+            We&apos;ll extract the main content from the webpage
           </span>
         </label>
       </div>

@@ -12,8 +12,7 @@ interface ChunkedAudioPlayerProps {
 }
 
 export function ChunkedAudioPlayer({ 
-  chunked_result, 
-  text_preview,
+  chunked_result,
   on_regenerate_chunk,
   is_regenerating_chunk 
 }: ChunkedAudioPlayerProps) {

@@ -20,6 +20,23 @@ export function DocumentUploader({
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.oasis.opendocument.text']
   
+  const handle_file = useCallback((file: File) => {
+    // Validate file type
+    if (!supported_formats.includes(file.type)) {
+      toast.error('Unsupported file format. Please upload PDF, TXT, DOC, DOCX, or ODT files.')
+      return
+    }
+    
+    // Validate file size
+    const max_size_bytes = max_file_size * 1024 * 1024
+    if (file.size > max_size_bytes) {
+      toast.error(`File too large. Maximum size is ${max_file_size}MB`)
+      return
+    }
+    
+    set_selected_file(file)
+  }, [max_file_size])
+
   const handle_drag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -38,24 +55,7 @@ export function DocumentUploader({
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handle_file(e.dataTransfer.files[0])
     }
-  }, [])
-  
-  const handle_file = (file: File) => {
-    // Validate file type
-    if (!supported_formats.includes(file.type)) {
-      toast.error('Unsupported file format. Please upload PDF, TXT, DOC, DOCX, or ODT files.')
-      return
-    }
-    
-    // Validate file size
-    const max_size_bytes = max_file_size * 1024 * 1024
-    if (file.size > max_size_bytes) {
-      toast.error(`File too large. Maximum size is ${max_file_size}MB`)
-      return
-    }
-    
-    set_selected_file(file)
-  }
+  }, [handle_file])
   
   const handle_file_select = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

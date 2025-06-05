@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
-import { TTSParams, TTSResult, TTS_LIMITS } from '../types'
+import { TTSParams, TTSResult } from '../types'
 
 export interface ChunkedTTSResult {
   chunks: Array<{
@@ -35,7 +35,7 @@ export function useChunkedTextToSpeech() {
         break
       }
       
-      let chunk_end = current_position + chunk_size
+      const chunk_end = current_position + chunk_size
       
       if (chunk_end >= text.length) {
         // Last chunk

@@ -9,7 +9,7 @@ export const maxDuration = 30
 // Helper function to extract text content from HTML more aggressively
 function extract_text_content(html: string): string {
   // First pass: Remove all CSS and scripts completely
-  let cleaned = html
+  const cleaned = html
     // Remove everything between style tags
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     // Remove everything between script tags  
@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
           const wiki_content_match = cleaned_html.match(/<div[^>]*id="mw-content-text"[^>]*>([\s\S]*?)(?=<div[^>]*(?:class="printfooter"|id="catlinks"))/i)
           if (wiki_content_match) {
             // First remove navigation and UI elements
-            let wiki_text = wiki_content_match[1]
+            const wiki_text = wiki_content_match[1]
               // Remove the entire navigation/menu sections
               .replace(/<div[^>]*id="[^"]*(?:toc|navigation|menu|search)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
               .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
