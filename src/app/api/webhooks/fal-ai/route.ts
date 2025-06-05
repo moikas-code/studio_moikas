@@ -21,7 +21,7 @@ import { z } from "zod"
 
 const fal_ai_webhook_schema = z.object({
   request_id: z.string(),
-  status: z.enum(['completed', 'failed', 'processing']),
+  status: z.enum(['completed', 'failed', 'processing', 'SUCCESS', 'FAILED', 'IN_PROGRESS']),
   output: z.unknown().optional(),
   error: z.string().optional(),
   logs: z.array(z.unknown()).optional(),
@@ -31,10 +31,28 @@ const fal_ai_webhook_schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  console.log('fal.ai webhook called');
+  
   try {
     // 1. Parse and validate webhook data
     const body = await req.json()
-    const validated = validate_request(fal_ai_webhook_schema, body)
+    console.log('fal.ai webhook body:', JSON.stringify(body, null, 2));
+    
+    // Try to validate, but if it fails, log the body and continue with raw body
+    let validated;
+    try {
+      validated = validate_request(fal_ai_webhook_schema, body);
+    } catch (validationError) {
+      console.error('Webhook validation failed:', validationError);
+      console.error('Raw webhook body:', JSON.stringify(body, null, 2));
+      
+      // Try to handle the raw body if it has the minimum required fields
+      if (body.request_id && body.status) {
+        validated = body;
+      } else {
+        throw validationError;
+      }
+    }
     
     // 2. Get job from database
     const supabase = get_service_role_client()
@@ -50,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
     
     // 3. Update job based on status
-    if (validated.status === 'completed') {
+    if (validated.status === 'completed' || validated.status === 'SUCCESS') {
       // Extract video URL from output - handle different response structures
       let video_url: string | undefined
       
@@ -98,7 +116,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    if (validated.status === 'failed') {
+    if (validated.status === 'failed' || validated.status === 'FAILED') {
       // Update job with failure
       await supabase
         .from('video_jobs')
@@ -153,7 +171,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    if (validated.status === 'processing') {
+    if (validated.status === 'processing' || validated.status === 'IN_PROGRESS') {
       // Update progress if available
       const progress_log = validated.logs?.find((log) => 
         typeof log === 'object' && log !== null && 'type' in log && log.type === 'progress'

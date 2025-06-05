@@ -140,11 +140,32 @@ export async function POST(req: NextRequest) {
     // 10. Trigger actual video generation
     try {
       // Construct webhook URL for this job
-      const webhook_url = process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}/api/webhooks/fal-ai`
+      // Try multiple environment variables for the base URL
+      const base_url = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}`
         : process.env.NEXT_PUBLIC_APP_URL 
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/fal-ai`
-          : null
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : process.env.NEXTAUTH_URL
+            ? process.env.NEXTAUTH_URL
+            : process.env.URL
+              ? process.env.URL
+              : null
+      
+      const webhook_url = base_url ? `${base_url}/api/webhooks/fal-ai` : null
+      
+      console.log('Webhook URL configuration:', {
+        VERCEL_URL: process.env.VERCEL_URL,
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+        NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+        URL: process.env.URL,
+        webhook_url,
+        using_webhook: !!webhook_url
+      })
+      
+      if (!webhook_url) {
+        console.warn('No webhook URL configured. Video generation will use synchronous processing.')
+        console.warn('Set one of these environment variables: VERCEL_URL, NEXT_PUBLIC_APP_URL, NEXTAUTH_URL, or URL')
+      }
       
       // Call fal.ai to generate video
       const fal_result = await generate_video(
@@ -176,8 +197,15 @@ export async function POST(req: NextRequest) {
           .eq('id', job.id)
       } else if (is_sync_result) {
         // If synchronous response (no webhook), update immediately
+        console.log('Received synchronous result from fal.ai')
         const sync_result = fal_result as Record<string, unknown>
-        const video_url = sync_result.video_url || sync_result.url
+        const video_url = sync_result.video_url || sync_result.url || sync_result.video
+        
+        if (!video_url) {
+          console.error('No video URL in sync result:', sync_result)
+          throw new Error('No video URL in synchronous result')
+        }
+        
         await supabase
           .from('video_jobs')
           .update({ 
@@ -186,6 +214,10 @@ export async function POST(req: NextRequest) {
             completed_at: new Date().toISOString()
           })
           .eq('id', job.id)
+      } else {
+        // Unknown result format
+        console.error('Unknown fal.ai result format:', fal_result)
+        throw new Error('Unknown video generation result format')
       }
     } catch (generation_error) {
       console.error('Failed to start video generation:', generation_error)

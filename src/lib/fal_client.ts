@@ -132,7 +132,19 @@ export async function generate_video(
       webhookUrl: options.webhook_url
     });
     
-    console.log('Video generation queued:', result);
+    console.log('Video generation queued:', JSON.stringify(result, null, 2));
+    console.log('Webhook URL:', options.webhook_url);
+    
+    // Log the specific fields we're looking for
+    console.log('Queue result fields:', {
+      request_id: result.request_id,
+      status: result.status,
+      status_url: result.status_url,
+      queue_position: result.queue_position,
+      // Log the entire result to see all fields
+      full_result: result
+    });
+    
     return result;
   }
 
@@ -152,3 +164,6 @@ export async function generate_video(
   console.log('Video generation result:', JSON.stringify(result, null, 2));
   return result;
 }
+
+// TODO: Implement status check if webhook fails
+// For now, rely on webhook for status updates
