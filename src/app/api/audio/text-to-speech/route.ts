@@ -42,10 +42,6 @@ export async function POST(req: NextRequest) {
 
     const params = validation.data
 
-    // Calculate MP cost
-    const text_length = params.text.length
-    const mp_cost = calculateTTSCost(text_length)
-
     // Get user from database
     const supabase = create_service_role_client()
     const { data: userData, error: userError } = await supabase
@@ -58,16 +54,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Check token balance
+    // Check token balance and plan type
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
-      .select('renewable_tokens, permanent_tokens')
+      .select('renewable_tokens, permanent_tokens, plan')
       .eq('user_id', userData.id)
       .single()
 
     if (subError || !subscription) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
+
+    // Calculate MP cost based on plan type
+    const text_length = params.text.length
+    const mp_cost = calculateTTSCost(text_length, subscription.plan)
 
     const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
     if (total_tokens < mp_cost) {

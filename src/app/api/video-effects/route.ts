@@ -24,6 +24,7 @@ import { z } from "zod"
 import { track } from "@vercel/analytics/server"
 import { get_video_model_config } from "@/lib/ai_models"
 import { generate_video } from "@/lib/fal_client"
+import { calculate_final_cost } from "@/lib/pricing_config"
 
 // Next.js route configuration
 export const dynamic = 'force-dynamic'
@@ -75,10 +76,11 @@ export async function POST(req: NextRequest) {
       return api_error(`Invalid video model: ${validated.model}`, 400)
     }
     
-    // Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
+    // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
     // For video, multiply by duration in seconds
-    const base_mp_cost = Math.ceil((model_config.custom_cost * 1.6) / 0.001)
-    const cost = base_mp_cost * validated.duration
+    const base_cost_per_second = model_config.custom_cost / 0.001
+    const base_total_cost = base_cost_per_second * validated.duration
+    const cost = calculate_final_cost(base_total_cost, subscription.plan_name)
     
     // 7. Check token balance
     if (!await has_sufficient_tokens(user.user_id, cost)) {

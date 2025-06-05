@@ -2,11 +2,13 @@
 
 import React, { useState, useContext } from 'react'
 import { Toaster } from 'react-hot-toast'
-import { Mic, Settings, Sparkles } from 'lucide-react'
+import { Mic, Settings, Sparkles, FileText, Type } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import ErrorDisplay from '@/app/components/error_display'
 import { AudioPlayer } from './components/audio_player'
 import { VoiceSelectionPanel } from './components/voice_selection_panel'
+import { VoiceCloningPanel } from './components/voice_cloning_panel'
+import { DocumentToAudio } from './components/document_to_audio'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
 import { 
   TTS_LIMITS, 
@@ -15,19 +17,23 @@ import {
   type TTSParams 
 } from './types'
 
+type TabType = 'text-to-speech' | 'document-to-audio'
+
 export default function AudioPage() {
-  const { mp_tokens } = useContext(MpContext)
+  const { mp_tokens, plan } = useContext(MpContext)
+  const [active_tab, set_active_tab] = useState<TabType>('text-to-speech')
   
   // Form state
   const [text_input, set_text_input] = useState('')
   const [selected_voice, set_selected_voice] = useState('Richard')
+  const [voice_clone_url, set_voice_clone_url] = useState<string | null>(null)
   const [show_advanced, set_show_advanced] = useState(false)
   
   // Advanced settings
   const [exaggeration, set_exaggeration] = useState(TTS_LIMITS.default_exaggeration)
   const [cfg, set_cfg] = useState(TTS_LIMITS.default_cfg)
   const [temperature, set_temperature] = useState(TTS_LIMITS.default_temperature)
-  const [high_quality, set_high_quality] = useState(false)
+  const [high_quality, set_high_quality] = useState(true)
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
@@ -42,7 +48,7 @@ export default function AudioPage() {
   
   // Calculate cost
   const text_length = text_input.length
-  const estimated_cost = calculateTTSCost(text_length)
+  const estimated_cost = calculateTTSCost(text_length, plan)
   const can_generate = text_length > 0 && 
                       text_length <= TTS_LIMITS.max_text_length && 
                       (mp_tokens ?? 0) >= estimated_cost &&
@@ -53,8 +59,13 @@ export default function AudioPage() {
     
     const params: TTSParams = {
       text: text_input,
-      voice: selected_voice,
+      voice: voice_clone_url ? undefined : selected_voice, // Don't send voice if using clone
       high_quality_audio: high_quality
+    }
+    
+    // Add voice clone URL if available
+    if (voice_clone_url) {
+      params.source_audio_url = voice_clone_url
     }
     
     // Add advanced params if modified from defaults
@@ -69,10 +80,11 @@ export default function AudioPage() {
   const handle_new_generation = () => {
     clear_audio()
     set_text_input('')
+    set_voice_clone_url(null)
   }
   
   return (
-    <div className="max-w-4xl mx-auto p-4">
+    <div className="max-w-4xl mx-auto p-4 mb-4 pb-20 md:pb-4">
       <Toaster position="top-right" />
       
       {/* Header */}
@@ -86,14 +98,42 @@ export default function AudioPage() {
         </p>
       </div>
       
+      {/* Important Notice */}
+      <div className="alert alert-warning mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+        <div>
+          <h3 className="font-bold">Important: Download your audio files</h3>
+          <div className="text-sm">Audio generations are not stored permanently. Please download your audio files immediately after generation if you want to keep them.</div>
+        </div>
+      </div>
+      
+      {/* Tabs */}
+      <div className="tabs tabs-boxed mb-6">
+        <button
+          className={`tab ${active_tab === 'text-to-speech' ? 'tab-active' : ''}`}
+          onClick={() => set_active_tab('text-to-speech')}
+        >
+          <Type className="w-4 h-4 mr-2" />
+          Text to Speech
+        </button>
+        <button
+          className={`tab ${active_tab === 'document-to-audio' ? 'tab-active' : ''}`}
+          onClick={() => set_active_tab('document-to-audio')}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Document to Audio
+        </button>
+      </div>
+      
       {/* Main Content */}
       <div className="space-y-6">
-        {!generated_audio ? (
-          <>
-            {/* Text Input */}
-            <div className="card bg-base-100 shadow-xl">
-              <div className="card-body">
-                <h2 className="card-title mb-4">Enter Your Text</h2>
+        {active_tab === 'text-to-speech' ? (
+          !generated_audio ? (
+            <>
+              {/* Text Input */}
+              <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                  <h2 className="card-title mb-4">Enter Your Text</h2>
                 
                 <textarea
                   value={text_input}
@@ -120,7 +160,9 @@ export default function AudioPage() {
                 <div className="alert alert-info mt-4">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   <div>
-                    <p className="font-semibold text-sm">Pricing: $0.016 per 250 characters</p>
+                    <p className="font-semibold text-sm">
+                      Pricing: {plan === 'standard' ? '$0.013' : '$0.02'} per 250 characters ({plan === 'standard' ? 'Standard' : 'Free'} plan)
+                    </p>
                     <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
                   </div>
                 </div>
@@ -144,7 +186,15 @@ export default function AudioPage() {
                 <VoiceSelectionPanel
                   selected_voice={selected_voice}
                   on_voice_change={set_selected_voice}
-                  disabled={is_generating}
+                  disabled={is_generating || !!voice_clone_url}
+                />
+                
+                {/* Voice Cloning Section */}
+                <div className="divider">OR</div>
+                
+                <VoiceCloningPanel
+                  on_voice_ready={set_voice_clone_url}
+                  is_uploading={false}
                 />
                 
                 {/* Advanced Settings */}
@@ -240,7 +290,7 @@ export default function AudioPage() {
             </div>
             
             {/* Generate Button */}
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-16 md:mb-0">
               <button
                 onClick={handle_generate}
                 disabled={!can_generate}
@@ -270,7 +320,7 @@ export default function AudioPage() {
             />
             
             {/* New Generation Button */}
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-16 md:mb-0">
               <button
                 onClick={handle_new_generation}
                 className="btn btn-primary"
@@ -279,10 +329,14 @@ export default function AudioPage() {
               </button>
             </div>
           </>
+        )
+        ) : (
+          /* Document to Audio Tab */
+          <DocumentToAudio />
         )}
         
-        {/* Error Display */}
-        {error_message && (
+        {/* Error Display - Only show for text-to-speech tab */}
+        {active_tab === 'text-to-speech' && error_message && (
           <ErrorDisplay error_message={error_message} />
         )}
       </div>

@@ -34,6 +34,7 @@ import {
 } from "@/lib/generate_helpers"
 import { get_image_model_config } from "@/lib/ai_models"
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
+import { calculate_final_cost } from "@/lib/pricing_config"
 
 export async function POST(req: NextRequest) {
   try {
@@ -65,8 +66,9 @@ export async function POST(req: NextRequest) {
       throw new Error(`Invalid model: ${validated.model}`)
     }
     
-    // Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
-    const model_cost = Math.ceil((model_config.custom_cost * 1.6) / 0.001)
+    // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
+    const base_mp_cost = model_config.custom_cost / 0.001
+    const model_cost = calculate_final_cost(base_mp_cost, subscription.plan_name)
     const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
     
     if (total_tokens < model_cost) {

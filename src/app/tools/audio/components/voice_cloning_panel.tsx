@@ -19,10 +19,10 @@ export function VoiceCloningPanel({
   
   // Check for saved voice on mount
   useEffect(() => {
-    const saved_voice = localStorage.getItem('voice_clone_sample')
+    const saved_url = localStorage.getItem('voice_clone_url')
     const saved_timestamp = localStorage.getItem('voice_clone_timestamp')
     
-    if (saved_voice && saved_timestamp) {
+    if (saved_url && saved_timestamp) {
       const age = Date.now() - parseInt(saved_timestamp)
       const twenty_four_hours = 24 * 60 * 60 * 1000
       
@@ -30,7 +30,7 @@ export function VoiceCloningPanel({
         set_has_saved_voice(true)
       } else {
         // Clear expired voice
-        localStorage.removeItem('voice_clone_sample')
+        localStorage.removeItem('voice_clone_url')
         localStorage.removeItem('voice_clone_timestamp')
       }
     }
@@ -44,10 +44,13 @@ export function VoiceCloningPanel({
         // Convert base64 to blob
         const response = await fetch(audio_data)
         const blob = await response.blob()
-        file = new File([blob], 'recording.webm', { type: blob.type })
+        file = new File([blob], 'voice_recording.webm', { type: blob.type })
       } else {
         file = audio_data
       }
+      
+      // Show uploading state
+      toast.loading('Uploading voice sample...')
       
       const formData = new FormData()
       formData.append('audio', file)
@@ -67,10 +70,22 @@ export function VoiceCloningPanel({
       if (data.url) {
         set_uploaded_url(data.url)
         on_voice_ready(data.url)
+        toast.dismiss() // Dismiss loading toast
         toast.success('Voice sample uploaded successfully!')
+        
+        // Save to localStorage for 24 hours (only if it's a recording)
+        if (typeof audio_data === 'string') {
+          try {
+            localStorage.setItem('voice_clone_url', data.url)
+            localStorage.setItem('voice_clone_timestamp', Date.now().toString())
+          } catch (e) {
+            console.warn('Failed to save voice URL to localStorage:', e)
+          }
+        }
       }
       
     } catch (error) {
+      toast.dismiss() // Dismiss loading toast
       const message = error instanceof Error ? error.message : 'Failed to process audio'
       toast.error(message)
     }
@@ -82,17 +97,18 @@ export function VoiceCloningPanel({
   }
   
   const use_saved_voice = () => {
-    const saved_voice = localStorage.getItem('voice_clone_sample')
-    if (saved_voice) {
-      // Convert base64 to data URL and use it directly
-      set_uploaded_url(saved_voice)
-      on_voice_ready(saved_voice)
+    const saved_url = localStorage.getItem('voice_clone_url')
+    if (saved_url) {
+      set_uploaded_url(saved_url)
+      on_voice_ready(saved_url)
       toast.success('Using saved voice sample')
     }
   }
   
   if (uploaded_url) {
-    const is_saved_voice = uploaded_url.startsWith('data:audio')
+    // Check if this is a saved voice from localStorage
+    const saved_url = localStorage.getItem('voice_clone_url')
+    const is_saved_voice = uploaded_url === saved_url
     
     return (
       <div className="bg-success/10 border border-success/20 rounded-lg p-4">
@@ -108,7 +124,7 @@ export function VoiceCloningPanel({
               <button
                 onClick={() => {
                   try {
-                    localStorage.removeItem('voice_clone_sample')
+                    localStorage.removeItem('voice_clone_url')
                     localStorage.removeItem('voice_clone_timestamp')
                     set_has_saved_voice(false)
                     toast.success('Saved voice sample cleared')

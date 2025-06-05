@@ -7,6 +7,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { PdfReader } from "pdfreader";
 import { track } from '@vercel/analytics/server';
 import { create_clerk_supabase_client_ssr } from '@/lib/supabase_server';
+import { calculate_final_cost } from '@/lib/pricing_config';
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL!,
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
     // Get subscription to check token balance and deduct tokens
     const { data: subscription, error: sub_error } = await supabase
       .from('subscriptions')
-      .select('renewable_tokens, permanent_tokens')
+      .select('renewable_tokens, permanent_tokens, plan')
       .eq('user_id', user_row.id)
       .single()
 
@@ -112,18 +113,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
+    // Calculate cost with plan-based markup
+    const base_cost = 25 / 1.6 // Remove old 1.6x markup to get base cost
+    const actual_cost = calculate_final_cost(base_cost, subscription.plan)
+
     const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
-    if (total_tokens < 25) {
+    if (total_tokens < actual_cost) {
       return NextResponse.json({ 
         error: 'Insufficient tokens', 
-        required: 25, 
+        required: actual_cost, 
         available: total_tokens 
       }, { status: 402 })
     }
 
     // Deduct tokens - prioritize renewable tokens first, then permanent
-    const renewable_to_deduct = Math.min(25, subscription.renewable_tokens)
-    const permanent_to_deduct = 25 - renewable_to_deduct
+    const renewable_to_deduct = Math.min(actual_cost, subscription.renewable_tokens)
+    const permanent_to_deduct = actual_cost - renewable_to_deduct
 
     const { error: deduct_error } = await supabase
       .from('subscriptions')
@@ -142,7 +147,7 @@ export async function POST(req: NextRequest) {
       .from('usage')
       .insert({
         user_id: user_row.id,
-        tokens_used: 25,
+        tokens_used: actual_cost,
         description: `Text analysis: ${feature}`
       })
     // Track analytics event

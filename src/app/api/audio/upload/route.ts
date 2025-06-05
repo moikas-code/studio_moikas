@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { track } from '@vercel/analytics/server'
+import { fal } from '@fal-ai/client'
+
+// Configure fal client
+if (process.env.FAL_KEY) {
+  fal.config({
+    credentials: process.env.FAL_KEY
+  })
+}
+
+export const runtime = 'nodejs' // Ensure this runs in Node.js, not Edge
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_DURATION_SECONDS = 8 // Maximum audio duration for voice cloning
 const ALLOWED_MIME_TYPES = [
   'audio/mpeg',
   'audio/mp3',
@@ -15,19 +26,20 @@ const ALLOWED_MIME_TYPES = [
   'audio/m4a'
 ]
 
-// Since fal.ai doesn't support base64 URLs, we need to provide a temporary upload solution
-// In production, you would use a temporary file hosting service like:
-// - Cloudflare R2 with temporary URLs
-// - AWS S3 with pre-signed URLs
-// - Google Cloud Storage with temporary access
-// For now, we'll return an error message explaining this limitation
-
 export async function POST(req: NextRequest) {
   try {
     // Authenticate user
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if FAL_KEY is configured
+    if (!process.env.FAL_KEY) {
+      return NextResponse.json(
+        { error: 'Voice cloning is not configured. FAL_KEY is missing.' },
+        { status: 503 }
+      )
     }
 
     // Parse form data
@@ -54,19 +66,30 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Track the attempt
-    track('voice_clone_attempted', {
-      userId,
-      fileSize: file.size,
-      fileType: file.type
-    })
+    try {
+      // Upload file to Fal storage
+      const url = await fal.storage.upload(file)
 
-    // For now, return an informative error
-    // In production, implement temporary file hosting here
-    return NextResponse.json({
-      error: 'Voice cloning requires a temporary file hosting service. Please use the pre-defined voices for now.',
-      suggestion: 'To enable voice cloning, configure a temporary file hosting service (e.g., Cloudflare R2, AWS S3) in production.'
-    }, { status: 501 })
+      // Track successful upload
+      track('voice_clone_uploaded', {
+        userId,
+        fileSize: file.size,
+        fileType: file.type
+      })
+
+      return NextResponse.json({
+        success: true,
+        url,
+        message: `Audio uploaded successfully. Please ensure it's ${MAX_DURATION_SECONDS} seconds or less for optimal voice cloning.`
+      })
+
+    } catch (upload_error) {
+      console.error('Fal storage upload error:', upload_error)
+      return NextResponse.json(
+        { error: 'Failed to upload audio file. Please try again.' },
+        { status: 500 }
+      )
+    }
 
   } catch (error) {
     console.error('Audio upload error:', error)

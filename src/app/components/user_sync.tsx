@@ -140,7 +140,6 @@ export default function User_sync({ plan }: User_sync_props) {
             console.error("Stripe cleanup error:", data.error);
           } else {
             setStripeCleanupError(null);
-            console.log("Stripe cleanup result:", data);
           }
         })
         .catch((err) => {

@@ -14,6 +14,7 @@ import {
   type image_model_config,
   type video_model_config 
 } from "./ai_models";
+import { get_pricing_multiplier } from "./pricing_config";
 
 /**
  * Calculate required tokens (megapixels) for a given image size.
@@ -39,14 +40,14 @@ export const MODEL_OPTIONS = ALL_IMAGE_MODELS;
 export { FREE_MODEL_IDS, STANDARD_MODEL_IDS, VIDEO_MODELS };
 
 /**
- * Get the cost of a model
+ * Get the cost of a model with plan-based pricing
  */
-export function get_model_cost(model_id: string): number {
+export function get_model_cost(model_id: string, plan_type?: string | null): number {
   const model = get_image_model_config(model_id);
   // If model not found, return 1 token
   if (!model) return 1;
 
-  return calculate_generation_mp(model);
+  return calculate_generation_mp(model, plan_type);
 }
 
 /**
@@ -241,21 +242,23 @@ export interface Model {
   is_image_to_video?: boolean;
 }
 
-// Calculate generation MP cost for new model config
-export function calculate_generation_mp(model: image_model_config): number {
+// Calculate generation MP cost for new model config with plan-based pricing
+export function calculate_generation_mp(model: image_model_config, plan?: string | null): number {
   if (model.custom_cost !== undefined) {
-    // Convert custom_cost ($) to MP (integer)
-    return Math.ceil(Math.round((model.custom_cost / model.cost_per_mp) * 1.6));
+    // Convert custom_cost ($) to MP (integer) with plan-based markup
+    const multiplier = get_pricing_multiplier(plan || null);
+    return Math.ceil(Math.round((model.custom_cost / model.cost_per_mp) * multiplier));
   }
   // Return MP directly for non-custom cost
   return model.mana_points;
 }
 
-// Legacy function for backward compatibility
-export function calculateGenerationMP(model: Model): number {
+// Legacy function for backward compatibility with plan-based pricing
+export function calculateGenerationMP(model: Model, plan_type?: string | null): number {
   if (model.customCost !== undefined) {
-    // Convert customCost ($) to MP (integer)
-    return Math.ceil(Math.round((model.customCost / model.costPerMP) * 1.6));
+    // Convert customCost ($) to MP (integer) with plan-based markup
+    const multiplier = get_pricing_multiplier(plan_type || null);
+    return Math.ceil(Math.round((model.customCost / model.costPerMP) * multiplier));
   }
   // Return MP directly for non-custom cost
   return model.manaPoints;

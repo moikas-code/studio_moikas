@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     
     if (validated.status === 'processing' || validated.status === 'IN_PROGRESS') {
       // Update progress if available
-      const progress_log = validated.logs?.find((log) => 
+      const progress_log = validated.logs?.find((log: unknown) => 
         typeof log === 'object' && log !== null && 'type' in log && log.type === 'progress'
       ) as { progress?: number } | undefined
       const progress = progress_log?.progress || 50

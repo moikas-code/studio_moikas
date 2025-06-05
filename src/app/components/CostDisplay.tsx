@@ -5,9 +5,10 @@ import type { Model } from "@/lib/generate_helpers";
 interface CostDisplayProps {
   model?: Model | undefined;
   cost?: number;
+  planType?: string | null;
 }
 
-const CostDisplay: React.FC<CostDisplayProps> = ({ model, cost }) => {
+const CostDisplay: React.FC<CostDisplayProps> = ({ model, cost, planType }) => {
   // If cost is provided directly, use it
   if (cost !== undefined) {
     return (
@@ -32,13 +33,13 @@ const CostDisplay: React.FC<CostDisplayProps> = ({ model, cost }) => {
         <span className="text-base-800 dark:text-base-700">
           5s:{" "}
           <span className="font-bold text-jade">
-            ~{calculateGenerationMP(model) * 5} MP
+            ~{calculateGenerationMP(model, planType) * 5} MP
           </span>
         </span>
         <span className="text-base-800 dark:text-base-700">
           10s:{" "}
           <span className="font-bold text-jade">
-            ~{calculateGenerationMP(model) * 10} MP
+            ~{calculateGenerationMP(model, planType) * 10} MP
           </span>
         </span>
       </div>

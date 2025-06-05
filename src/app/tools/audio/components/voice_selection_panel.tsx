@@ -83,22 +83,20 @@ export function VoiceSelectionPanel({
         })}
       </div>
       
-      <div className="space-y-2">
+      {!disabled && (
         <p className="text-sm text-base-content/60">
           Select a voice for text-to-speech generation
         </p>
-        
+      )}
+      
+      {disabled && (
         <div className="alert alert-info">
           <Info className="w-4 h-4" />
-          <div>
-            <p className="font-semibold text-sm">Voice Cloning Coming Soon</p>
-            <p className="text-xs">
-              Voice cloning will support MP3, OGG, WAV, M4A, and AAC files or base64 encoded audio data. 
-              For now, please use one of the pre-defined voices above.
-            </p>
-          </div>
+          <p className="text-sm">
+            Voice selection is disabled when using voice cloning
+          </p>
         </div>
-      </div>
+      )}
     </div>
   )
 }
