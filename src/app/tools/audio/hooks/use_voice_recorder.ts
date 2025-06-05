@@ -84,14 +84,6 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
         reader.onloadend = () => {
           const base64_url = reader.result as string
           set_audio_base64_url(base64_url)
-          
-          // Save to localStorage for reuse
-          try {
-            localStorage.setItem('voice_clone_sample', base64_url)
-            localStorage.setItem('voice_clone_timestamp', Date.now().toString())
-          } catch (e) {
-            console.warn('Failed to save voice sample to localStorage:', e)
-          }
         }
         reader.readAsDataURL(blob)
         
@@ -135,51 +127,6 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
     chunks_ref.current = []
   }, [cleanup])
   
-  // Load saved voice sample from localStorage
-  const load_saved_voice = useCallback(() => {
-    try {
-      const saved_voice = localStorage.getItem('voice_clone_sample')
-      const saved_timestamp = localStorage.getItem('voice_clone_timestamp')
-      
-      if (saved_voice && saved_timestamp) {
-        // Check if sample is less than 24 hours old
-        const age = Date.now() - parseInt(saved_timestamp)
-        const twenty_four_hours = 24 * 60 * 60 * 1000
-        
-        if (age < twenty_four_hours) {
-          set_audio_base64_url(saved_voice)
-          
-          // Convert base64 back to blob for audio_url
-          fetch(saved_voice)
-            .then(res => res.blob())
-            .then(blob => {
-              set_audio_blob(blob)
-              set_audio_url(URL.createObjectURL(blob))
-            })
-            .catch(console.error)
-          
-          return true
-        } else {
-          // Clear expired voice sample
-          localStorage.removeItem('voice_clone_sample')
-          localStorage.removeItem('voice_clone_timestamp')
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to load saved voice sample:', e)
-    }
-    return false
-  }, [])
-  
-  // Clear saved voice from localStorage
-  const clear_saved_voice = useCallback(() => {
-    try {
-      localStorage.removeItem('voice_clone_sample')
-      localStorage.removeItem('voice_clone_timestamp')
-    } catch (e) {
-      console.warn('Failed to clear saved voice sample:', e)
-    }
-  }, [])
   
   // Cleanup on unmount
   useEffect(() => {
@@ -196,8 +143,6 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
     start_recording,
     stop_recording,
     clear_recording,
-    load_saved_voice,
-    clear_saved_voice,
     max_duration
   }
 }

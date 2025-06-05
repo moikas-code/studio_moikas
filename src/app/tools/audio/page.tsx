@@ -7,6 +7,7 @@ import { MpContext } from '@/app/context/mp_context'
 import ErrorDisplay from '@/app/components/error_display'
 import { AudioPlayer } from './components/audio_player'
 import { VoiceSelectionPanel } from './components/voice_selection_panel'
+import { VoiceCloningPanel } from './components/voice_cloning_panel'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
 import { 
   TTS_LIMITS, 
@@ -21,6 +22,7 @@ export default function AudioPage() {
   // Form state
   const [text_input, set_text_input] = useState('')
   const [selected_voice, set_selected_voice] = useState('Richard')
+  const [voice_clone_url, set_voice_clone_url] = useState<string | null>(null)
   const [show_advanced, set_show_advanced] = useState(false)
   
   // Advanced settings
@@ -53,8 +55,13 @@ export default function AudioPage() {
     
     const params: TTSParams = {
       text: text_input,
-      voice: selected_voice,
+      voice: voice_clone_url ? undefined : selected_voice, // Don't send voice if using clone
       high_quality_audio: high_quality
+    }
+    
+    // Add voice clone URL if available
+    if (voice_clone_url) {
+      params.source_audio_url = voice_clone_url
     }
     
     // Add advanced params if modified from defaults
@@ -69,6 +76,7 @@ export default function AudioPage() {
   const handle_new_generation = () => {
     clear_audio()
     set_text_input('')
+    set_voice_clone_url(null)
   }
   
   return (
@@ -144,7 +152,15 @@ export default function AudioPage() {
                 <VoiceSelectionPanel
                   selected_voice={selected_voice}
                   on_voice_change={set_selected_voice}
-                  disabled={is_generating}
+                  disabled={is_generating || !!voice_clone_url}
+                />
+                
+                {/* Voice Cloning Section */}
+                <div className="divider">OR</div>
+                
+                <VoiceCloningPanel
+                  on_voice_ready={set_voice_clone_url}
+                  is_uploading={false}
                 />
                 
                 {/* Advanced Settings */}
