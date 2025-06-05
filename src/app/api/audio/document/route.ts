@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { fal } from "@/lib/fal_client"
 import { 
-  get_service_role_client,
-  get_anon_client
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
 import { 
   api_error, 
@@ -16,6 +14,10 @@ import {
 import { 
   validate_request 
 } from "@/lib/utils/api/validation"
+import { 
+  require_auth,
+  get_user_subscription
+} from "@/lib/utils/api/auth"
 import { z } from "zod"
 import { 
   TTS_LIMITS,
@@ -68,40 +70,15 @@ const document_rate_limit = {
 export async function POST(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const { userId: clerk_id } = await auth()
-    if (!clerk_id) {
-      return api_error('Unauthorized', 401)
-    }
-
-    // 2. Get user data
-    const supabase = get_anon_client()
-    const { data: user_data } = await supabase
-      .from('users')
-      .select(`
-        id,
-        subscriptions (
-          plan,
-          renewable_tokens,
-          permanent_tokens
-        )
-      `)
-      .eq('clerk_id', clerk_id)
-      .single()
-
-    if (!user_data?.subscriptions) {
-      return api_error('User not found', 404)
-    }
-
-    const user_id = user_data.id
-    const subscription = user_data.subscriptions[0]
-    if (!subscription) {
-      return api_error('No subscription found', 404)
-    }
+    const user = await require_auth()
+    
+    // 2. Get user subscription
+    const subscription = await get_user_subscription(user.user_id)
     const { plan, renewable_tokens, permanent_tokens } = subscription
     const total_tokens = renewable_tokens + permanent_tokens
 
     // 3. Apply rate limiting
-    const rate_limit_result = await apply_rate_limit(clerk_id, document_rate_limit)
+    const rate_limit_result = await apply_rate_limit(user.clerk_id, document_rate_limit)
     if (!rate_limit_result.allowed) {
       return api_error('Too many requests', 429)
     }
@@ -123,7 +100,7 @@ export async function POST(req: NextRequest) {
     const service_supabase = get_service_role_client()
     const { error: deduct_error } = await service_supabase
       .rpc('simple_deduct_tokens', {
-        p_user_id: user_id,
+        p_user_id: user.user_id,
         p_amount: total_cost,
         p_description: `Document-to-audio: ${validated.chunks.length} chunks, ${total_text_length} characters`
       })
@@ -139,7 +116,7 @@ export async function POST(req: NextRequest) {
     const { data: parent_job, error: parent_job_error } = await service_supabase
       .from('audio_jobs')
       .insert({
-        user_id,
+        user_id: user.user_id,
         job_id: parent_job_id,
         status: 'processing',
         type: 'document',
@@ -166,7 +143,7 @@ export async function POST(req: NextRequest) {
       console.error('Job creation error:', parent_job_error)
       // Refund tokens
       await service_supabase.rpc('simple_deduct_tokens', {
-        p_user_id: user_id,
+        p_user_id: user.user_id,
         p_amount: -total_cost,
         p_description: 'Refund: Failed to create document audio job'
       })
@@ -195,7 +172,7 @@ export async function POST(req: NextRequest) {
         const { data: chunk_job } = await service_supabase
           .from('audio_jobs')
           .insert({
-            user_id,
+            user_id: user.user_id,
             job_id: chunk_job_id,
             status: 'pending',
             type: 'text',
@@ -328,7 +305,7 @@ export async function POST(req: NextRequest) {
 
       // Refund tokens
       await service_supabase.rpc('simple_deduct_tokens', {
-        p_user_id: user_id,
+        p_user_id: user.user_id,
         p_amount: -total_cost,
         p_description: 'Refund: Document audio generation failed'
       })
