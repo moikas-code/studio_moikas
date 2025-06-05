@@ -1,17 +1,17 @@
 import { NextRequest } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { get_anon_client } from "@/lib/utils/database/supabase"
 import { 
   api_error, 
   api_success, 
   handle_api_error 
 } from "@/lib/utils/api/response"
+import { require_auth } from "@/lib/utils/api/auth"
 
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const { userId: clerk_id } = await auth()
-    if (!clerk_id) {
+    const user = await require_auth()
+    if (! user) {
       return api_error('Unauthorized', 401)
     }
 
@@ -23,14 +23,6 @@ export async function GET(req: NextRequest) {
       return api_error('Missing job_id parameter', 400)
     }
 
-    // 3. Get user ID
-    const supabase = get_anon_client()
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerk_id)
-      .single()
-
     if (!user) {
       return api_error('User not found', 404)
     }
@@ -40,7 +32,7 @@ export async function GET(req: NextRequest) {
       .from('audio_jobs')
       .select('*')
       .eq('job_id', job_id)
-      .eq('user_id', user.id)
+      .eq('user_id', user.user_id)
       .eq('type', 'document')
       .single()
 
@@ -57,13 +49,13 @@ export async function GET(req: NextRequest) {
       progress?: number
       metadata?: { chunk_index?: number }
     }> = []
-    
+    const supabase = get_anon_client()
     if (chunk_job_ids.length > 0) {
       const { data: chunks } = await supabase
         .from('audio_jobs')
         .select('job_id, status, audio_url, progress, metadata')
         .in('job_id', chunk_job_ids)
-        .eq('user_id', user.id)
+        .eq('user_id', user.user_id)
         .order('metadata->chunk_index')
 
       chunks_data = chunks || []

@@ -29,7 +29,7 @@ export async function GET() {
         email,
         created_at,
         subscriptions (
-          plan_type,
+          plan,
           tokens_renewable,
           tokens_permanent
         )

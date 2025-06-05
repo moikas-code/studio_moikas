@@ -42,12 +42,12 @@ export { FREE_MODEL_IDS, STANDARD_MODEL_IDS, VIDEO_MODELS };
 /**
  * Get the cost of a model with plan-based pricing
  */
-export function get_model_cost(model_id: string, plan_type?: string | null): number {
+export function get_model_cost(model_id: string, plan?: string | null): number {
   const model = get_image_model_config(model_id);
   // If model not found, return 1 token
   if (!model) return 1;
 
-  return calculate_generation_mp(model, plan_type);
+  return calculate_generation_mp(model, plan);
 }
 
 /**
@@ -254,10 +254,10 @@ export function calculate_generation_mp(model: image_model_config, plan?: string
 }
 
 // Legacy function for backward compatibility with plan-based pricing
-export function calculateGenerationMP(model: Model, plan_type?: string | null): number {
+export function calculateGenerationMP(model: Model, plan?: string | null): number {
   if (model.customCost !== undefined) {
     // Convert customCost ($) to MP (integer) with plan-based markup
-    const multiplier = get_pricing_multiplier(plan_type || null);
+    const multiplier = get_pricing_multiplier(plan || null);
     return Math.ceil(Math.round((model.customCost / model.costPerMP) * multiplier));
   }
   // Return MP directly for non-custom cost

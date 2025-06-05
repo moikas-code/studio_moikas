@@ -14,14 +14,14 @@ BEGIN
   SET 
     renewable_tokens = LEAST(renewable_tokens + p_amount, 
       CASE 
-        WHEN plan_type = 'free' THEN 125 
-        WHEN plan_type = 'standard' THEN 20480
+        WHEN plan = 'free' THEN 125 
+        WHEN plan = 'standard' THEN 20480
         ELSE renewable_tokens + p_amount
       END),
     permanent_tokens = permanent_tokens + GREATEST(0, 
       p_amount - (CASE 
-        WHEN plan_type = 'free' THEN 125 - renewable_tokens
-        WHEN plan_type = 'standard' THEN 20480 - renewable_tokens
+        WHEN plan = 'free' THEN 125 - renewable_tokens
+        WHEN plan = 'standard' THEN 20480 - renewable_tokens
         ELSE 0
       END))
   WHERE user_id = p_user_id;
