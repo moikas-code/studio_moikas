@@ -197,17 +197,16 @@ export async function POST(req: NextRequest) {
       // 11. Call fal.ai
       if (webhook_url) {
         // Async with webhook
-        const result = await fal.subscribe("fal-ai/stable-audio", {
+        const result = await fal.queue.submit("resemble-ai/chatterboxhd/text-to-speech", {
           input: fal_input,
           webhookUrl: webhook_url,
-          logs: true
         })
 
         // Update job with fal request ID
         await service_supabase
           .from('audio_jobs')
           .update({
-            fal_request_id: result.requestId,
+            fal_request_id: result.request_id,
             status: 'processing'
           })
           .eq('id', job.id)
@@ -219,7 +218,7 @@ export async function POST(req: NextRequest) {
         })
       } else {
         // Sync fallback
-        const result = await fal.run("fal-ai/stable-audio", {
+        const result = await fal.run("resemble-ai/chatterboxhd/text-to-speech", {
           input: fal_input
         })
 
