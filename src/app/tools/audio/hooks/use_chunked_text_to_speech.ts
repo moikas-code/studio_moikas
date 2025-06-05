@@ -19,6 +19,7 @@ export function useChunkedTextToSpeech() {
   const [error_message, set_error_message] = useState<string | null>(null)
   const [progress, set_progress] = useState({ current: 0, total: 0 })
   const [generated_audio, set_generated_audio] = useState<ChunkedTTSResult | null>(null)
+  const [is_regenerating_chunk, set_is_regenerating_chunk] = useState<number | null>(null)
 
   const chunk_text = (text: string, chunk_size: number = 512): string[] => {
     const chunks: string[] = []
@@ -211,12 +212,79 @@ export function useChunkedTextToSpeech() {
     set_generated_audio(null)
   }, [])
 
+  const regenerate_chunk = useCallback(async (
+    chunk_index: number, 
+    params: Omit<TTSParams, 'text'>
+  ): Promise<boolean> => {
+    if (!generated_audio || chunk_index >= generated_audio.chunks.length) {
+      toast.error('Invalid chunk index')
+      return false
+    }
+
+    set_is_regenerating_chunk(chunk_index)
+    set_error_message(null)
+
+    try {
+      const chunk = generated_audio.chunks[chunk_index]
+      toast.loading(`Regenerating chunk ${chunk_index + 1}...`, { icon: '🔄' })
+      
+      const result = await generate_speech_chunk(chunk.text, params)
+      
+      if (!result) {
+        throw new Error(`Failed to regenerate chunk ${chunk_index + 1}`)
+      }
+
+      // Update the generated audio with the new chunk
+      const updated_chunks = [...generated_audio.chunks]
+      const old_mp_cost = updated_chunks[chunk_index].mana_points_used
+      
+      updated_chunks[chunk_index] = {
+        ...updated_chunks[chunk_index],
+        audio_url: result.audio_url,
+        mana_points_used: result.mana_points_used
+      }
+
+      // Update total MP cost
+      const mp_difference = result.mana_points_used - old_mp_cost
+      
+      set_generated_audio({
+        ...generated_audio,
+        chunks: updated_chunks,
+        total_mana_points: generated_audio.total_mana_points + mp_difference
+      })
+
+      toast.success(`Chunk ${chunk_index + 1} regenerated successfully!`)
+      
+      track('chunk_regenerate_success', {
+        chunk_index,
+        mp_cost: result.mana_points_used
+      })
+
+      return true
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to regenerate chunk'
+      set_error_message(message)
+      toast.error(message)
+      
+      track('chunk_regenerate_error', {
+        chunk_index,
+        error: message
+      })
+      
+      return false
+    } finally {
+      set_is_regenerating_chunk(null)
+    }
+  }, [generated_audio])
+
   return {
     is_generating,
     error_message,
     generated_audio,
     progress,
     generate_chunked_speech,
+    regenerate_chunk,
+    is_regenerating_chunk,
     clear_error,
     clear_audio
   }

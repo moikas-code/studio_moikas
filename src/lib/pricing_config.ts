@@ -16,7 +16,7 @@ export interface PricingConfig {
  */
 export const PRICING_MULTIPLIERS: PricingConfig = {
   standard: 1.3,  // 30% markup for standard users
-  free: 1.6       // 60% markup for free users
+  free: 2.0       // 60% markup for free users
 };
 
 /**

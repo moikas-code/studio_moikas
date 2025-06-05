@@ -243,10 +243,10 @@ export interface Model {
 }
 
 // Calculate generation MP cost for new model config with plan-based pricing
-export function calculate_generation_mp(model: image_model_config, plan_type?: string | null): number {
+export function calculate_generation_mp(model: image_model_config, plan?: string | null): number {
   if (model.custom_cost !== undefined) {
     // Convert custom_cost ($) to MP (integer) with plan-based markup
-    const multiplier = get_pricing_multiplier(plan_type || null);
+    const multiplier = get_pricing_multiplier(plan || null);
     return Math.ceil(Math.round((model.custom_cost / model.cost_per_mp) * multiplier));
   }
   // Return MP directly for non-custom cost

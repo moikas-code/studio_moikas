@@ -45,6 +45,8 @@ export function DocumentToAudio() {
     generated_audio, 
     progress,
     generate_chunked_speech,
+    regenerate_chunk,
+    is_regenerating_chunk,
     clear_audio 
   } = useChunkedTextToSpeech()
   
@@ -90,11 +92,31 @@ export function DocumentToAudio() {
   
   // If audio is generated, show chunked player
   if (generated_audio) {
+    const handle_regenerate_chunk = async (chunk_index: number) => {
+      const params: Omit<TTSParams, 'text'> = {
+        voice: voice_clone_url ? undefined : selected_voice,
+        high_quality_audio: high_quality
+      }
+      
+      if (voice_clone_url) {
+        params.source_audio_url = voice_clone_url
+      }
+      
+      if (exaggeration !== TTS_LIMITS.default_exaggeration) params.exaggeration = exaggeration
+      if (cfg !== TTS_LIMITS.default_cfg) params.cfg = cfg
+      if (temperature !== TTS_LIMITS.default_temperature) params.temperature = temperature
+      if (use_seed) params.seed = seed
+      
+      await regenerate_chunk(chunk_index, params)
+    }
+
     return (
       <div className="space-y-6">
         <ChunkedAudioPlayer
           chunked_result={generated_audio}
           text_preview={extracted_text.substring(0, 200) + '...'}
+          on_regenerate_chunk={handle_regenerate_chunk}
+          is_regenerating_chunk={is_regenerating_chunk}
         />
         
         <div className="flex justify-center">
