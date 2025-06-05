@@ -435,6 +435,7 @@ export async function POST(req: NextRequest) {
     
     // If parent job was created, update it as failed
     if (parent_job) {
+      const job = parent_job // TypeScript type narrowing
       try {
         await service_supabase
           .from('audio_jobs')
@@ -443,7 +444,7 @@ export async function POST(req: NextRequest) {
             error: error instanceof Error ? error.message : 'Unknown error',
             completed_at: new Date().toISOString()
           })
-          .eq('id', parent_job.id)
+          .eq('id', job.id)
 
         // Refund tokens if user is available
         if (user?.user_id) {
