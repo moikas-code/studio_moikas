@@ -2,12 +2,13 @@
 
 import React, { useState, useContext } from 'react'
 import { Toaster } from 'react-hot-toast'
-import { Mic, Settings, Sparkles } from 'lucide-react'
+import { Mic, Settings, Sparkles, FileText, Type } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import ErrorDisplay from '@/app/components/error_display'
 import { AudioPlayer } from './components/audio_player'
 import { VoiceSelectionPanel } from './components/voice_selection_panel'
 import { VoiceCloningPanel } from './components/voice_cloning_panel'
+import { DocumentToAudio } from './components/document_to_audio'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
 import { 
   TTS_LIMITS, 
@@ -16,8 +17,11 @@ import {
   type TTSParams 
 } from './types'
 
+type TabType = 'text-to-speech' | 'document-to-audio'
+
 export default function AudioPage() {
   const { mp_tokens } = useContext(MpContext)
+  const [active_tab, set_active_tab] = useState<TabType>('text-to-speech')
   
   // Form state
   const [text_input, set_text_input] = useState('')
@@ -94,14 +98,33 @@ export default function AudioPage() {
         </p>
       </div>
       
+      {/* Tabs */}
+      <div className="tabs tabs-boxed mb-6">
+        <button
+          className={`tab ${active_tab === 'text-to-speech' ? 'tab-active' : ''}`}
+          onClick={() => set_active_tab('text-to-speech')}
+        >
+          <Type className="w-4 h-4 mr-2" />
+          Text to Speech
+        </button>
+        <button
+          className={`tab ${active_tab === 'document-to-audio' ? 'tab-active' : ''}`}
+          onClick={() => set_active_tab('document-to-audio')}
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Document to Audio
+        </button>
+      </div>
+      
       {/* Main Content */}
       <div className="space-y-6">
-        {!generated_audio ? (
-          <>
-            {/* Text Input */}
-            <div className="card bg-base-100 shadow-xl">
-              <div className="card-body">
-                <h2 className="card-title mb-4">Enter Your Text</h2>
+        {active_tab === 'text-to-speech' ? (
+          !generated_audio ? (
+            <>
+              {/* Text Input */}
+              <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                  <h2 className="card-title mb-4">Enter Your Text</h2>
                 
                 <textarea
                   value={text_input}
@@ -295,10 +318,14 @@ export default function AudioPage() {
               </button>
             </div>
           </>
+        )
+        ) : (
+          /* Document to Audio Tab */
+          <DocumentToAudio />
         )}
         
-        {/* Error Display */}
-        {error_message && (
+        {/* Error Display - Only show for text-to-speech tab */}
+        {active_tab === 'text-to-speech' && error_message && (
           <ErrorDisplay error_message={error_message} />
         )}
       </div>
