@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
       const update_data: Record<string, unknown> = {
         status: parent_status,
         metadata: {
-          ...parent_job.metadata,
+          ...parent_job?.metadata,
           chunk_jobs: chunk_results,
           failed_chunks: failed_chunks,
           processed_chunks: processed_chunks,
@@ -381,7 +381,7 @@ export async function POST(req: NextRequest) {
       await service_supabase
         .from('audio_jobs')
         .update(update_data)
-        .eq('id', parent_job.id)
+        .eq('id', parent_job?.id || '')
     } catch (update_error) {
       console.error('Failed to update parent job:', update_error)
     }
