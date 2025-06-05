@@ -20,7 +20,7 @@ import {
 type TabType = 'text-to-speech' | 'document-to-audio'
 
 export default function AudioPage() {
-  const { mp_tokens } = useContext(MpContext)
+  const { mp_tokens, plan } = useContext(MpContext)
   const [active_tab, set_active_tab] = useState<TabType>('text-to-speech')
   
   // Form state
@@ -48,7 +48,11 @@ export default function AudioPage() {
   
   // Calculate cost
   const text_length = text_input.length
-  const estimated_cost = calculateTTSCost(text_length)
+  const plan_type = plan === 'standard' ? 'standard' : 'free'
+  const estimated_cost = calculateTTSCost(text_length, {
+    isVoiceClone: !!voice_clone_url,
+    planType: plan_type
+  })
   const can_generate = text_length > 0 && 
                       text_length <= TTS_LIMITS.max_text_length && 
                       (mp_tokens ?? 0) >= estimated_cost &&
@@ -153,6 +157,11 @@ export default function AudioPage() {
                   <div>
                     <p className="font-semibold text-sm">Pricing: $0.016 per 250 characters</p>
                     <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
+                    {voice_clone_url && (
+                      <p className="text-xs mt-1 text-warning">
+                        Voice cloning upcharge: {plan_type === 'standard' ? '1.3x' : '1.6x'} ({plan_type} plan)
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

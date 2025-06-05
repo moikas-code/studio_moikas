@@ -59,11 +59,22 @@ export const TTS_MP_COST_PER_CHARACTER = 0.04
 export const TTS_MIN_CHARGE_CHARACTERS = 250
 export const TTS_MIN_CHARGE_MP = 16 // $0.016 in MP (includes 1.6x markup)
 export const TTS_MARKUP_MULTIPLIER = 1.6
+export const TTS_VOICE_CLONE_MARKUP = {
+  standard: 1.3,
+  free: 1.6
+}
 
 // Helper function to calculate actual cost with minimum charge and markup
-export function calculateTTSCost(characterCount: number): number {
+export function calculateTTSCost(characterCount: number, options?: { isVoiceClone?: boolean; planType?: 'standard' | 'free' }): number {
   // Round up to nearest 250 character increment
   const chargeableCharacters = Math.ceil(characterCount / TTS_MIN_CHARGE_CHARACTERS) * TTS_MIN_CHARGE_CHARACTERS
   const baseCost = chargeableCharacters * TTS_MP_COST_PER_CHARACTER
-  return Math.ceil(baseCost * TTS_MARKUP_MULTIPLIER)
+  
+  // Use voice clone markup if applicable, otherwise standard markup
+  let markup = TTS_MARKUP_MULTIPLIER
+  if (options?.isVoiceClone) {
+    markup = options.planType === 'standard' ? TTS_VOICE_CLONE_MARKUP.standard : TTS_VOICE_CLONE_MARKUP.free
+  }
+  
+  return Math.ceil(baseCost * markup)
 }
