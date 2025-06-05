@@ -34,7 +34,7 @@ export function DocumentToAudio() {
   const [exaggeration, set_exaggeration] = useState(TTS_LIMITS.default_exaggeration)
   const [cfg, set_cfg] = useState(TTS_LIMITS.default_cfg)
   const [temperature, set_temperature] = useState(TTS_LIMITS.default_temperature)
-  const [high_quality, set_high_quality] = useState(false)
+  const [high_quality, set_high_quality] = useState(true)
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
@@ -166,7 +166,7 @@ export function DocumentToAudio() {
                   </svg>
                   <div>
                     <p className="font-semibold">Document will be converted in {num_chunks} chunks</p>
-                    <p className="text-sm">Each chunk contains up to 675 characters. Words are kept intact to avoid cut-offs.</p>
+                    <p className="text-sm">Each chunk contains up to 512 characters. Words are kept intact to avoid cut-offs.</p>
                   </div>
                 </div>
               )}
