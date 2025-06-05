@@ -468,13 +468,13 @@ export function ChunkedAudioPlayer({
         {/* Actions */}
         <div className="card-actions justify-end mt-4 gap-2">
           <div className="dropdown dropdown-top dropdown-end">
-            <label tabIndex={0} className="btn btn-outline btn-sm gap-2" disabled={ready_chunks_count === 0}>
+            <button tabIndex={0} className="btn btn-outline btn-sm gap-2" disabled={ready_chunks_count === 0}>
               <Download className="w-4 h-4" />
               Download {!all_chunks_ready && `(${ready_chunks_count}/${total_chunks})`}
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-            </label>
+                          </button>
             <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-64 mb-2">
               <li>
                 <button onClick={handle_download_zip} className="flex items-center gap-2">
