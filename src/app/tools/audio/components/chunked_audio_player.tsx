@@ -196,6 +196,10 @@ export function ChunkedAudioPlayer({
             icon: '🎵' 
           })
           
+          if (!chunk.audio_url) {
+            throw new Error(`Chunk ${i + 1} has no audio URL`)
+          }
+          
           const response = await fetch(chunk.audio_url)
           const blob = await response.blob()
           const array_buffer = await blob.arrayBuffer()

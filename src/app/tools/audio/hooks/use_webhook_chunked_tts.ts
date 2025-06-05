@@ -32,6 +32,8 @@ export function useWebhookChunkedTts() {
     stop_polling
   } = useJobPolling({
     onComplete: (audio_url: string) => {
+      // audio_url is intentionally unused here - we check document status instead
+      void audio_url
       // This is called when a single job completes
       // For documents, we need to check all chunks
       check_document_status()
@@ -42,6 +44,8 @@ export function useWebhookChunkedTts() {
       set_is_generating(false)
     },
     onProgress: (progress: number) => {
+      // progress is intentionally unused here - we track progress differently for documents
+      void progress
       // Update UI progress if needed
     }
   })

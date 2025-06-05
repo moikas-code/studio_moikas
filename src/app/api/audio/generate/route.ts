@@ -22,6 +22,27 @@ import {
   calculateTTSCost
 } from "@/app/tools/audio/types"
 
+// Types for fal.ai responses
+interface FalAudioInput {
+  prompt: string
+  voice?: string
+  source_audio_url?: string
+  high_quality_audio?: boolean
+  exaggeration?: number
+  cfg?: number
+  temperature?: number
+  seed?: number
+}
+
+interface FalAudioResult {
+  data?: {
+    url?: string
+  }
+  url?: string
+}
+
+
+
 // Schema validation
 const audio_generation_schema = z.object({
   text: z.string().min(1).max(TTS_LIMITS.max_text_length),
@@ -151,7 +172,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 9. Prepare fal.ai request
-    const fal_input: any = {
+    const fal_input: FalAudioInput = {
       prompt: validated.text
     }
 
@@ -221,7 +242,10 @@ export async function POST(req: NextRequest) {
           input: fal_input
         })
 
-        if (!(result as any).url) {
+        const audioResult = result as FalAudioResult
+        const audioUrl = audioResult.url || audioResult.data?.url
+        
+        if (!audioUrl) {
           throw new Error('No audio URL in response')
         }
 
@@ -230,7 +254,7 @@ export async function POST(req: NextRequest) {
           .from('audio_jobs')
           .update({
             status: 'completed',
-            audio_url: (result as any).url,
+            audio_url: audioUrl,
             completed_at: new Date().toISOString()
           })
           .eq('id', job.id)
@@ -238,7 +262,7 @@ export async function POST(req: NextRequest) {
         return api_success({
           job_id: job.job_id,
           status: 'completed',
-          audio_url: (result as any).url
+          audio_url: audioUrl
         })
       }
     } catch (fal_error) {

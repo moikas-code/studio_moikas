@@ -22,6 +22,27 @@ import {
   calculateTTSCost
 } from "@/app/tools/audio/types"
 
+// Types for fal.ai responses
+interface FalAudioInput {
+  prompt: string
+  voice?: string
+  source_audio_url?: string
+  high_quality_audio?: boolean
+  exaggeration?: number
+  cfg?: number
+  temperature?: number
+  seed?: number
+}
+
+interface FalAudioResult {
+  data?: {
+    url?: string
+  }
+  url?: string
+}
+
+
+
 // Schema validation
 const document_audio_schema = z.object({
   chunks: z.array(z.object({
@@ -199,7 +220,7 @@ export async function POST(req: NextRequest) {
           chunk_jobs.push(chunk_job)
 
           // Prepare fal.ai input
-          const fal_input: any = {
+          const fal_input: FalAudioInput = {
             prompt: chunk.text
           }
 
@@ -253,11 +274,14 @@ export async function POST(req: NextRequest) {
               input: fal_input
             })
 
+            const audioResult = result as FalAudioResult
+            const audioUrl = audioResult.url || audioResult.data?.url
+
             await service_supabase
               .from('audio_jobs')
               .update({
                 status: 'completed',
-                audio_url: (result as any).url,
+                audio_url: audioUrl,
                 completed_at: new Date().toISOString()
               })
               .eq('id', chunk_job.id)
@@ -265,7 +289,7 @@ export async function POST(req: NextRequest) {
             chunk_results.push({
               chunk_index: chunk.index,
               job_id: chunk_job_id,
-              audio_url: (result as any).url
+              audio_url: audioUrl
             })
           }
         }
