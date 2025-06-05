@@ -11,7 +11,7 @@ interface AudioJob {
   error?: string
   created_at: string
   completed_at?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface UseJobPollingOptions {
@@ -20,7 +20,7 @@ interface UseJobPollingOptions {
   onProgress?: (progress: number) => void
 }
 
-export function use_job_polling(options: UseJobPollingOptions = {}) {
+export function useJobPolling(options: UseJobPollingOptions = {}) {
   const [current_job, set_current_job] = useState<AudioJob | null>(null)
   const [is_polling, set_is_polling] = useState(false)
   const polling_ref = useRef<NodeJS.Timeout | null>(null)
@@ -153,7 +153,7 @@ export function use_job_polling(options: UseJobPollingOptions = {}) {
     if (stored_job_id && !is_polling) {
       start_polling(stored_job_id)
     }
-  }, []) // Only run on mount
+  }, [is_polling, start_polling]) // Add dependencies
 
   return {
     current_job,

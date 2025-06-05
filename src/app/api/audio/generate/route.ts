@@ -19,7 +19,6 @@ import {
 import { z } from "zod"
 import { 
   TTS_LIMITS, 
-  TTS_MIN_CHARGE_CHARACTERS,
   calculateTTSCost
 } from "@/app/tools/audio/types"
 
@@ -155,7 +154,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 9. Prepare fal.ai request
-    const fal_input: Record<string, any> = {
+    const fal_input: Record<string, unknown> = {
       text: validated.text
     }
 

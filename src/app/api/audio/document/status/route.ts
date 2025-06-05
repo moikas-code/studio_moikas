@@ -49,8 +49,14 @@ export async function GET(req: NextRequest) {
     }
 
     // 5. Get chunk jobs if they exist
-    const chunk_job_ids = parent_job.metadata?.chunk_jobs?.map((c: any) => c.job_id) || []
-    let chunks_data: any[] = []
+    const chunk_job_ids = parent_job.metadata?.chunk_jobs?.map((c: { job_id: string }) => c.job_id) || []
+    let chunks_data: Array<{
+      job_id: string
+      status: string
+      audio_url?: string
+      progress?: number
+      metadata?: { chunk_index?: number }
+    }> = []
     
     if (chunk_job_ids.length > 0) {
       const { data: chunks } = await supabase

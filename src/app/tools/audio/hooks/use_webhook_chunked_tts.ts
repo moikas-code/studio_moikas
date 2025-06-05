@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
 import { TTSParams } from '../types'
-import { use_job_polling } from './use_job_polling'
+import { useJobPolling } from './use_job_polling'
 
 export interface ChunkedTTSResult {
   job_id: string
@@ -19,7 +19,7 @@ export interface ChunkedTTSResult {
   overall_progress: number
 }
 
-export function use_webhook_chunked_tts() {
+export function useWebhookChunkedTts() {
   const [is_generating, set_is_generating] = useState(false)
   const [error_message, set_error_message] = useState<string | null>(null)
   const [generated_audio, set_generated_audio] = useState<ChunkedTTSResult | null>(null)
@@ -27,22 +27,21 @@ export function use_webhook_chunked_tts() {
 
   // Job polling hook
   const {
-    current_job,
     is_polling,
     start_polling,
     stop_polling
-  } = use_job_polling({
-    onComplete: (audio_url) => {
+  } = useJobPolling({
+    onComplete: (audio_url: string) => {
       // This is called when a single job completes
       // For documents, we need to check all chunks
       check_document_status()
     },
-    onError: (error) => {
+    onError: (error: string) => {
       set_error_message(error)
       toast.error(error)
       set_is_generating(false)
     },
-    onProgress: (progress) => {
+    onProgress: (progress: number) => {
       // Update UI progress if needed
     }
   })
@@ -131,7 +130,7 @@ export function use_webhook_chunked_tts() {
 
       // Update generated audio with chunk statuses
       const updated_chunks = generated_audio.chunks.map((chunk, index) => {
-        const chunk_status = status.chunks.find((c: any) => c.chunk_index === index)
+        const chunk_status = status.chunks.find((c: { chunk_index: number; status: string; audio_url?: string }) => c.chunk_index === index)
         if (chunk_status) {
           return {
             ...chunk,

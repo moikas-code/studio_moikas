@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
           chunk_jobs.push(chunk_job)
 
           // Prepare fal.ai input
-          const fal_input: Record<string, any> = {
+          const fal_input: Record<string, unknown> = {
             text: chunk.text
           }
 
