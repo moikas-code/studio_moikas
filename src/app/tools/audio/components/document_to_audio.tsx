@@ -82,11 +82,7 @@ export function DocumentToAudio() {
   
   // Calculate cost for the full text (all chunks)
   const text_length = extracted_text.length
-  const plan_type = plan === 'standard' ? 'standard' : 'free'
-  const estimated_cost = calculateTTSCost(text_length, {
-    isVoiceClone: !!voice_clone_url,
-    planType: plan_type
-  }) // Full cost for all chunks
+  const estimated_cost = calculateTTSCost(text_length, plan) // Full cost for all chunks
   const num_chunks = Math.ceil(text_length / 675) // 675 character chunks
   const can_generate = text_length > 0 && 
                       (mp_tokens ?? 0) >= estimated_cost &&
@@ -158,11 +154,6 @@ export function DocumentToAudio() {
                   {text_length < TTS_MIN_CHARGE_CHARACTERS && (
                     <div className="text-xs text-base-content/50">
                       Minimum charge: {TTS_MIN_CHARGE_CHARACTERS} characters
-                    </div>
-                  )}
-                  {voice_clone_url && (
-                    <div className="text-xs text-warning mt-1">
-                      Voice cloning upcharge: {plan_type === 'standard' ? '1.3x' : '1.6x'}
                     </div>
                   )}
                 </div>

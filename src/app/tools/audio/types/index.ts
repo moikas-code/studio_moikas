@@ -51,30 +51,23 @@ export const TTS_LIMITS = {
   max_seed: 2147483647
 }
 
-// Cost calculation: $0.016 per 250 characters (includes 1.6x markup)
-// 1 MP = $0.001
-// $0.016 = 16 MP for 250 characters
-// Charges are rounded up to the nearest 250 character increment
-export const TTS_MP_COST_PER_CHARACTER = 0.04
-export const TTS_MIN_CHARGE_CHARACTERS = 250
-export const TTS_MIN_CHARGE_MP = 16 // $0.016 in MP (includes 1.6x markup)
-export const TTS_MARKUP_MULTIPLIER = 1.6
-export const TTS_VOICE_CLONE_MARKUP = {
-  standard: 1.3,
-  free: 1.6
-}
+import { get_pricing_multiplier } from '@/lib/pricing_config'
 
-// Helper function to calculate actual cost with minimum charge and markup
-export function calculateTTSCost(characterCount: number, options?: { isVoiceClone?: boolean; planType?: 'standard' | 'free' }): number {
+// Base cost calculation: $0.01 per 250 characters (before markup)
+// 1 MP = $0.001
+// Base cost: 10 MP for 250 characters
+// Final cost depends on user plan (1.3x for standard, 1.6x for free)
+export const TTS_BASE_MP_PER_CHARACTER = 0.04 // Base cost without markup
+export const TTS_MIN_CHARGE_CHARACTERS = 250
+export const TTS_MIN_CHARGE_MP_BASE = 10 // Base MP cost without markup
+
+// Helper function to calculate actual cost with minimum charge and plan-based markup
+export function calculateTTSCost(characterCount: number, planType?: string | null): number {
   // Round up to nearest 250 character increment
   const chargeableCharacters = Math.ceil(characterCount / TTS_MIN_CHARGE_CHARACTERS) * TTS_MIN_CHARGE_CHARACTERS
-  const baseCost = chargeableCharacters * TTS_MP_COST_PER_CHARACTER
+  const baseCost = chargeableCharacters * TTS_BASE_MP_PER_CHARACTER
   
-  // Use voice clone markup if applicable, otherwise standard markup
-  let markup = TTS_MARKUP_MULTIPLIER
-  if (options?.isVoiceClone) {
-    markup = options.planType === 'standard' ? TTS_VOICE_CLONE_MARKUP.standard : TTS_VOICE_CLONE_MARKUP.free
-  }
-  
-  return Math.ceil(baseCost * markup)
+  // Apply plan-based multiplier
+  const multiplier = get_pricing_multiplier(planType || null)
+  return Math.ceil(baseCost * multiplier)
 }

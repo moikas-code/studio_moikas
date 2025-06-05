@@ -46,7 +46,7 @@ export async function GET() {
       .from("subscriptions")
       .insert({
         user_id: new_user.id,
-        plan_type: "free",
+        plan: "free",
         tokens_renewable: 125,
         tokens_permanent: 0,
         renewed_at: new Date().toISOString()

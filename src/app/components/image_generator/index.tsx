@@ -14,6 +14,7 @@ import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster } from 'react-hot-toast'
 import { Settings } from 'lucide-react'
 import { FREE_IMAGE_MODELS, PREMIUM_IMAGE_MODELS } from '@/lib/ai_models'
+import { calculate_final_cost } from '@/lib/pricing_config'
 
 interface ImageGeneratorProps {
   available_mp: number
@@ -21,8 +22,11 @@ interface ImageGeneratorProps {
   user_plan?: string
 }
 
-// Convert dollar cost to MP (1 MP = $0.001) with 1.6x markup
-const cost_to_mp = (cost: number) => Math.ceil((cost * 1.6) / 0.001)
+// Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
+const cost_to_mp = (cost: number, plan: string) => {
+  const base_mp_cost = cost / 0.001
+  return calculate_final_cost(base_mp_cost, plan)
+}
 
 // Get models based on user plan
 const get_available_models = (plan: string = 'free') => {
@@ -32,7 +36,7 @@ const get_available_models = (plan: string = 'free') => {
     .map(model => ({
       id: model.value,
       name: model.name,
-      cost: cost_to_mp(model.custom_cost)
+      cost: cost_to_mp(model.custom_cost, plan)
     }))
 }
 

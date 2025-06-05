@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost, video_model_to_legacy_model } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import { MoreVertical } from "lucide-react";
 import CostDisplay from "../../components/CostDisplay";
 import Compact_token_display from "@/app/components/CompactTokenDisplay";
+import { MpContext } from "@/app/context/mp_context";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9", sliderValue: 0 },
@@ -13,6 +14,7 @@ const ASPECT_OPTIONS = [
 ];
 
 export default function Video_effects_page() {
+  const { plan } = useContext(MpContext);
   const [prompt, set_prompt] = useState("");
   const [image_file, set_image_file] = useState<File | null>(null);
   const [aspect, set_aspect] = useState("1:1");
@@ -670,7 +672,7 @@ export default function Video_effects_page() {
                     <option value={10}>10 seconds</option>
                   </select>
                   <div className="mt-auto">
-                    <CostDisplay model={selected_model} />
+                    <CostDisplay model={selected_model} planType={plan} />
                   </div>
                 </div>
               </div>

@@ -48,11 +48,7 @@ export default function AudioPage() {
   
   // Calculate cost
   const text_length = text_input.length
-  const plan_type = plan === 'standard' ? 'standard' : 'free'
-  const estimated_cost = calculateTTSCost(text_length, {
-    isVoiceClone: !!voice_clone_url,
-    planType: plan_type
-  })
+  const estimated_cost = calculateTTSCost(text_length, plan)
   const can_generate = text_length > 0 && 
                       text_length <= TTS_LIMITS.max_text_length && 
                       (mp_tokens ?? 0) >= estimated_cost &&
@@ -155,13 +151,10 @@ export default function AudioPage() {
                 <div className="alert alert-info mt-4">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   <div>
-                    <p className="font-semibold text-sm">Pricing: $0.016 per 250 characters</p>
+                    <p className="font-semibold text-sm">
+                      Pricing: {plan === 'standard' ? '$0.013' : '$0.016'} per 250 characters ({plan === 'standard' ? 'Standard' : 'Free'} plan)
+                    </p>
                     <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
-                    {voice_clone_url && (
-                      <p className="text-xs mt-1 text-warning">
-                        Voice cloning upcharge: {plan_type === 'standard' ? '1.3x' : '1.6x'} ({plan_type} plan)
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>

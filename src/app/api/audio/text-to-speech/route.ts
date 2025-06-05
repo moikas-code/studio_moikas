@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Check token balance and plan type
     const { data: subscription, error: subError } = await supabase
       .from('subscriptions')
-      .select('renewable_tokens, permanent_tokens, plan_type')
+      .select('renewable_tokens, permanent_tokens, plan')
       .eq('user_id', userData.id)
       .single()
 
@@ -65,14 +65,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    // Calculate MP cost based on plan type and whether voice cloning is used
+    // Calculate MP cost based on plan type
     const text_length = params.text.length
-    const is_voice_clone = !!params.source_audio_url
-    const plan_type = subscription.plan_type as 'standard' | 'free'
-    const mp_cost = calculateTTSCost(text_length, { 
-      isVoiceClone: is_voice_clone, 
-      planType: plan_type 
-    })
+    const mp_cost = calculateTTSCost(text_length, subscription.plan)
 
     const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
     if (total_tokens < mp_cost) {
