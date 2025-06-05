@@ -43,6 +43,32 @@ interface FalAudioResult {
   url?: string
 }
 
+// Type for audio job from database
+interface AudioJob {
+  id: string
+  user_id: string
+  job_id: string
+  fal_request_id?: string
+  status: string
+  type: string
+  text?: string
+  voice?: string
+  source_audio_url?: string
+  high_quality_audio?: boolean
+  exaggeration?: number
+  cfg?: number
+  temperature?: number
+  seed?: number
+  audio_url?: string
+  error?: string
+  progress?: number
+  cost?: number
+  metadata?: Record<string, any>
+  created_at: string
+  updated_at: string
+  completed_at?: string
+}
+
 
 
 // Schema validation
@@ -76,9 +102,9 @@ const DOCUMENT_LIMITS = {
 
 export async function POST(req: NextRequest) {
   // Initialize variables for error handling
-  let parent_job: any = null
+  let parent_job: AudioJob | null = null
   let total_cost = 0
-  let user: any = null
+  let user: Awaited<ReturnType<typeof require_auth>> | null = null
   const service_supabase = get_service_role_client()
   
   try {
