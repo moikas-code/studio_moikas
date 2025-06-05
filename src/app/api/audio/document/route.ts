@@ -75,9 +75,15 @@ const DOCUMENT_LIMITS = {
 }
 
 export async function POST(req: NextRequest) {
+  // Initialize variables for error handling
+  let parent_job: any = null
+  let total_cost = 0
+  let user: any = null
+  const service_supabase = get_service_role_client()
+  
   try {
     // 1. Authenticate user
-    const user = await require_auth()
+    user = await require_auth()
     
     // 2. Get user subscription
     const subscription = await get_user_subscription(user.user_id)
@@ -112,7 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 6. Calculate total cost for all chunks
-    const total_cost = calculateTTSCost(total_text_length, plan)
+    total_cost = calculateTTSCost(total_text_length, plan)
     
     // 7. Check token balance
     if (total_tokens < total_cost) {
@@ -120,9 +126,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 8. Deduct tokens using stored function
-    const service_supabase = get_service_role_client()
     const { error: deduct_error } = await service_supabase
-      .rpc('simple_deduct_tokens', {
+      .rpc('deduct_tokens', {
         p_user_id: user.user_id,
         p_amount: total_cost,
         p_description: `Document-to-audio: ${validated.chunks.length} chunks, ${total_text_length} characters`
@@ -165,7 +170,7 @@ export async function POST(req: NextRequest) {
     if (parent_job_error || !parent_job) {
       console.error('Job creation error:', parent_job_error)
       // Refund tokens
-      await service_supabase.rpc('simple_deduct_tokens', {
+      await service_supabase.rpc('deduct_tokens', {
         p_user_id: user.user_id,
         p_amount: -total_cost,
         p_description: 'Refund: Failed to create document audio job'
@@ -183,12 +188,15 @@ export async function POST(req: NextRequest) {
       ? `https://${base_url.replace(/^https?:\/\//, '')}/api/webhooks/fal-ai`
       : undefined
 
-    // 11. Process chunks
+    // 11. Process chunks with error recovery
     const chunk_jobs = []
     const chunk_results = []
+    const failed_chunks = []
+    let processed_chunks = 0
 
-    try {
-      for (const chunk of validated.chunks) {
+    // Process all chunks, collecting failures instead of stopping
+    for (const chunk of validated.chunks) {
+      try {
         // Create chunk job
         const chunk_job_id = `audio_chunk_${parent_job_id}_${chunk.index}`
         
@@ -216,126 +224,214 @@ export async function POST(req: NextRequest) {
           .select()
           .single()
 
-        if (chunk_job) {
-          chunk_jobs.push(chunk_job)
+        if (!chunk_job) {
+          throw new Error(`Failed to create chunk job for index ${chunk.index}`)
+        }
 
-          // Prepare fal.ai input
-          const fal_input: FalAudioInput = {
-            prompt: chunk.text
-          }
+        chunk_jobs.push(chunk_job)
 
-          if (validated.voice && !validated.source_audio_url) {
-            fal_input.voice = validated.voice
-          }
-          if (validated.source_audio_url) {
-            fal_input.source_audio_url = validated.source_audio_url
-          }
-          if (validated.high_quality_audio !== undefined) {
-            fal_input.high_quality_audio = validated.high_quality_audio
-          }
-          if (validated.exaggeration !== undefined) {
-            fal_input.exaggeration = validated.exaggeration
-          }
-          if (validated.cfg !== undefined) {
-            fal_input.cfg = validated.cfg
-          }
-          if (validated.temperature !== undefined) {
-            fal_input.temperature = validated.temperature
-          }
-          if (validated.seed !== undefined) {
-            fal_input.seed = validated.seed
-          }
+        // Prepare fal.ai input
+        const fal_input: FalAudioInput = {
+          prompt: chunk.text
+        }
 
-          // Call fal.ai with webhook
-          if (webhook_url) {
-            const result = await fal.subscribe("fal-ai/stable-audio", {
-              input: fal_input,
-              webhookUrl: webhook_url,
-              logs: true
+        if (validated.voice && !validated.source_audio_url) {
+          fal_input.voice = validated.voice
+        }
+        if (validated.source_audio_url) {
+          fal_input.source_audio_url = validated.source_audio_url
+        }
+        if (validated.high_quality_audio !== undefined) {
+          fal_input.high_quality_audio = validated.high_quality_audio
+        }
+        if (validated.exaggeration !== undefined) {
+          fal_input.exaggeration = validated.exaggeration
+        }
+        if (validated.cfg !== undefined) {
+          fal_input.cfg = validated.cfg
+        }
+        if (validated.temperature !== undefined) {
+          fal_input.temperature = validated.temperature
+        }
+        if (validated.seed !== undefined) {
+          fal_input.seed = validated.seed
+        }
+
+        // Call fal.ai with webhook
+        if (webhook_url) {
+          const result = await fal.subscribe("fal-ai/stable-audio", {
+            input: fal_input,
+            webhookUrl: webhook_url,
+            logs: true
+          })
+
+          // Update chunk job with fal request ID
+          await service_supabase
+            .from('audio_jobs')
+            .update({
+              fal_request_id: result.requestId,
+              status: 'processing'
             })
+            .eq('id', chunk_job.id)
 
-            // Update chunk job with fal request ID
-            await service_supabase
-              .from('audio_jobs')
-              .update({
-                fal_request_id: result.requestId,
-                status: 'processing'
-              })
-              .eq('id', chunk_job.id)
+          chunk_results.push({
+            chunk_index: chunk.index,
+            job_id: chunk_job_id,
+            request_id: result.requestId
+          })
+        } else {
+          // Sync fallback (not recommended for documents)
+          const result = await fal.run("fal-ai/stable-audio", {
+            input: fal_input
+          })
 
-            chunk_results.push({
-              chunk_index: chunk.index,
-              job_id: chunk_job_id,
-              request_id: result.requestId
+          const audioResult = result as FalAudioResult
+          const audioUrl = audioResult.url || audioResult.data?.url
+
+          await service_supabase
+            .from('audio_jobs')
+            .update({
+              status: 'completed',
+              audio_url: audioUrl,
+              completed_at: new Date().toISOString()
             })
-          } else {
-            // Sync fallback (not recommended for documents)
-            const result = await fal.run("fal-ai/stable-audio", {
-              input: fal_input
+            .eq('id', chunk_job.id)
+
+          chunk_results.push({
+            chunk_index: chunk.index,
+            job_id: chunk_job_id,
+            audio_url: audioUrl
+          })
+        }
+        
+        processed_chunks++
+      } catch (chunk_error) {
+        console.error(`Failed to process chunk ${chunk.index}:`, chunk_error)
+        failed_chunks.push({
+          chunk_index: chunk.index,
+          error: chunk_error instanceof Error ? chunk_error.message : 'Unknown error'
+        })
+        
+        // Mark chunk job as failed if it was created
+        if (chunk_jobs.length > 0) {
+          const last_job = chunk_jobs[chunk_jobs.length - 1]
+          await service_supabase
+            .from('audio_jobs')
+            .update({
+              status: 'failed',
+              error: chunk_error instanceof Error ? chunk_error.message : 'Unknown error',
+              completed_at: new Date().toISOString()
             })
-
-            const audioResult = result as FalAudioResult
-            const audioUrl = audioResult.url || audioResult.data?.url
-
-            await service_supabase
-              .from('audio_jobs')
-              .update({
-                status: 'completed',
-                audio_url: audioUrl,
-                completed_at: new Date().toISOString()
-              })
-              .eq('id', chunk_job.id)
-
-            chunk_results.push({
-              chunk_index: chunk.index,
-              job_id: chunk_job_id,
-              audio_url: audioUrl
-            })
-          }
+            .eq('id', last_job.id)
         }
       }
+    }
 
-      // Update parent job with chunk job IDs
+    // After processing all chunks, determine overall status
+    const all_failed = processed_chunks === 0 && failed_chunks.length === validated.chunks.length
+    const partial_success = processed_chunks > 0 && failed_chunks.length > 0
+    
+    // Update parent job with results
+    try {
+      const parent_status = all_failed ? 'failed' : 'processing'
+      const update_data: Record<string, unknown> = {
+        status: parent_status,
+        metadata: {
+          ...parent_job.metadata,
+          chunk_jobs: chunk_results,
+          failed_chunks: failed_chunks,
+          processed_chunks: processed_chunks,
+          total_chunks: validated.chunks.length
+        }
+      }
+      
+      if (all_failed) {
+        update_data.error = 'All chunks failed to process'
+        update_data.completed_at = new Date().toISOString()
+      }
+
       await service_supabase
         .from('audio_jobs')
-        .update({
-          metadata: {
-            ...parent_job.metadata,
-            chunk_jobs: chunk_results
-          }
-        })
+        .update(update_data)
         .eq('id', parent_job.id)
+    } catch (update_error) {
+      console.error('Failed to update parent job:', update_error)
+    }
 
+    // Handle different failure scenarios
+    if (all_failed) {
+      // All chunks failed - full refund
+      await service_supabase.rpc('deduct_tokens', {
+        p_user_id: user.user_id,
+        p_amount: -total_cost,
+        p_description: 'Refund: All document chunks failed to process'
+      })
+      
+      return api_error('Failed to process any chunks', 500)
+    }
+    
+    if (partial_success) {
+      // Some chunks failed - partial refund
+      const failed_cost = failed_chunks.reduce((sum, failed) => {
+        const chunk_text = validated.chunks.find(c => c.index === failed.chunk_index)?.text || ''
+        return sum + calculateTTSCost(chunk_text.length, plan)
+      }, 0)
+      
+      if (failed_cost > 0) {
+        await service_supabase.rpc('deduct_tokens', {
+          p_user_id: user.user_id,
+          p_amount: -failed_cost,
+          p_description: `Refund: ${failed_chunks.length} document chunks failed`
+        })
+      }
+      
       return api_success({
         job_id: parent_job_id,
         status: 'processing',
+        processed_chunks: processed_chunks,
+        failed_chunks: failed_chunks.length,
         total_chunks: validated.chunks.length,
-        message: 'Document audio generation started. Check status for updates.'
+        message: `Document processing started. ${failed_chunks.length} chunks failed and will not be processed.`
       })
-
-    } catch (error) {
-      console.error('Chunk processing error:', error)
-      
-      // Update parent job as failed
-      await service_supabase
-        .from('audio_jobs')
-        .update({
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', parent_job.id)
-
-      // Refund tokens
-      await service_supabase.rpc('simple_deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: -total_cost,
-        p_description: 'Refund: Document audio generation failed'
-      })
-
-      throw error
     }
+    
+    // All chunks submitted successfully
+    return api_success({
+      job_id: parent_job_id,
+      status: 'processing',
+      total_chunks: validated.chunks.length,
+      message: 'Document audio generation started. Check status for updates.'
+    })
+
   } catch (error) {
+    // This catch handles failures before chunk processing starts
+    console.error('Document processing error:', error)
+    
+    // If parent job was created, update it as failed
+    if (parent_job) {
+      try {
+        await service_supabase
+          .from('audio_jobs')
+          .update({
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', parent_job.id)
+
+        // Refund tokens if user is available
+        if (user?.user_id) {
+          await service_supabase.rpc('deduct_tokens', {
+            p_user_id: user.user_id,
+            p_amount: -total_cost,
+            p_description: 'Refund: Document audio generation failed'
+          })
+        }
+      } catch (cleanup_error) {
+        console.error('Failed to cleanup after error:', cleanup_error)
+      }
+    }
+
     return handle_api_error(error)
   }
 }

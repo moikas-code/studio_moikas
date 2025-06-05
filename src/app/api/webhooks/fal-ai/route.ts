@@ -300,8 +300,8 @@ export async function POST(req: NextRequest) {
       
       // Refund tokens
       if (job.user_id && job.cost) {
-        // Use simple_deduct_tokens for refund
-        await supabase.rpc('simple_deduct_tokens', {
+        // Use deduct_tokens for refund
+        await supabase.rpc('deduct_tokens', {
           p_user_id: job.user_id,
           p_amount: -job.cost, // negative for refund
           p_description: `${job_type === 'video' ? 'Video' : 'Audio'} generation refund: ${validated.error || 'generation failed'}`

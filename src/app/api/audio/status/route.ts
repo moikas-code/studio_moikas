@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
-import { auth } from "@clerk/nextjs/server"
 import { get_anon_client } from "@/lib/utils/database/supabase"
+import { require_auth } from "@/lib/utils/api/auth"
 import { 
   api_error, 
   api_success, 
@@ -10,10 +10,7 @@ import {
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
-    const { userId: clerk_id } = await auth()
-    if (!clerk_id) {
-      return api_error('Unauthorized', 401)
-    }
+    const user = await require_auth()
 
     // 2. Get job_id from query params
     const { searchParams } = new URL(req.url)
@@ -23,24 +20,15 @@ export async function GET(req: NextRequest) {
       return api_error('Missing job_id parameter', 400)
     }
 
-    // 3. Get user ID
+    // 3. Get job from database
     const supabase = get_anon_client()
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerk_id)
-      .single()
-
-    if (!user) {
-      return api_error('User not found', 404)
-    }
 
     // 4. Get job status (RLS ensures user can only see their own jobs)
     const { data: job, error } = await supabase
       .from('audio_jobs')
       .select('*')
       .eq('job_id', job_id)
-      .eq('user_id', user.id)
+      .eq('user_id', user.user_id)
       .single()
 
     if (error || !job) {
