@@ -33,7 +33,7 @@ export default function AudioPage() {
   const [exaggeration, set_exaggeration] = useState(TTS_LIMITS.default_exaggeration)
   const [cfg, set_cfg] = useState(TTS_LIMITS.default_cfg)
   const [temperature, set_temperature] = useState(TTS_LIMITS.default_temperature)
-  const [high_quality, set_high_quality] = useState(false)
+  const [high_quality, set_high_quality] = useState(true)
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
