@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
     // 9. Create parent job record
     const parent_job_id = `audio_doc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
     
-    const { data: parent_job, error: parent_job_error } = await service_supabase
+    const { data: parent_job_data, error: parent_job_error } = await service_supabase
       .from('audio_jobs')
       .insert({
         user_id: user.user_id,
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (parent_job_error || !parent_job) {
+    if (parent_job_error || !parent_job_data) {
       console.error('Job creation error:', parent_job_error)
       // Refund tokens
       await service_supabase.rpc('deduct_tokens', {
@@ -203,6 +203,8 @@ export async function POST(req: NextRequest) {
       })
       return api_error('Failed to create job', 500)
     }
+    
+    parent_job = parent_job_data
 
     // 10. Get webhook URL
     const base_url = process.env.VERCEL_URL 
