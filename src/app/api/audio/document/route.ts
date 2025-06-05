@@ -2,8 +2,8 @@ import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
 import { fal } from "@/lib/fal_client"
 import { 
-  get_service_role_client, 
-  get_supabase_client 
+  get_service_role_client,
+  get_anon_client
 } from "@/lib/utils/database/supabase"
 import { 
   api_error, 
@@ -11,7 +11,7 @@ import {
   handle_api_error 
 } from "@/lib/utils/api/response"
 import { 
-  create_rate_limiter 
+  apply_rate_limit
 } from "@/lib/utils/api/rate_limiter"
 import { 
   validate_request 
@@ -37,11 +37,12 @@ const document_audio_schema = z.object({
   seed: z.number().min(0).max(TTS_LIMITS.max_seed).optional()
 })
 
-// Rate limiter for document processing (more restrictive)
-const rate_limiter = create_rate_limiter({
-  interval: 60 * 1000, // 1 minute
-  max_requests: 5 // Limit document processing
-})
+// Rate limiter config for document processing (more restrictive)
+const document_rate_limit = {
+  requests: 5,
+  window_seconds: 60,
+  key_prefix: 'rl:audio:doc'
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Get user data
-    const supabase = get_supabase_client()
+    const supabase = get_anon_client()
     const { data: user_data } = await supabase
       .from('users')
       .select(`
@@ -71,15 +72,17 @@ export async function POST(req: NextRequest) {
     }
 
     const user_id = user_data.id
-    const { plan, renewable_tokens, permanent_tokens } = user_data.subscriptions
+    const subscription = user_data.subscriptions[0]
+    if (!subscription) {
+      return api_error('No subscription found', 404)
+    }
+    const { plan, renewable_tokens, permanent_tokens } = subscription
     const total_tokens = renewable_tokens + permanent_tokens
 
     // 3. Apply rate limiting
-    const rate_limit_result = await rate_limiter(clerk_id)
-    if (!rate_limit_result.success) {
-      return api_error('Too many requests', 429, {
-        retry_after: rate_limit_result.reset
-      })
+    const rate_limit_result = await apply_rate_limit(clerk_id, document_rate_limit)
+    if (!rate_limit_result.allowed) {
+      return api_error('Too many requests', 429)
     }
 
     // 4. Validate request
@@ -92,10 +95,7 @@ export async function POST(req: NextRequest) {
     
     // 6. Check token balance
     if (total_tokens < total_cost) {
-      return api_error('Insufficient tokens', 402, {
-        required: total_cost,
-        available: total_tokens
-      })
+      return api_error('Insufficient tokens', 402)
     }
 
     // 7. Deduct tokens using stored function
@@ -199,8 +199,8 @@ export async function POST(req: NextRequest) {
           chunk_jobs.push(chunk_job)
 
           // Prepare fal.ai input
-          const fal_input: Record<string, unknown> = {
-            text: chunk.text
+          const fal_input: any = {
+            prompt: chunk.text
           }
 
           if (validated.voice && !validated.source_audio_url) {
@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
             await service_supabase
               .from('audio_jobs')
               .update({
-                fal_request_id: result.request_id,
+                fal_request_id: result.requestId,
                 status: 'processing'
               })
               .eq('id', chunk_job.id)
@@ -245,7 +245,7 @@ export async function POST(req: NextRequest) {
             chunk_results.push({
               chunk_index: chunk.index,
               job_id: chunk_job_id,
-              request_id: result.request_id
+              request_id: result.requestId
             })
           } else {
             // Sync fallback (not recommended for documents)
@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
               .from('audio_jobs')
               .update({
                 status: 'completed',
-                audio_url: result.audio_url,
+                audio_url: (result as any).url,
                 completed_at: new Date().toISOString()
               })
               .eq('id', chunk_job.id)
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
             chunk_results.push({
               chunk_index: chunk.index,
               job_id: chunk_job_id,
-              audio_url: result.audio_url
+              audio_url: (result as any).url
             })
           }
         }

@@ -1,5 +1,8 @@
 import { fal } from "@fal-ai/client";
 
+// Export the fal client for use in other modules
+export { fal };
+
 // Configure fal client with API key - but only if we have the key
 // This allows the module to be imported even if FAL_KEY is not set
 if (process.env.FAL_KEY) {

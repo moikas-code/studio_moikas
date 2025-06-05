@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { auth } from "@clerk/nextjs/server"
-import { get_supabase_client } from "@/lib/utils/database/supabase"
+import { get_anon_client } from "@/lib/utils/database/supabase"
 import { 
   api_error, 
   api_success, 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Get user ID
-    const supabase = get_supabase_client()
+    const supabase = get_anon_client()
     const { data: user } = await supabase
       .from('users')
       .select('id')
