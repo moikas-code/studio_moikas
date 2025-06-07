@@ -42,19 +42,36 @@ export async function GET(req: NextRequest) {
     let audio_url = job.audio_url
     let current_status = job.status
     
+    console.log(`Job ${job_id} status check:`, {
+      has_fal_request_id: !!job.fal_request_id,
+      status: job.status,
+      has_audio_url: !!job.audio_url,
+      should_check_fal: job.fal_request_id && (job.status !== 'completed' || !job.audio_url)
+    })
+    
     if (job.fal_request_id && (job.status !== 'completed' || !job.audio_url)) {
       try {
         console.log('Checking fal status for job:', job_id, 'with request ID:', job.fal_request_id)
         
-        // First check the status
-        const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
-          requestId: job.fal_request_id
-        })
-        console.log('Fal status response:', JSON.stringify(fal_status, null, 2))
+        // For completed jobs with no audio URL, skip status check and go directly to result
+        let fal_status: { status: string; result?: unknown } = { status: 'UNKNOWN' }
+        
+        if (job.status === 'completed' && !job.audio_url) {
+          console.log(`Job ${job_id} is marked completed but has no audio URL - skipping status check`)
+          fal_status = { status: 'COMPLETED' }
+        } else {
+          // First check the status
+          const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+            requestId: job.fal_request_id
+          })
+          fal_status = status_response as { status: string; result?: unknown }
+          console.log('Fal status response:', JSON.stringify(fal_status, null, 2))
+        }
         
         // If completed, try to get the actual result
         let fal_result = null
-        if (fal_status.status === 'COMPLETED') {
+        if (fal_status.status === 'COMPLETED' || (job.status === 'completed' && !job.audio_url)) {
+          console.log(`Job ${job_id} is completed but may need audio URL - fetching result from fal.ai`)
           try {
             // Try to get the result directly
             fal_result = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
