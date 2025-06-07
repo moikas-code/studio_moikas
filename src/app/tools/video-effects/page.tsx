@@ -6,6 +6,7 @@ import { MoreVertical } from "lucide-react";
 import CostDisplay from "../../components/CostDisplay";
 import Compact_token_display from "@/app/components/CompactTokenDisplay";
 import { MpContext } from "@/app/context/mp_context";
+import VideoJobHistory from "./components/video_job_history";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9", sliderValue: 0 },
@@ -382,6 +383,20 @@ export default function Video_effects_page() {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="w-full min-h-full flex flex-col items-center justify-start bg-base-100 p-8 relative">
+          {/* Video Job History */}
+          <div className="w-full max-w-2xl mx-auto">
+            <VideoJobHistory 
+              on_job_select={(job) => {
+                if (job.video_url) {
+                  set_video_url(job.video_url);
+                  set_job_id(null);
+                  // Optionally set the prompt to the job's prompt
+                  set_prompt(job.prompt);
+                }
+              }}
+            />
+          </div>
+          
           {/* Main input bar */}
           <div className="w-full flex flex-col items-center z-50">
             <div
