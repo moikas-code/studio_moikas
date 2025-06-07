@@ -8,6 +8,30 @@ import {
 import { require_auth } from "@/lib/utils/api/auth"
 import { fal } from "@fal-ai/client"
 
+// Type definitions for fal.ai responses
+interface FalStatusResponse {
+  status: 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  progress?: number
+  logs?: Array<{
+    message: string
+    timestamp?: string
+  }>
+}
+
+interface FalResultResponse {
+  data: {
+    audio: {
+      url?: string
+      content_type?: string
+      file_name?: string
+      file_size?: number
+      file_type?: string
+      file_data?: string
+    }
+    requestId?: string
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
@@ -138,23 +162,24 @@ export async function GET(req: NextRequest) {
             if (chunk.status === 'completed' && !chunk.audio_url) {
               console.log(`Chunk ${chunk.job_id} is marked completed but has no audio URL - fetching result directly`)
               try {
-                fal_result = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
+                const { data: result_response } = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
                   requestId: chunk.fal_request_id!
-                })
+                }) as FalResultResponse
+                fal_result = result_response
                 console.log(`Direct fal result for chunk ${chunk.job_id}:`, JSON.stringify(fal_result, null, 2))
               } catch (result_error) {
                 console.error(`Failed to get direct fal result for chunk ${chunk.job_id}:`, result_error)
                 // If direct result fails, try status check
                 const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
                   requestId: chunk.fal_request_id!
-                }) as { status: string }
+                }) as FalStatusResponse
                 console.log(`Fal status for chunk ${chunk.job_id}:`, JSON.stringify(status_response, null, 2))
               }
             } else {
               // For non-completed jobs, check status first
               const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
                 requestId: chunk.fal_request_id!
-              }) as { status: string }
+              }) as FalStatusResponse
               console.log(`Fal status for chunk ${chunk.job_id}:`, JSON.stringify(status_response, null, 2))
               
               // Update status based on fal.ai response
@@ -166,9 +191,10 @@ export async function GET(req: NextRequest) {
                 chunk_status = 'completed'
                 // Try to get the result
                 try {
-                  fal_result = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
+                  const { data: result_response } = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
                     requestId: chunk.fal_request_id!
-                  })
+                  }) as FalResultResponse
+                  fal_result = result_response
                   console.log(`Fal result for completed chunk ${chunk.job_id}:`, JSON.stringify(fal_result, null, 2))
                 } catch (result_error) {
                   console.error(`Failed to get fal result for chunk ${chunk.job_id}:`, result_error)
@@ -190,46 +216,16 @@ export async function GET(req: NextRequest) {
               }
             }
 
-            // Extract audio URL from result if we have one
+            // Extract audio URL from result following the FalResultResponse interface
             if (fal_result) {
               console.log(`Processing fal_result for chunk ${chunk.job_id}`)
               
-              if (typeof fal_result === 'string') {
-                chunk_audio_url = fal_result
-                console.log('Got audio URL from string result:', chunk_audio_url)
-              } else if (typeof fal_result === 'object' && fal_result !== null) {
-                const result_obj = fal_result as Record<string, unknown>
-                
-                // Direct properties
-                if (typeof result_obj.url === 'string') chunk_audio_url = result_obj.url
-                else if (typeof result_obj.audio_url === 'string') chunk_audio_url = result_obj.audio_url
-                else if (typeof result_obj.audio === 'string') chunk_audio_url = result_obj.audio
-                else if (typeof result_obj.audio_file === 'string') chunk_audio_url = result_obj.audio_file
-                
-                // Nested properties
-                if (!chunk_audio_url && result_obj.output && typeof result_obj.output === 'object') {
-                  const output = result_obj.output as Record<string, unknown>
-                  if (typeof output.audio_url === 'string') chunk_audio_url = output.audio_url
-                  else if (typeof output.url === 'string') chunk_audio_url = output.url
-                  else if (typeof output.audio === 'string') chunk_audio_url = output.audio
-                }
-                
-                if (!chunk_audio_url && result_obj.data && typeof result_obj.data === 'object') {
-                  const data = result_obj.data as Record<string, unknown>
-                  if (typeof data.audio_url === 'string') chunk_audio_url = data.audio_url
-                  else if (typeof data.url === 'string') chunk_audio_url = data.url
-                  else if (typeof data.audio === 'string') chunk_audio_url = data.audio
-                }
-                
-                if (!chunk_audio_url && result_obj.outputs && typeof result_obj.outputs === 'object') {
-                  const outputs = result_obj.outputs as Record<string, unknown>
-                  if (typeof outputs.audio_url === 'string') chunk_audio_url = outputs.audio_url
-                  else if (typeof outputs.url === 'string') chunk_audio_url = outputs.url
-                  else if (typeof outputs.audio === 'string') chunk_audio_url = outputs.audio
-                }
-                
-                console.log('Available keys in fal_result:', Object.keys(result_obj))
-                console.log('Extracted audio URL:', chunk_audio_url)
+              // Extract audio URL following the FalResultResponse interface
+              chunk_audio_url = fal_result.audio?.url
+              console.log('Extracted audio URL:', chunk_audio_url)
+              
+              if (!chunk_audio_url) {
+                console.error('No audio URL found in fal.ai result:', fal_result)
               }
 
               // Update the database if we found an audio URL

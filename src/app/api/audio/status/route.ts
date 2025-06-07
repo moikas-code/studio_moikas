@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server"
-import { 
-  get_service_role_client 
+import {
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
-import { 
-  require_auth 
+import {
+  require_auth
 } from "@/lib/utils/api/auth"
-import { 
-  api_success, 
-  api_error, 
-  handle_api_error 
+import {
+  api_success,
+  api_error,
+  handle_api_error
 } from "@/lib/utils/api/response"
 import { fal } from "@fal-ai/client"
 
@@ -27,24 +27,16 @@ interface FalStatusResponse {
 }
 
 interface FalResultResponse {
-  audio_url?: string
-  url?: string
-  audio?: string
-  audio_file?: string
-  output?: {
-    audio_url?: string
-    url?: string
-    audio?: string
-  }
-  data?: {
-    audio_url?: string
-    url?: string
-    audio?: string
-  }
-  outputs?: {
-    audio_url?: string
-    url?: string
-    audio?: string
+  data: {
+    audio: {
+      url?: string
+      content_type?: string
+      file_name?: string
+      file_size?: number
+      file_type?: string
+      file_data?: string
+    }
+    requestId?: string
   }
 }
 
@@ -52,13 +44,13 @@ export async function GET(req: NextRequest) {
   try {
     // 1. Authenticate user
     const user = await require_auth()
-    
+
     // 2. Get job_id from query params
     const job_id = req.nextUrl.searchParams.get("job_id")
     if (!job_id) {
       return api_error("Missing job_id parameter", 400)
     }
-    
+
     // 3. Look up job in database
     const supabase = get_service_role_client()
     const { data: job, error } = await supabase
@@ -67,29 +59,29 @@ export async function GET(req: NextRequest) {
       .eq('job_id', job_id) // Use job_id field, not id
       .eq('user_id', user.user_id) // Ensure user owns this job
       .single()
-    
+
     if (error || !job) {
       return api_error("Job not found", 404)
     }
-    
+
     // 4. If job has fal_request_id and is not completed, check fal.ai status
     let current_status = job.status
     let audio_url = job.audio_url
     let progress = job.progress || 0
     let job_error = job.error
-    
+
     if (job.fal_request_id && job.status !== 'completed' && job.status !== 'failed') {
       try {
         console.log(`Checking fal.ai status for audio job ${job_id} with request ID: ${job.fal_request_id}`)
-        
+
         // First, check the status
         const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
           requestId: job.fal_request_id,
           logs: true
         }) as FalStatusResponse
-        
+
         console.log('Fal status response:', JSON.stringify(status_response, null, 2))
-        
+
         // Map fal.ai status to our status
         if (status_response.status === 'IN_PROGRESS') {
           current_status = 'processing'
@@ -100,35 +92,19 @@ export async function GET(req: NextRequest) {
         } else if (status_response.status === 'COMPLETED') {
           current_status = 'completed'
           progress = 100
-          
+
           // Try to get the result
           try {
-            const result_response = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
+            const { data: result_response } = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
               requestId: job.fal_request_id
             }) as FalResultResponse
+
+                        console.log('Fal result response:', JSON.stringify(result_response, null, 2))
             
-            console.log('Fal result response:', JSON.stringify(result_response, null, 2))
-            
-            // Extract audio URL from various possible locations
-            if (typeof result_response === 'string') {
-              audio_url = result_response
-            } else if (typeof result_response === 'object' && result_response !== null) {
-              audio_url = result_response.audio_url || 
-                         result_response.url || 
-                         result_response.audio ||
-                         result_response.audio_file ||
-                         result_response.output?.audio_url ||
-                         result_response.output?.url ||
-                         result_response.output?.audio ||
-                         result_response.data?.audio_url ||
-                         result_response.data?.url ||
-                         result_response.data?.audio ||
-                         result_response.outputs?.audio_url ||
-                         result_response.outputs?.url ||
-                         result_response.outputs?.audio ||
-                         null
-            }
-                       
+            // Extract audio URL following the FalResultResponse interface
+            audio_url = result_response.audio?.url || null
+            console.log('Extracted audio URL:', audio_url)
+
             if (!audio_url) {
               console.error('No audio URL found in fal.ai result:', result_response)
               current_status = 'failed'
@@ -143,31 +119,31 @@ export async function GET(req: NextRequest) {
           job_error = 'Audio generation failed in fal.ai'
           progress = 0
         }
-        
+
         // Update database if status changed or we got an audio URL
         if (current_status !== job.status || (audio_url && !job.audio_url)) {
           const update_data: Record<string, unknown> = {
             status: current_status,
             progress: progress
           }
-          
+
           if (audio_url && !job.audio_url) {
             update_data.audio_url = audio_url
           }
-          
+
           if (current_status === 'completed' || current_status === 'failed') {
             update_data.completed_at = new Date().toISOString()
           }
-          
+
           if (job_error) {
             update_data.error = job_error
           }
-          
+
           const { error: update_error } = await supabase
             .from('audio_jobs')
             .update(update_data)
             .eq('id', job.id)
-            
+
           if (update_error) {
             console.error('Failed to update job in database:', update_error)
           } else {
@@ -179,7 +155,7 @@ export async function GET(req: NextRequest) {
         // Continue with database values if fal.ai check fails
       }
     }
-    
+
     // 5. Return job status
     return api_success({
       job_id: job.job_id, // Return the string job_id
@@ -195,7 +171,7 @@ export async function GET(req: NextRequest) {
         total_cost: job.cost || job.metadata?.total_cost || 0
       }
     })
-    
+
   } catch (error) {
     return handle_api_error(error)
   }

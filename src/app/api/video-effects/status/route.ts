@@ -27,13 +27,11 @@ interface FalStatusResponse {
 }
 
 interface FalResultResponse {
-  video_url?: string
-  url?: string
-  video?: string
-  output?: {
-    video_url?: string
-    url?: string
-    video?: string
+  data: {
+    video: {
+      url?: string
+    }
+    requestId?: string
   }
 }
 
@@ -92,20 +90,14 @@ export async function GET(req: NextRequest) {
           
           // Try to get the result
           try {
-            const result_response = await fal.queue.result(job.model_id, {
+            const { data: result_response } = await fal.queue.result(job.model_id, {
               requestId: job.fal_request_id
             }) as FalResultResponse
             
             console.log('Fal result response:', JSON.stringify(result_response, null, 2))
             
-            // Extract video URL from various possible locations
-            video_url = result_response.video_url || 
-                       result_response.url || 
-                       result_response.video ||
-                       result_response.output?.video_url ||
-                       result_response.output?.url ||
-                       result_response.output?.video ||
-                       null
+            // Extract video URL
+            video_url = result_response.video?.url || null
                        
             if (!video_url) {
               console.error('No video URL found in fal.ai result:', result_response)
