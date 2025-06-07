@@ -1,4 +1,3 @@
-import { NextRequest } from "next/server"
 import { 
   get_service_role_client 
 } from "@/lib/utils/database/supabase"
