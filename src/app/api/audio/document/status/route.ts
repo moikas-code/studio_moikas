@@ -102,18 +102,6 @@ export async function GET(req: NextRequest) {
         fal_request_id: c.fal_request_id
       })))
     }
-    // Check fal status
-    // console.log(fal_status)
-    // // TODO: Update parent job status based on fal status
-    // if (fal_status.status === 'IN_PROGRESS') {
-    //   parent_job.status = 'processing'
-    // } else if (fal_status.status === 'IN_QUEUE') {
-    //   parent_job.status = 'pending'
-    // }
-    //  //IF FAL IS COMPLETED, UPDATE PARENT JOB STATUS TO COMPLETED
-    //  if (fal_status.status === 'COMPLETED') {
-    //   parent_job.status = 'completed'
-    //  }
 
     // 5. Calculate overall progress and status
     let overall_status = parent_job.status
@@ -136,6 +124,19 @@ export async function GET(req: NextRequest) {
             const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
               requestId: chunk.fal_request_id
             })
+            
+            // If completed, try to get the actual result
+            let fal_result = null
+            if (fal_status.status === 'COMPLETED') {
+              try {
+                fal_result = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
+                  requestId: chunk.fal_request_id
+                })
+                console.log(`Fal result for chunk ${chunk.job_id}:`, JSON.stringify(fal_result, null, 2))
+              } catch (result_error) {
+                console.error(`Failed to get fal result for chunk ${chunk.job_id}:`, result_error)
+              }
+            }
 
             // Define proper type for fal status response
             interface FalStatusResponse {
@@ -145,19 +146,56 @@ export async function GET(req: NextRequest) {
 
             const typed_fal_status = fal_status as FalStatusResponse
 
-              console.log(`Fal status for chunk ${chunk.job_id}:`, {
-                status: typed_fal_status.status,
-                result: typed_fal_status.result,
-                result_type: typeof typed_fal_status.result
-              })
+            console.log(`Fal status for chunk ${chunk.job_id}:`, {
+              status: typed_fal_status.status,
+              result: typed_fal_status.result,
+              result_type: typeof typed_fal_status.result,
+              full_response: JSON.stringify(fal_status, null, 2)
+            })
 
-              if (typed_fal_status.status === 'IN_PROGRESS') {
-                chunk_status = 'processing'
-              } else if (typed_fal_status.status === 'IN_QUEUE') {
-                chunk_status = 'pending'
-              } else if (typed_fal_status.status === 'COMPLETED') {
-                chunk_status = 'completed'
-                // Try different possible locations for audio URL
+            if (typed_fal_status.status === 'IN_PROGRESS') {
+              chunk_status = 'processing'
+            } else if (typed_fal_status.status === 'IN_QUEUE') {
+              chunk_status = 'pending'
+            } else if (typed_fal_status.status === 'COMPLETED') {
+              chunk_status = 'completed'
+              // Try different possible locations for audio URL
+              // First try direct fal_result
+              if (fal_result) {
+                console.log(`Using direct fal_result for chunk ${chunk.job_id}`)
+                
+                if (typeof fal_result === 'string') {
+                  chunk_audio_url = fal_result
+                } else if (typeof fal_result === 'object' && fal_result !== null) {
+                  const result_obj = fal_result as Record<string, unknown>
+                  
+                  // Direct properties
+                  if (typeof result_obj.url === 'string') chunk_audio_url = result_obj.url
+                  else if (typeof result_obj.audio_url === 'string') chunk_audio_url = result_obj.audio_url
+                  else if (typeof result_obj.audio === 'string') chunk_audio_url = result_obj.audio
+                  else if (typeof result_obj.audio_file === 'string') chunk_audio_url = result_obj.audio_file
+                  
+                  // Nested properties
+                  if (!chunk_audio_url && result_obj.output && typeof result_obj.output === 'object') {
+                    const output = result_obj.output as Record<string, unknown>
+                    if (typeof output.audio_url === 'string') chunk_audio_url = output.audio_url
+                    else if (typeof output.url === 'string') chunk_audio_url = output.url
+                  }
+                  
+                  if (!chunk_audio_url && result_obj.data && typeof result_obj.data === 'object') {
+                    const data = result_obj.data as Record<string, unknown>
+                    if (typeof data.audio_url === 'string') chunk_audio_url = data.audio_url
+                  }
+                  
+                  if (!chunk_audio_url && result_obj.outputs && typeof result_obj.outputs === 'object') {
+                    const outputs = result_obj.outputs as Record<string, unknown>
+                    if (typeof outputs.audio_url === 'string') chunk_audio_url = outputs.audio_url
+                  }
+                  
+                  console.log('Available keys in fal_result:', Object.keys(result_obj))
+                }
+              } else {
+                // Fallback to status result
                 const result = typed_fal_status.result
                 console.log(`Fal result structure for ${chunk.job_id}:`, {
                   has_result: !!result,
@@ -170,54 +208,80 @@ export async function GET(req: NextRequest) {
                   // If result is a string, it might be the URL directly
                   if (typeof result === 'string') {
                     chunk_audio_url = result
+                    console.log('Got audio URL from string result:', chunk_audio_url)
                   } else if (typeof result === 'object') {
+                    // Log all details about the result object
+                    console.log('Result object full details:', JSON.stringify(result, null, 2))
+                    
                     // Try various possible paths
-                    chunk_audio_url = result.url || result.audio_url || result.audio || result.output
-                  }
-
-                  if (chunk_audio_url) {
-                    console.log(`Got audio URL from fal result for chunk ${chunk.job_id}:`, chunk_audio_url)
-
-                    // Update the database if we found the URL but it wasn't saved
-                    if (!chunk.audio_url) {
-                      const update_result = await supabase
-                        .from('audio_jobs')
-                        .update({
-                          audio_url: chunk_audio_url,
-                          status: 'completed',
-                          completed_at: new Date().toISOString()
-                        })
-                        .eq('job_id', chunk.job_id)
-                        .eq('user_id', user.user_id)
-
-                      console.log(`Updated chunk ${chunk.job_id} with audio URL:`, update_result)
+                    const result_obj = result as Record<string, unknown>
+                    
+                    // Direct properties
+                    if (typeof result_obj.url === 'string') chunk_audio_url = result_obj.url
+                    else if (typeof result_obj.audio_url === 'string') chunk_audio_url = result_obj.audio_url
+                    else if (typeof result_obj.audio === 'string') chunk_audio_url = result_obj.audio
+                    else if (typeof result_obj.output === 'string') chunk_audio_url = result_obj.output
+                    else if (typeof result_obj.audio_file === 'string') chunk_audio_url = result_obj.audio_file
+                    
+                    // Nested properties
+                    if (!chunk_audio_url && result_obj.data && typeof result_obj.data === 'object') {
+                      const data = result_obj.data as Record<string, unknown>
+                      if (typeof data.audio_url === 'string') chunk_audio_url = data.audio_url
                     }
-                  } else {
-                    console.warn(`No audio URL found in fal result for chunk ${chunk.job_id}`)
+                    
+                    if (!chunk_audio_url && result_obj.outputs && typeof result_obj.outputs === 'object') {
+                      const outputs = result_obj.outputs as Record<string, unknown>
+                      if (typeof outputs.audio_url === 'string') chunk_audio_url = outputs.audio_url
+                    }
+                    
+                    if (!chunk_audio_url && result_obj.output && typeof result_obj.output === 'object') {
+                      const output = result_obj.output as Record<string, unknown>
+                      if (typeof output.audio_url === 'string') chunk_audio_url = output.audio_url
+                    }
                   }
-                } else {
-                  console.warn(`No result in fal status for chunk ${chunk.job_id}`)
                 }
-              } else if (typed_fal_status.status === 'FAILED') {
-                chunk_status = 'failed'
-                
-                // Update the database if status changed
-                if (chunk.status !== 'failed') {
-                  await supabase
+              }
+
+              if (chunk_audio_url) {
+                console.log(`Got audio URL from fal result for chunk ${chunk.job_id}:`, chunk_audio_url)
+
+                // Update the database if we found the URL but it wasn't saved
+                if (!chunk.audio_url) {
+                  const update_result = await supabase
                     .from('audio_jobs')
                     .update({
-                      status: 'failed',
-                      error: 'Job failed in fal.ai',
+                      audio_url: chunk_audio_url,
+                      status: 'completed',
                       completed_at: new Date().toISOString()
                     })
                     .eq('job_id', chunk.job_id)
                     .eq('user_id', user.user_id)
+
+                  console.log(`Updated chunk ${chunk.job_id} with audio URL:`, update_result)
                 }
+              } else {
+                console.warn(`No audio URL found in fal result for chunk ${chunk.job_id}`)
               }
-            } catch (error) {
-              console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
+            } else if (typed_fal_status.status === 'FAILED') {
+              chunk_status = 'failed'
+              
+              // Update the database if status changed
+              if (chunk.status !== 'failed') {
+                await supabase
+                  .from('audio_jobs')
+                  .update({
+                    status: 'failed',
+                    error: 'Job failed in fal.ai',
+                    completed_at: new Date().toISOString()
+                  })
+                  .eq('job_id', chunk.job_id)
+                  .eq('user_id', user.user_id)
+              }
             }
+          } catch (error) {
+            console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
           }
+        }
 
         return {
           chunk_index: chunk.metadata?.chunk_index || 0,

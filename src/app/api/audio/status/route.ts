@@ -46,10 +46,25 @@ export async function GET(req: NextRequest) {
       try {
         console.log('Checking fal status for job:', job_id, 'with request ID:', job.fal_request_id)
         
+        // First check the status
         const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
           requestId: job.fal_request_id
         })
-        console.log('Fal status response:', fal_status)
+        console.log('Fal status response:', JSON.stringify(fal_status, null, 2))
+        
+        // If completed, try to get the actual result
+        let fal_result = null
+        if (fal_status.status === 'COMPLETED') {
+          try {
+            // Try to get the result directly
+            fal_result = await fal.queue.result("resemble-ai/chatterboxhd/text-to-speech", {
+              requestId: job.fal_request_id
+            })
+            console.log('Fal result response:', JSON.stringify(fal_result, null, 2))
+          } catch (result_error) {
+            console.error('Failed to get fal result:', result_error)
+          }
+        }
   
         // Define proper type for fal status response
         interface FalStatusResponse {
@@ -68,16 +83,85 @@ export async function GET(req: NextRequest) {
           current_status = 'completed'
           
           // Extract audio URL from result
-          if (typed_fal_status.result) {
+          console.log('Fal COMPLETED - checking for audio URL in result')
+          
+          // First try to use the direct result if we got it
+          if (fal_result) {
+            console.log('Using direct fal_result:', JSON.stringify(fal_result, null, 2))
+            
+            // Check if fal_result is a string (direct URL)
+            if (typeof fal_result === 'string') {
+              audio_url = fal_result
+            } else if (typeof fal_result === 'object' && fal_result !== null) {
+              // Try various possible paths in the result object
+              const result_obj = fal_result as Record<string, unknown>
+              
+              // Direct properties
+              if (typeof result_obj.url === 'string') audio_url = result_obj.url
+              else if (typeof result_obj.audio_url === 'string') audio_url = result_obj.audio_url
+              else if (typeof result_obj.audio === 'string') audio_url = result_obj.audio
+              else if (typeof result_obj.audio_file === 'string') audio_url = result_obj.audio_file
+              
+              // Nested properties
+              if (!audio_url && result_obj.output && typeof result_obj.output === 'object') {
+                const output = result_obj.output as Record<string, unknown>
+                if (typeof output.audio_url === 'string') audio_url = output.audio_url
+                else if (typeof output.url === 'string') audio_url = output.url
+              }
+              
+              if (!audio_url && result_obj.data && typeof result_obj.data === 'object') {
+                const data = result_obj.data as Record<string, unknown>
+                if (typeof data.audio_url === 'string') audio_url = data.audio_url
+              }
+              
+              if (!audio_url && result_obj.outputs && typeof result_obj.outputs === 'object') {
+                const outputs = result_obj.outputs as Record<string, unknown>
+                if (typeof outputs.audio_url === 'string') audio_url = outputs.audio_url
+              }
+                     
+              // Log what we found
+              console.log('Extracted audio URL from fal_result:', audio_url)
+              console.log('Available keys in fal_result:', Object.keys(result_obj))
+            }
+          } else if (typed_fal_status.result) {
+            // Fallback to status result
+            console.log('Using status result:', typed_fal_status.result)
+            console.log('Result type:', typeof typed_fal_status.result)
+            console.log('Result value:', typed_fal_status.result)
+            
             if (typeof typed_fal_status.result === 'string') {
               audio_url = typed_fal_status.result
+              console.log('Got audio URL from string result:', audio_url)
             } else if (typeof typed_fal_status.result === 'object') {
+              // Log all details about the result object
+              console.log('Result object full details:', JSON.stringify(typed_fal_status.result, null, 2))
+              
+              // Try various possible paths
               audio_url = typed_fal_status.result.url || 
                          typed_fal_status.result.audio_url || 
                          typed_fal_status.result.audio || 
                          typed_fal_status.result.output || 
                          null
+              
+              if (!audio_url && typed_fal_status.result) {
+                // Check if result has a nested structure
+                const result_obj = typed_fal_status.result as Record<string, unknown>
+                if (result_obj.data && typeof result_obj.data === 'object') {
+                  const data = result_obj.data as Record<string, unknown>
+                  if (typeof data.audio_url === 'string') audio_url = data.audio_url
+                } else if (result_obj.outputs && typeof result_obj.outputs === 'object') {
+                  const outputs = result_obj.outputs as Record<string, unknown>
+                  if (typeof outputs.audio_url === 'string') audio_url = outputs.audio_url
+                } else if (result_obj.output && typeof result_obj.output === 'object') {
+                  const output = result_obj.output as Record<string, unknown>
+                  if (typeof output.audio_url === 'string') audio_url = output.audio_url
+                }
+              }
+              
+              console.log('Extracted audio URL from object:', audio_url)
             }
+          } else {
+            console.warn('No result in fal status response')
           }
           
           // Update database with new status and audio URL
