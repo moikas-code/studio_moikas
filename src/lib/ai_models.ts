@@ -276,7 +276,7 @@ export const VIDEO_MODELS: video_model_config[] = [
     name: "VEO3",
     mana_points: 1,
     cost_per_mp: 0.001,
-    custom_cost: 3.75,
+    custom_cost: 0.75,
     is_image_to_video: false,
   },
 ];

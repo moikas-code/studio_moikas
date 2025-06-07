@@ -122,12 +122,13 @@ export async function GET(req: NextRequest) {
     // Process chunk statuses with fal.ai status checks
     const chunk_statuses = await Promise.all(
       chunks_data.map(async (chunk) => {
+        let chunk_status = chunk.status
+        let chunk_audio_url = chunk.audio_url
+
         if (chunk.fal_request_id) {
           const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
             requestId: chunk.fal_request_id || ''
           })
-          let chunk_status = chunk.status
-          let chunk_audio_url = chunk.audio_url
 
           // Check fal.ai status if we have a request ID and either:
           // 1. Job is not completed/failed OR
@@ -205,13 +206,13 @@ export async function GET(req: NextRequest) {
               console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
             }
           }
+        }
 
-          return {
-            chunk_index: chunk.metadata?.chunk_index || 0,
-            status: chunk_status,
-            audio_url: chunk_audio_url,
-            progress: chunk.progress || 0
-          }
+        return {
+          chunk_index: chunk.metadata?.chunk_index || 0,
+          status: chunk_status,
+          audio_url: chunk_audio_url,
+          progress: chunk.progress || 0
         }
       })
     )
