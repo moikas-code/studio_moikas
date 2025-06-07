@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { get_anon_client } from "@/lib/utils/database/supabase"
+import { get_service_role_client } from "@/lib/utils/database/supabase"
 import {
   api_error,
   api_success,
@@ -21,9 +21,13 @@ export async function GET(req: NextRequest) {
       return api_error('Missing job_id parameter', 400)
     }
 
-    // 3. Get parent job
-    const supabase = get_anon_client()
-    const { data: parent_job, error: parent_error } = await supabase
+    // 3. Get parent job - first check if this is a parent job ID
+    const supabase = get_service_role_client()
+    let parent_job = null
+    let parent_error = null
+
+    // First try to find as a parent document job
+    const { data: doc_job, error: doc_error } = await supabase
       .from('audio_jobs')
       .select('*')
       .eq('job_id', job_id)
@@ -31,12 +35,36 @@ export async function GET(req: NextRequest) {
       .eq('type', 'document')
       .single()
 
+    if (doc_job) {
+      parent_job = doc_job
+    } else {
+      // If not found, check if this is a chunk job ID and extract parent ID
+      if (job_id.startsWith('audio_chunk_')) {
+        // Extract parent job ID from chunk job ID pattern: audio_chunk_{parent_id}_{index}
+        const parent_job_id = job_id.replace(/^audio_chunk_/, '').replace(/_\d+$/, '')
+        
+        const { data: parent_doc_job, error: parent_doc_error } = await supabase
+          .from('audio_jobs')
+          .select('*')
+          .eq('job_id', parent_job_id)
+          .eq('user_id', user.user_id)
+          .eq('type', 'document')
+          .single()
+          
+        parent_job = parent_doc_job
+        parent_error = parent_doc_error
+      } else {
+        parent_error = doc_error
+      }
+    }
+
     if (parent_error || !parent_job) {
+      console.error('Document job not found for job_id:', job_id, 'error:', parent_error)
       return api_error('Document job not found', 404)
     }
 
     // 4. Get chunk jobs if they exist
-    const chunk_job_ids = parent_job.metadata?.chunk_jobs?.map((c: { job_id: string }) => c.job_id) || []
+    // Chunk jobs have IDs like: audio_chunk_{parent_job_id}_{index}
     let chunks_data: Array<{
       job_id: string
       status: string
@@ -46,16 +74,15 @@ export async function GET(req: NextRequest) {
       fal_request_id?: string
     }> = []
 
-    if (chunk_job_ids.length > 0) {
-      const { data: chunks } = await supabase
-        .from('audio_jobs')
-        .select('job_id, status, audio_url, progress, metadata, fal_request_id')
-        .in('job_id', chunk_job_ids)
-        .eq('user_id', user.user_id)
-        .order('metadata->chunk_index')
+    // Query chunk jobs using pattern matching with parent job ID
+    const { data: chunks } = await supabase
+      .from('audio_jobs')
+      .select('job_id, status, audio_url, progress, metadata, fal_request_id')
+      .like('job_id', `audio_chunk_${parent_job.job_id}_%`)
+      .eq('user_id', user.user_id)
+      .order('metadata->chunk_index')
 
-      chunks_data = chunks || []
-    }
+    chunks_data = chunks || []
     // Check fal status
     // console.log(fal_status)
     // // TODO: Update parent job status based on fal status
@@ -72,44 +99,55 @@ export async function GET(req: NextRequest) {
     // 5. Calculate overall progress and status
     let overall_status = parent_job.status
     let overall_progress = 0
-    const chunk_statuses = chunks_data.map(async (chunk) => {
-      if (!chunk.fal_request_id) return {
-        chunk_index: chunk.metadata?.chunk_index || 0,
-        status: chunk.status,
-        audio_url: chunk.audio_url,
-        progress: chunk.progress || 0
-      }
-      
-      const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", { requestId: chunk.fal_request_id })
-      console.log(fal_status)
-      if (fal_status.status === 'IN_PROGRESS') {
-        chunk.status = 'processing'
-      } else if (fal_status.status === 'IN_QUEUE') {
-        chunk.status = 'pending'
-      } else if (fal_status.status === 'COMPLETED') {
-        chunk.status = 'completed'
+    
+    // Process chunk statuses with fal.ai status checks
+    const chunk_statuses = await Promise.all(
+      chunks_data.map(async (chunk) => {
+        let chunk_status = chunk.status
+        
+        // Check fal.ai status if we have a request ID and job is not completed
+        if (chunk.fal_request_id && chunk.status !== 'completed' && chunk.status !== 'failed') {
+          try {
+            const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", { 
+              requestId: chunk.fal_request_id 
+            })
+            
+            if (fal_status.status === 'IN_PROGRESS') {
+              chunk_status = 'processing'
+            } else if (fal_status.status === 'IN_QUEUE') {
+              chunk_status = 'pending'
+            } else if (fal_status.status === 'COMPLETED') {
+              chunk_status = 'completed'
+            }
+          } catch (error) {
+            console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
+          }
+        }
+        
         return {
           chunk_index: chunk.metadata?.chunk_index || 0,
-          status: chunk.status,
+          status: chunk_status,
           audio_url: chunk.audio_url,
           progress: chunk.progress || 0
         }
-      }
-    })
+      })
+    )
 
-    if (chunks_data.length > 0) {
-      const completed_chunks = chunks_data.filter(c => c.status === 'completed').length
-      const failed_chunks = chunks_data.filter(c => c.status === 'failed').length
+    if (chunk_statuses.length > 0) {
+      const completed_chunks = chunk_statuses.filter(c => c.status === 'completed').length
+      const failed_chunks = chunk_statuses.filter(c => c.status === 'failed').length
 
-      overall_progress = Math.round((completed_chunks / chunks_data.length) * 100)
+      overall_progress = Math.round((completed_chunks / chunk_statuses.length) * 100)
 
       // Update overall status based on chunks
-      if (failed_chunks > 0) {
+      if (failed_chunks > 0 && failed_chunks === chunk_statuses.length) {
         overall_status = 'failed'
-      } else if (completed_chunks === chunks_data.length) {
+      } else if (completed_chunks === chunk_statuses.length) {
         overall_status = 'completed'
-      } else if (chunks_data.some(c => c.status === 'processing')) {
+      } else if (chunk_statuses.some(c => c.status === 'processing')) {
         overall_status = 'processing'
+      } else if (chunk_statuses.some(c => c.status === 'pending')) {
+        overall_status = 'processing' // Show as processing if any chunks are pending
       }
     }
 
