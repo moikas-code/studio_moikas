@@ -206,33 +206,8 @@ export async function POST(req: NextRequest) {
           message: 'Audio generation started. Check status for updates.'
         })
       } else {
-        // Sync fallback
-        const result = await fal.run("resemble-ai/chatterboxhd/text-to-speech", {
-          input: fal_input
-        })
-
-        const audioResult = result as FalAudioResult
-        const audioUrl = audioResult.url || audioResult.data?.url
-        
-        if (!audioUrl) {
-          throw new Error('No audio URL in response')
-        }
-
-        // Update job with result
-        await service_supabase
-          .from('audio_jobs')
-          .update({
-            status: 'completed',
-            audio_url: audioUrl,
-            completed_at: new Date().toISOString()
-          })
-          .eq('id', job.id)
-
-        return api_success({
-          job_id: job.job_id,
-          status: 'completed',
-          audio_url: audioUrl
-        })
+        // Throw error to trigger the error handling in the catch block and refund tokens
+        throw new Error('Webhook URL not found')
       }
     } catch (fal_error) {
       console.error('fal.ai error:', fal_error)
