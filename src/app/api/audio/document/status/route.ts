@@ -137,10 +137,18 @@ export async function GET(req: NextRequest) {
               requestId: chunk.fal_request_id 
             })
             
+            // Define proper type for fal status response
+            interface FalStatusResponse {
+              status: string
+              result?: string | { url?: string; audio_url?: string; audio?: string; output?: string }
+            }
+            
+            const typed_fal_status = fal_status as FalStatusResponse
+            
             console.log(`Fal status for chunk ${chunk.job_id}:`, {
-              status: fal_status.status,
-              result: (fal_status as any).result,
-              result_type: typeof (fal_status as any).result
+              status: typed_fal_status.status,
+              result: typed_fal_status.result,
+              result_type: typeof typed_fal_status.result
             })
             
             if (fal_status.status === 'IN_PROGRESS') {
@@ -150,7 +158,7 @@ export async function GET(req: NextRequest) {
             } else if (fal_status.status === 'COMPLETED') {
               chunk_status = 'completed'
               // Try different possible locations for audio URL
-              const result = (fal_status as any).result
+              const result = typed_fal_status.result
               console.log(`Fal result structure for ${chunk.job_id}:`, {
                 has_result: !!result,
                 result_type: typeof result,
