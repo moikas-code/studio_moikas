@@ -3,7 +3,6 @@ import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
 import { TTSParams } from '../types'
 import { useJobPolling } from './use_job_polling'
-import { AudioJobStorage } from '../utils/audio_job_storage'
 
 export interface ChunkedTTSResult {
   job_id: string
@@ -328,7 +327,7 @@ export function useWebhookChunkedTts() {
       // Reconstruct the ChunkedTTSResult from the status
       const result: ChunkedTTSResult = {
         job_id: status.job_id,
-        chunks: status.chunks.map((chunk: any, index: number) => ({
+        chunks: status.chunks.map((chunk: { chunk_index?: number; audio_url?: string; status: string }, index: number) => ({
           index: chunk.chunk_index || index,
           text: chunk_texts[chunk.chunk_index || index] || '',
           audio_url: chunk.audio_url,
@@ -447,7 +446,7 @@ export function useWebhookChunkedTts() {
       })
       setTimeout(check_document_status, 1000)
     }
-  }, []) // Only run on mount
+  }, []) // Only run on mount - eslint-disable-line react-hooks/exhaustive-deps
 
   // Store job ID when it changes
   useEffect(() => {

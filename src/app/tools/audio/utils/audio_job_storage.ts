@@ -20,7 +20,7 @@ const STORAGE_KEY = 'studio_moikas_audio_jobs'
 const EXPIRATION_DAYS = 7
 
 export class AudioJobStorage {
-  static save_job(job_id: string, extracted_text: string, voice_settings: Record<string, any>, total_chunks: number): void {
+  static save_job(job_id: string, extracted_text: string, voice_settings: Record<string, unknown>, total_chunks: number): void {
     try {
       const jobs = this.get_all_jobs()
       const now = new Date()

@@ -162,20 +162,21 @@ export function DocumentToAudio() {
                         (mp_tokens ?? 0) >= estimated_cost &&
                         !is_generating, [text_length, mp_tokens, estimated_cost, is_generating])
   
+  // Clean up completed jobs from storage after successful completion
+  useEffect(() => {
+    if (generated_audio?.overall_status === 'completed' && generated_audio.job_id) {
+      // Remove from storage after a delay to ensure user has seen the result
+      const timer = setTimeout(() => {
+        AudioJobStorage.remove_job(generated_audio.job_id)
+        set_saved_jobs(AudioJobStorage.get_recent_jobs())
+      }, 5000) // 5 second delay
+      
+      return () => clearTimeout(timer)
+    }
+  }, [generated_audio?.overall_status, generated_audio?.job_id])
+  
   // If audio is generated, show chunked player
   if (generated_audio) {
-    // Clean up completed jobs from storage after successful completion
-    useEffect(() => {
-      if (generated_audio.overall_status === 'completed' && generated_audio.job_id) {
-        // Remove from storage after a delay to ensure user has seen the result
-        const timer = setTimeout(() => {
-          AudioJobStorage.remove_job(generated_audio.job_id)
-          set_saved_jobs(AudioJobStorage.get_recent_jobs())
-        }, 5000) // 5 second delay
-        
-        return () => clearTimeout(timer)
-      }
-    }, [generated_audio.overall_status, generated_audio.job_id])
     
     const handle_regenerate_chunk = async (chunk_index: number) => {
       const params: Omit<TTSParams, 'text'> = {
