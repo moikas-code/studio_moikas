@@ -60,4 +60,4 @@ When a document is restored:
    - "Chunk audio_chunk_xxx is marked completed but has no audio URL - skipping status check"
    - "Chunk audio_chunk_xxx is completed but may need audio URL - fetching result from fal.ai"
    - "Successfully updated chunk audio_chunk_xxx with audio URL"
-6. The audio should now be playable
+6. The audio should now be playable 
