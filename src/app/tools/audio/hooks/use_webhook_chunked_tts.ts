@@ -149,7 +149,8 @@ export function useWebhookChunkedTts() {
         ...generated_audio,
         chunks: updated_chunks,
         overall_status: status.status,
-        overall_progress: status.progress
+        overall_progress: status.progress,
+        total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points
       })
 
       // Check if all chunks are complete

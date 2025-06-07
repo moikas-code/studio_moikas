@@ -83,6 +83,14 @@ export async function GET(req: NextRequest) {
       .order('metadata->chunk_index')
 
     chunks_data = chunks || []
+    
+    console.log('Found chunks:', chunks_data.length)
+    console.log('Chunk statuses:', chunks_data.map(c => ({ 
+      job_id: c.job_id, 
+      status: c.status, 
+      has_audio_url: !!c.audio_url,
+      chunk_index: c.metadata?.chunk_index 
+    })))
     // Check fal status
     // console.log(fal_status)
     // // TODO: Update parent job status based on fal status
@@ -104,6 +112,7 @@ export async function GET(req: NextRequest) {
     const chunk_statuses = await Promise.all(
       chunks_data.map(async (chunk) => {
         let chunk_status = chunk.status
+        let chunk_audio_url = chunk.audio_url
         
         // Check fal.ai status if we have a request ID and job is not completed
         if (chunk.fal_request_id && chunk.status !== 'completed' && chunk.status !== 'failed') {
@@ -112,12 +121,19 @@ export async function GET(req: NextRequest) {
               requestId: chunk.fal_request_id 
             })
             
+            console.log(`Fal status for chunk ${chunk.job_id}:`, fal_status.status)
+            
             if (fal_status.status === 'IN_PROGRESS') {
               chunk_status = 'processing'
             } else if (fal_status.status === 'IN_QUEUE') {
               chunk_status = 'pending'
             } else if (fal_status.status === 'COMPLETED') {
               chunk_status = 'completed'
+              // Get audio URL from fal result if available
+              if ((fal_status as any).result?.url) {
+                chunk_audio_url = (fal_status as any).result.url
+                console.log(`Got audio URL from fal result for chunk ${chunk.job_id}:`, chunk_audio_url)
+              }
             }
           } catch (error) {
             console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
@@ -127,7 +143,7 @@ export async function GET(req: NextRequest) {
         return {
           chunk_index: chunk.metadata?.chunk_index || 0,
           status: chunk_status,
-          audio_url: chunk.audio_url,
+          audio_url: chunk_audio_url,
           progress: chunk.progress || 0
         }
       })
@@ -153,7 +169,7 @@ export async function GET(req: NextRequest) {
 
 
     // 6. Return aggregated status
-    return api_success({
+    const response_data = {
       job_id: parent_job.job_id,
       status: overall_status,
       progress: overall_progress,
@@ -164,9 +180,20 @@ export async function GET(req: NextRequest) {
       completed_at: parent_job.completed_at,
       metadata: {
         plan: parent_job.metadata?.plan,
-        total_text_length: parent_job.metadata?.total_text_length
+        total_text_length: parent_job.metadata?.total_text_length,
+        total_cost: parent_job.cost
       }
+    }
+    
+    console.log('Returning status response:', {
+      job_id: response_data.job_id,
+      status: response_data.status,
+      progress: response_data.progress,
+      chunks_with_audio: chunk_statuses.filter(c => c.audio_url).length,
+      total_chunks: chunk_statuses.length
     })
+    
+    return api_success(response_data)
   } catch (error) {
     return handle_api_error(error)
   }
