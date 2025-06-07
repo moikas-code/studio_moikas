@@ -74,7 +74,7 @@ export const InButton: Story = {
     cost: 50,
   },
   decorators: [
-    (Story: any) => (
+    (Story: React.ComponentType) => (
       <button className="btn btn-primary">
         Generate Image <Story />
       </button>
