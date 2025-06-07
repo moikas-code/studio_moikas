@@ -37,18 +37,20 @@ export async function GET(req: NextRequest) {
       console.error('Job not found:', job_id, 'error:', error)
       return api_error('Job not found', 404)
     }
-    const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
-      requestId: job.fal_request_id
-    })
-    console.log('Fal status:', fal_status)
 
-    // 5. Check fal.ai status if job is completed but has no audio URL
+    // 5. Check fal.ai status if job has a request ID and is not completed with audio
     let audio_url = job.audio_url
+    let current_status = job.status
     
-    if (job.fal_request_id && (job.status === 'completed' && !job.audio_url) || fal_status.status === 'COMPLETED') {
+    if (job.fal_request_id && (job.status !== 'completed' || !job.audio_url)) {
       try {
-  
+        console.log('Checking fal status for job:', job_id, 'with request ID:', job.fal_request_id)
         
+        const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+          requestId: job.fal_request_id
+        })
+        console.log('Fal status response:', fal_status)
+  
         // Define proper type for fal status response
         interface FalStatusResponse {
           status: string
@@ -57,32 +59,61 @@ export async function GET(req: NextRequest) {
         
         const typed_fal_status = fal_status as FalStatusResponse
         
-        console.log('Fal status check for missing audio URL:', {
-          job_id: job.job_id,
-          fal_status: typed_fal_status.status,
-          has_result: !!typed_fal_status.result
-        })
-        
-        if (typed_fal_status.status === 'COMPLETED' && typed_fal_status.result) {
+        // Update current status based on fal.ai status
+        if (typed_fal_status.status === 'IN_PROGRESS') {
+          current_status = 'processing'
+        } else if (typed_fal_status.status === 'IN_QUEUE') {
+          current_status = 'pending'
+        } else if (typed_fal_status.status === 'COMPLETED') {
+          current_status = 'completed'
+          
           // Extract audio URL from result
-          if (typeof typed_fal_status.result === 'string') {
-            audio_url = typed_fal_status.result
-          } else if (typeof typed_fal_status.result === 'object') {
-            audio_url = typed_fal_status.result.url || 
-                       typed_fal_status.result.audio_url || 
-                       typed_fal_status.result.audio || 
-                       typed_fal_status.result.output || 
-                       null
+          if (typed_fal_status.result) {
+            if (typeof typed_fal_status.result === 'string') {
+              audio_url = typed_fal_status.result
+            } else if (typeof typed_fal_status.result === 'object') {
+              audio_url = typed_fal_status.result.url || 
+                         typed_fal_status.result.audio_url || 
+                         typed_fal_status.result.audio || 
+                         typed_fal_status.result.output || 
+                         null
+            }
           }
           
-          // Update database if we found the URL
-          if (audio_url) {
-            console.log('Updating job with missing audio URL:', job.job_id)
+          // Update database with new status and audio URL
+          if (current_status !== job.status || (audio_url && audio_url !== job.audio_url)) {
+            console.log('Updating job with fal.ai results:', {
+              job_id: job.job_id,
+              new_status: current_status,
+              has_audio_url: !!audio_url
+            })
+            
+            const update_data: Record<string, unknown> = {
+              status: current_status
+            }
+            if (audio_url) {
+              update_data.audio_url = audio_url
+            }
+            if (current_status === 'completed' && !job.completed_at) {
+              update_data.completed_at = new Date().toISOString()
+            }
+            
+            await supabase
+              .from('audio_jobs')
+              .update(update_data)
+              .eq('id', job.id)
+          }
+        } else if (typed_fal_status.status === 'FAILED') {
+          current_status = 'failed'
+          
+          // Update database if status changed
+          if (current_status !== job.status) {
             await supabase
               .from('audio_jobs')
               .update({
-                audio_url,
-                completed_at: job.completed_at || new Date().toISOString()
+                status: 'failed',
+                error: 'Job failed in fal.ai',
+                completed_at: new Date().toISOString()
               })
               .eq('id', job.id)
           }
@@ -95,8 +126,8 @@ export async function GET(req: NextRequest) {
     // 6. Return job status
     return api_success({
       job_id: job.job_id,
-      status: job.status,
-      progress: job.progress || 0,
+      status: current_status,
+      progress: current_status === 'completed' ? 100 : (job.progress || 0),
       audio_url: audio_url,
       error: job.error,
       created_at: job.created_at,

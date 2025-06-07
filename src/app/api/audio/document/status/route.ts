@@ -125,28 +125,25 @@ export async function GET(req: NextRequest) {
         let chunk_status = chunk.status
         let chunk_audio_url = chunk.audio_url
 
-        if (chunk.fal_request_id) {
-          const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
-            requestId: chunk.fal_request_id || ''
-          })
+        // Check fal.ai status if we have a request ID and either:
+        // 1. Job is not completed/failed OR
+        // 2. Job is completed but has no audio URL (webhook might have failed)
+        if (chunk.fal_request_id && (
+          (chunk.status !== 'completed' && chunk.status !== 'failed') ||
+          (chunk.status === 'completed' && !chunk.audio_url)
+        )) {
+          try {
+            const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+              requestId: chunk.fal_request_id
+            })
 
-          // Check fal.ai status if we have a request ID and either:
-          // 1. Job is not completed/failed OR
-          // 2. Job is completed but has no audio URL (webhook might have failed)
-          if ((
-            (chunk.status !== 'completed' && chunk.status !== 'failed') ||
-            (chunk.status === 'completed' && !chunk.audio_url)
-          )) {
-            try {
+            // Define proper type for fal status response
+            interface FalStatusResponse {
+              status: string
+              result?: string | { url?: string; audio_url?: string; audio?: string; output?: string }
+            }
 
-
-              // Define proper type for fal status response
-              interface FalStatusResponse {
-                status: string
-                result?: string | { url?: string; audio_url?: string; audio?: string; output?: string }
-              }
-
-              const typed_fal_status = fal_status as FalStatusResponse
+            const typed_fal_status = fal_status as FalStatusResponse
 
               console.log(`Fal status for chunk ${chunk.job_id}:`, {
                 status: typed_fal_status.status,
@@ -154,11 +151,11 @@ export async function GET(req: NextRequest) {
                 result_type: typeof typed_fal_status.result
               })
 
-              if (fal_status.status === 'IN_PROGRESS') {
+              if (typed_fal_status.status === 'IN_PROGRESS') {
                 chunk_status = 'processing'
-              } else if (fal_status.status === 'IN_QUEUE') {
+              } else if (typed_fal_status.status === 'IN_QUEUE') {
                 chunk_status = 'pending'
-              } else if (fal_status.status === 'COMPLETED') {
+              } else if (typed_fal_status.status === 'COMPLETED') {
                 chunk_status = 'completed'
                 // Try different possible locations for audio URL
                 const result = typed_fal_status.result
@@ -201,12 +198,26 @@ export async function GET(req: NextRequest) {
                 } else {
                   console.warn(`No result in fal status for chunk ${chunk.job_id}`)
                 }
+              } else if (typed_fal_status.status === 'FAILED') {
+                chunk_status = 'failed'
+                
+                // Update the database if status changed
+                if (chunk.status !== 'failed') {
+                  await supabase
+                    .from('audio_jobs')
+                    .update({
+                      status: 'failed',
+                      error: 'Job failed in fal.ai',
+                      completed_at: new Date().toISOString()
+                    })
+                    .eq('job_id', chunk.job_id)
+                    .eq('user_id', user.user_id)
+                }
               }
             } catch (error) {
               console.error(`Failed to check fal status for chunk ${chunk.job_id}:`, error)
             }
           }
-        }
 
         return {
           chunk_index: chunk.metadata?.chunk_index || 0,
@@ -232,6 +243,30 @@ export async function GET(req: NextRequest) {
         overall_status = 'processing'
       } else if (chunk_statuses.some(c => c.status === 'pending')) {
         overall_status = 'processing' // Show as processing if any chunks are pending
+      }
+      
+      // Update parent job status in database if it changed
+      if (overall_status !== parent_job.status) {
+        const update_data: Record<string, unknown> = {
+          status: overall_status,
+          progress: overall_progress
+        }
+        
+        if (overall_status === 'completed' && !parent_job.completed_at) {
+          update_data.completed_at = new Date().toISOString()
+        }
+        
+        const { error: update_error } = await supabase
+          .from('audio_jobs')
+          .update(update_data)
+          .eq('job_id', parent_job.job_id)
+          .eq('user_id', user.user_id)
+          
+        if (update_error) {
+          console.error('Failed to update parent job status:', update_error)
+        } else {
+          console.log(`Updated parent job ${parent_job.job_id} status to ${overall_status}`)
+        }
       }
     }
 
