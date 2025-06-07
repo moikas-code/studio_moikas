@@ -33,12 +33,6 @@ interface FalAudioInput {
   temperature?: number
 }
 
-interface FalAudioResult {
-  data?: {
-    url?: string
-  }
-  url?: string
-}
 
 
 

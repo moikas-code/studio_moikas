@@ -33,12 +33,6 @@ interface FalAudioInput {
   temperature?: number
 }
 
-interface FalAudioResult {
-  data?: {
-    url?: string
-  }
-  url?: string
-}
 
 // Type for audio job from database
 interface AudioJob {
