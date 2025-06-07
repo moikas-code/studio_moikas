@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { createClient } from '@/lib/supabase_client'
+import { useSupabaseClient } from '@/lib/supabase_client'
 import { toast } from 'react-hot-toast'
 import { useAuth } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
@@ -13,14 +13,18 @@ interface JobUpdate {
   metadata?: Record<string, unknown>
 }
 
+interface RealtimePayload {
+  new: Record<string, unknown>
+  old: Record<string, unknown> | null
+}
+
 export function useJobNotifications() {
   const { userId } = useAuth()
   const router = useRouter()
+  const supabase = useSupabaseClient()
   
   useEffect(() => {
-    if (!userId) return
-    
-    const supabase = createClient()
+    if (!userId || !supabase) return
     
     // Subscribe to changes in audio_jobs table
     const audio_channel = supabase
@@ -33,11 +37,11 @@ export function useJobNotifications() {
           table: 'audio_jobs',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          const job = payload.new as JobUpdate
+        (payload: RealtimePayload) => {
+          const job = payload.new as unknown as JobUpdate
           
           // Only show notifications for status changes
-          if (payload.old && payload.old.status === job.status) return
+          if (payload.old && (payload.old as unknown as JobUpdate).status === job.status) return
           
           if (job.status === 'completed' && job.audio_url) {
             toast.success(
@@ -100,11 +104,11 @@ export function useJobNotifications() {
           table: 'video_jobs',
           filter: `user_id=eq.${userId}`
         },
-        (payload) => {
-          const job = payload.new as JobUpdate
+        (payload: RealtimePayload) => {
+          const job = payload.new as unknown as JobUpdate
           
           // Only show notifications for status changes
-          if (payload.old && payload.old.status === job.status) return
+          if (payload.old && (payload.old as unknown as JobUpdate).status === job.status) return
           
           if (job.status === 'completed' && job.video_url) {
             toast.success(
@@ -165,5 +169,5 @@ export function useJobNotifications() {
       supabase.removeChannel(audio_channel)
       supabase.removeChannel(video_channel)
     }
-  }, [userId, router])
+  }, [userId, router, supabase])
 }
