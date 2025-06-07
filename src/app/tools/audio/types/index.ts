@@ -57,7 +57,7 @@ import { get_pricing_multiplier } from '@/lib/pricing_config'
 // 1 MP = $0.001
 // Base cost: 10 MP for 250 characters
 // Final cost depends on user plan (1.3x for standard, 1.6x for free)
-export const TTS_BASE_MP_PER_CHARACTER = 0.04 // Base cost without markup
+export const TTS_BASE_MP_PER_CHARACTER = 0.05 // Base cost without markup
 export const TTS_MIN_CHARGE_CHARACTERS = 250
 export const TTS_MIN_CHARGE_MP_BASE = 10 // Base MP cost without markup
 

@@ -222,14 +222,6 @@ export const VIDEO_MODELS: video_model_config[] = [
     is_image_to_video: false,
   },
   {
-    value: "fal-ai/veo2/pro",
-    name: "VEO2 Pro",
-    mana_points: 1,
-    cost_per_mp: 0.001,
-    custom_cost: 0.9,
-    is_image_to_video: false,
-  },
-  {
     value: "fal-ai/kling-video/v1.6/standard/text-to-video",
     name: "Kling Video v1.6",
     mana_points: 1,
@@ -279,6 +271,14 @@ export const VIDEO_MODELS: video_model_config[] = [
     is_image_to_video: true,
     plans: ["free", "standard"],
   },
+  {
+    value: "fal-ai/veo3",
+    name: "VEO3",
+    mana_points: 1,
+    cost_per_mp: 0.001,
+    custom_cost: 3.75,
+    is_image_to_video: false,
+  },
 ];
 
 /**
@@ -291,22 +291,7 @@ export const CHAT_MODELS = {
     cost_per_1k_tokens: 0.0001,
     context_window: 128000,
     supports_streaming: true,
-  },
-  "grok-2-vision-1212": {
-    name: "Grok 2 Vision",
-    provider: "xai",
-    cost_per_1k_tokens: 0.002,
-    context_window: 32000,
-    supports_streaming: true,
-    supports_vision: true,
-  },
-  "grok-2-1212": {
-    name: "Grok 2",
-    provider: "xai",
-    cost_per_1k_tokens: 0.002,
-    context_window: 128000,
-    supports_streaming: true,
-  },
+  }
 } as const;
 
 /**

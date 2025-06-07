@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react'
+import React, { useState, useContext, useMemo } from 'react'
 import { Sparkles, Settings, Globe, Upload } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import { DocumentUploader } from './document_uploader'
@@ -84,11 +84,11 @@ export function DocumentToAudio() {
   
   // Calculate cost for the full text (all chunks)
   const text_length = extracted_text.length
-  const estimated_cost = calculateTTSCost(text_length, plan) // Full cost for all chunks
-  const num_chunks = Math.ceil(text_length / 1000) // 1000 character chunks
-  const can_generate = text_length > 0 && 
-                      (mp_tokens ?? 0) >= estimated_cost &&
-                      !is_generating
+  const estimated_cost = useMemo(() => calculateTTSCost(text_length, plan), [text_length, plan])
+  const num_chunks = useMemo(() => Math.ceil(text_length / 1000), [text_length] ) // 1000 character chunks
+  const can_generate = useMemo(() => text_length > 0 && 
+                        (mp_tokens ?? 0) >= estimated_cost &&
+                        !is_generating, [text_length, mp_tokens, estimated_cost, is_generating])
   
   // If audio is generated, show chunked player
   if (generated_audio) {
