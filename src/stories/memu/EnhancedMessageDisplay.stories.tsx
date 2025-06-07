@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { EnhancedMessageDisplay } from '@/app/tools/memu/components/enhanced_message_display'
 
 const meta = {
@@ -12,9 +12,9 @@ const meta = {
     message: {
       description: 'Message object to display',
     },
-    onImageClick: {
-      action: 'image clicked',
-      description: 'Called when an image in the message is clicked',
+    show_debug_info: {
+      control: 'boolean',
+      description: 'Whether to show debug information',
     },
   },
 } satisfies Meta<typeof EnhancedMessageDisplay>
@@ -24,10 +24,7 @@ type Story = StoryObj<typeof meta>
 
 const baseMessage = {
   id: '1',
-  workflow_session_id: 'session_123',
-  node_id: 'node_1',
-  timestamp: new Date().toISOString(),
-  metadata: {},
+  created_at: new Date().toISOString(),
 }
 
 export const UserMessage: Story = {
@@ -86,11 +83,13 @@ export const WithImage: Story = {
       ...baseMessage,
       role: 'assistant',
       content: 'Here\'s a logo concept I generated for you:',
-      metadata: {
-        images: ['/placeholder-jffrl.png'],
+      structured_response: {
+        response: 'Here\'s a logo concept I generated for you:',
+        metadata: {
+          response_type: 'task',
+        },
       },
     },
-    onImageClick: (url) => console.log('Clicked image:', url),
   },
 }
 
@@ -110,8 +109,11 @@ export const ErrorMessage: Story = {
       ...baseMessage,
       role: 'system',
       content: 'Error: Failed to process request. Please try again.',
-      metadata: {
-        error: true,
+      structured_response: {
+        response: 'Error: Failed to process request. Please try again.',
+        metadata: {
+          response_type: 'error',
+        },
       },
     },
   },

@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react'
-import { CompactTokenDisplay } from '@/app/components/CompactTokenDisplay'
+import type { Meta, StoryObj } from '@storybook/nextjs'
+import CompactTokenDisplay from '@/app/components/CompactTokenDisplay'
 
 const meta = {
   title: 'Common/CompactTokenDisplay',
@@ -31,7 +31,7 @@ export const CustomClassName: Story = {
 
 export const InNavbar: Story = {
   decorators: [
-    (Story) => (
+    (Story: any) => (
       <div className="navbar bg-base-100">
         <div className="flex-1">
           <a className="btn btn-ghost text-xl">Studio Moikas</a>

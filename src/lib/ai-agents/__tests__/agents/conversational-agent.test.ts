@@ -2,17 +2,20 @@ import { describe, it, expect, mock } from "bun:test";
 import { conversational_agent } from "../../agents/conversational-agent";
 import { agent_state } from "../../types";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { ChatXAI } from "@langchain/xai";
 
 describe("conversational-agent", () => {
-  const mock_model = {
-    invoke: mock(() => Promise.resolve({
-      content: "That's great to hear! I'm doing well too. What brings you here today?",
-      usage_metadata: {
-        input_tokens: 20,
-        output_tokens: 30
-      }
-    }))
-  };
+  // Create a proper mock for ChatXAI
+  const mock_invoke = mock(() => Promise.resolve({
+    content: "That's great to hear! I'm doing well too. What brings you here today?",
+    usage_metadata: {
+      input_tokens: 20,
+      output_tokens: 30
+    }
+  }));
+  
+  const mock_model = Object.create(ChatXAI.prototype);
+  mock_model.invoke = mock_invoke;
 
   const create_initial_state = (): agent_state => ({
     messages: [new HumanMessage("Hi there! How are you doing?")],
@@ -28,7 +31,7 @@ describe("conversational-agent", () => {
 
   describe("converse", () => {
     it("should handle basic conversation", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.variables.personality = "friendly";
 
@@ -41,7 +44,7 @@ describe("conversational-agent", () => {
     });
 
     it("should use default personality when none provided", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
 
       await agent.converse(state);
@@ -55,7 +58,7 @@ describe("conversational-agent", () => {
     });
 
     it("should include conversation history", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       
       // Add previous conversation
@@ -76,7 +79,7 @@ describe("conversational-agent", () => {
     });
 
     it("should include context when provided", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.variables.context = "User needs help with cooking";
 
@@ -91,7 +94,7 @@ describe("conversational-agent", () => {
     });
 
     it("should update token usage and costs", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.token_usage = { input: 10, output: 15 };
       state.model_costs = 0.001;
@@ -104,13 +107,12 @@ describe("conversational-agent", () => {
     });
 
     it("should handle missing usage metadata", async () => {
-      const no_usage_model = {
-        invoke: mock(() => Promise.resolve({
-          content: "Response without usage metadata"
-        }))
-      };
+      const no_usage_model = Object.create(ChatXAI.prototype);
+      no_usage_model.invoke = mock(() => Promise.resolve({
+        content: "Response without usage metadata"
+      }));
 
-      const agent = new conversational_agent(no_usage_model);
+      const agent = new conversational_agent(no_usage_model as ChatXAI);
       const state = create_initial_state();
 
       const result = await agent.converse(state);
@@ -123,7 +125,7 @@ describe("conversational-agent", () => {
 
   describe("should_continue_conversation", () => {
     it("should allow conversation to continue under limit", () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.variables.max_conversation_turns = 10;
       state.variables.conversation_turn = 5;
@@ -134,7 +136,7 @@ describe("conversational-agent", () => {
     });
 
     it("should stop conversation at limit", () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.variables.max_conversation_turns = 10;
       state.variables.conversation_turn = 10;
@@ -145,7 +147,7 @@ describe("conversational-agent", () => {
     });
 
     it("should use default limit when none provided", () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       state.variables.conversation_turn = 25;
 
@@ -155,7 +157,7 @@ describe("conversational-agent", () => {
     });
 
     it("should handle missing conversation turn", () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
 
       const should_continue = agent.should_continue_conversation(state);
@@ -166,7 +168,7 @@ describe("conversational-agent", () => {
 
   describe("extract_conversation_history", () => {
     it("should format conversation history correctly", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       
       state.messages = [
@@ -190,7 +192,7 @@ describe("conversational-agent", () => {
     });
 
     it("should handle single message conversations", async () => {
-      const agent = new conversational_agent(mock_model);
+      const agent = new conversational_agent(mock_model as ChatXAI);
       const state = create_initial_state();
       // Only has the initial message
 

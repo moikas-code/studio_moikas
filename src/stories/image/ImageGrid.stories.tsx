@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import ImageGrid from '@/app/components/image_grid'
 
 const meta = {
@@ -9,16 +9,36 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    images: {
-      description: 'Array of image data to display',
+    image_base64: {
+      description: 'Array of base64 image strings',
     },
-    onImageClick: {
-      action: 'image clicked',
-      description: 'Called when an image is clicked',
+    prompt_text: {
+      control: 'text',
+      description: 'The prompt used to generate images',
     },
-    isLoading: {
-      control: 'boolean',
-      description: 'Loading state',
+    mana_points_used: {
+      control: 'number',
+      description: 'Mana points consumed',
+    },
+    plan: {
+      control: 'text',
+      description: 'User subscription plan',
+    },
+    model_id: {
+      control: 'text',
+      description: 'AI model used',
+    },
+    onRedo: {
+      action: 'redo clicked',
+      description: 'Called when redo is clicked',
+    },
+    onReuse: {
+      action: 'reuse clicked',
+      description: 'Called when reuse is clicked',
+    },
+    onEdit: {
+      action: 'edit clicked',
+      description: 'Called when edit is clicked',
     },
   },
 } satisfies Meta<typeof ImageGrid>
@@ -26,80 +46,93 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const mockImages = [
-  {
-    url: '/placeholder-jffrl.png',
-    prompt: 'A cat astronaut on Mars',
-    model: 'fal-ai/flux-realism',
-    aspectRatio: '1:1',
-    cost: 50,
-    timestamp: new Date().toISOString(),
-  },
-  {
-    url: '/ai-game-dev.png',
-    prompt: 'AI game development team',
-    model: 'fal-ai/sana',
-    aspectRatio: '16:9',
-    cost: 25,
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    url: '/digital-artist-ai.png',
-    prompt: 'Digital artist using AI tools',
-    model: 'fal-ai/flux-pro',
-    aspectRatio: '3:2',
-    cost: 100,
-    timestamp: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    url: '/marketing-team-ai.png',
-    prompt: 'Marketing team brainstorming with AI',
-    model: 'fal-ai/flux-realism',
-    aspectRatio: '1:1',
-    cost: 50,
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-  },
+// Mock base64 images (you can replace with actual base64 strings)
+const mockBase64Images = [
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
 ]
 
 export const Default: Story = {
   args: {
-    images: mockImages,
-    onImageClick: (image) => console.log('Clicked image:', image),
+    image_base64: mockBase64Images,
+    prompt_text: 'A futuristic city with flying cars',
+    mana_points_used: 50,
+    plan: 'standard',
+    model_id: 'fal-ai/flux-realism',
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
 }
 
-export const Loading: Story = {
+export const WithAdvancedSettings: Story = {
   args: {
-    images: [],
-    isLoading: true,
+    image_base64: mockBase64Images,
+    prompt_text: 'A fantasy landscape with dragons',
+    mana_points_used: 75,
+    plan: 'standard',
+    model_id: 'fal-ai/sana',
+    num_inference_steps: 28,
+    guidance_scale: 5,
+    style_name: 'Cinematic',
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
 }
 
-export const Empty: Story = {
+export const FreePlan: Story = {
   args: {
-    images: [],
-    isLoading: false,
+    image_base64: mockBase64Images.slice(0, 2),
+    prompt_text: 'Cat astronaut on Mars',
+    mana_points_used: 25,
+    plan: 'free',
+    model_id: 'fal-ai/flux-realism',
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
 }
 
 export const SingleImage: Story = {
   args: {
-    images: [mockImages[0]],
-    onImageClick: (image) => console.log('Clicked image:', image),
+    image_base64: [mockBase64Images[0]],
+    prompt_text: 'A single beautiful sunset',
+    mana_points_used: 25,
+    plan: 'standard',
+    model_id: 'fal-ai/flux-pro',
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
 }
 
-export const ManyImages: Story = {
+export const WithEnhancements: Story = {
   args: {
-    images: [...mockImages, ...mockImages, ...mockImages],
-    onImageClick: (image) => console.log('Clicked image:', image),
+    image_base64: mockBase64Images,
+    prompt_text: 'Enhanced prompt: A beautiful landscape',
+    mana_points_used: 60,
+    plan: 'standard',
+    model_id: 'fal-ai/flux-realism',
+    enhancement_count: 2,
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
 }
 
 export const MobileView: Story = {
   args: {
-    images: mockImages,
-    onImageClick: (image) => console.log('Clicked image:', image),
+    image_base64: mockBase64Images.slice(0, 2),
+    prompt_text: 'Mobile view test',
+    mana_points_used: 30,
+    plan: 'standard',
+    model_id: 'fal-ai/flux-realism',
+    onRedo: () => console.log('Redo clicked'),
+    onReuse: () => console.log('Reuse clicked'),
+    onEdit: (img: string) => console.log('Edit clicked:', img),
   },
   parameters: {
     viewport: {

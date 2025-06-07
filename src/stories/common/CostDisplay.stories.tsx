@@ -1,5 +1,6 @@
-import type { Meta, StoryObj } from '@storybook/react'
-import { CostDisplay } from '@/app/components/CostDisplay'
+import type { Meta, StoryObj } from '@storybook/nextjs'
+import CostDisplay from '@/app/components/CostDisplay'
+import { get_legacy_model_options } from '@/lib/generate_helpers'
 
 const meta = {
   title: 'Common/CostDisplay',
@@ -9,18 +10,19 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
+    model: {
+      control: 'select',
+      options: ['fal-ai/flux-realism', 'fal-ai/flux-pro', 'fal-ai/sana', 'fal-ai/fast-turbo-diffusion'],
+      description: 'AI model to calculate cost for',
+    },
     cost: {
       control: { type: 'number', min: 0, max: 1000 },
-      description: 'Token cost to display',
+      description: 'Direct cost to display (overrides model calculation)',
     },
-    variant: {
+    planType: {
       control: 'select',
-      options: ['default', 'large', 'small'],
-      description: 'Display size variant',
-    },
-    showIcon: {
-      control: 'boolean',
-      description: 'Whether to show the MP icon',
+      options: ['free', 'standard', 'premium', null],
+      description: 'User plan type',
     },
   },
 } satisfies Meta<typeof CostDisplay>
@@ -34,24 +36,23 @@ export const Default: Story = {
   },
 }
 
-export const Large: Story = {
+export const WithModel: Story = {
   args: {
-    cost: 100,
-    variant: 'large',
+    model: get_legacy_model_options().find(m => m.value === 'fal-ai/flux-realism'),
+    planType: 'standard',
   },
 }
 
-export const Small: Story = {
+export const FreePlan: Story = {
   args: {
-    cost: 25,
-    variant: 'small',
+    model: get_legacy_model_options().find(m => m.value === 'fal-ai/sana'),
+    planType: 'free',
   },
 }
 
-export const WithoutIcon: Story = {
+export const LargeCost: Story = {
   args: {
-    cost: 75,
-    showIcon: false,
+    cost: 750,
   },
 }
 
@@ -61,20 +62,19 @@ export const ZeroCost: Story = {
   },
 }
 
-export const HighCost: Story = {
+export const PremiumModel: Story = {
   args: {
-    cost: 999,
-    variant: 'large',
+    model: get_legacy_model_options().find(m => m.value === 'fal-ai/flux-pro'),
+    planType: 'premium',
   },
 }
 
 export const InButton: Story = {
   args: {
     cost: 50,
-    variant: 'small',
   },
   decorators: [
-    (Story) => (
+    (Story: any) => (
       <button className="btn btn-primary">
         Generate Image <Story />
       </button>

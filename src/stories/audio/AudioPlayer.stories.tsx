@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { AudioPlayer } from '@/app/tools/audio/components/audio_player'
 
 const meta = {
@@ -9,15 +9,19 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    url: {
+    audio_url: {
       control: 'text',
       description: 'Audio file URL',
     },
-    title: {
+    text_preview: {
       control: 'text',
-      description: 'Title of the audio',
+      description: 'Preview text for the audio',
     },
-    onDownload: {
+    mana_points_used: {
+      control: 'number',
+      description: 'Mana points used for generation',
+    },
+    on_download: {
       action: 'download clicked',
       description: 'Called when download button is clicked',
     },
@@ -32,43 +36,47 @@ const mockAudioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.
 
 export const Default: Story = {
   args: {
-    url: mockAudioUrl,
-    title: 'Sample Audio',
+    audio_url: mockAudioUrl,
+    text_preview: 'This is a sample audio file for testing the audio player component.',
+    mana_points_used: 50,
   },
 }
 
-export const WithLongTitle: Story = {
+export const WithLongText: Story = {
   args: {
-    url: mockAudioUrl,
-    title: 'This is a very long audio title that might wrap to multiple lines in the player interface',
+    audio_url: mockAudioUrl,
+    text_preview: 'This is a very long text preview that might wrap to multiple lines in the player interface. It contains detailed information about the audio content and might be useful for providing context to the user about what they are listening to.',
+    mana_points_used: 75,
   },
 }
 
 export const WithDownload: Story = {
   args: {
-    url: mockAudioUrl,
-    title: 'Downloadable Audio',
-    onDownload: () => console.log('Downloading audio...'),
+    audio_url: mockAudioUrl,
+    text_preview: 'Downloadable Audio',
+    mana_points_used: 100,
+    on_download: (format: string) => console.log('Downloading audio in format:', format),
   },
 }
 
-export const NoTitle: Story = {
+export const MinimalInfo: Story = {
   args: {
-    url: mockAudioUrl,
+    audio_url: mockAudioUrl,
   },
 }
 
 export const ErrorState: Story = {
   args: {
-    url: 'https://invalid-url.com/audio.mp3',
-    title: 'Broken Audio',
+    audio_url: 'https://invalid-url.com/audio.mp3',
+    text_preview: 'This audio file cannot be loaded',
   },
 }
 
 export const MobileView: Story = {
   args: {
-    url: mockAudioUrl,
-    title: 'Mobile Audio Player',
+    audio_url: mockAudioUrl,
+    text_preview: 'Mobile Audio Player',
+    mana_points_used: 25,
   },
   parameters: {
     viewport: {

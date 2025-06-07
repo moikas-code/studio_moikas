@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from '@storybook/react'
-import { WorkflowEditor } from '@/app/tools/memu/components/workflow_editor'
+import type { Meta, StoryObj } from '@storybook/nextjs'
+import WorkflowEditor from '@/app/tools/memu/components/workflow_editor'
 
 const meta = {
   title: 'MEMU/WorkflowEditor',
@@ -9,16 +9,20 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    workflow: {
-      description: 'Current workflow configuration',
+    initial_nodes: {
+      description: 'Initial nodes configuration',
     },
-    onUpdate: {
-      action: 'workflow updated',
-      description: 'Called when workflow is updated',
+    on_save: {
+      action: 'saved',
+      description: 'Called when workflow is saved',
     },
-    onClose: {
-      action: 'editor closed',
-      description: 'Called when editor is closed',
+    on_run: {
+      action: 'run',
+      description: 'Called when workflow is run',
+    },
+    workflow_id: {
+      control: 'text',
+      description: 'Workflow ID',
     },
   },
 } satisfies Meta<typeof WorkflowEditor>
@@ -26,103 +30,91 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const mockWorkflow = {
-  id: 'workflow_1',
-  name: 'Customer Support Bot',
-  description: 'Automated customer support workflow',
-  status: 'active' as const,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  user_id: 'user_123',
-  config: {
-    nodes: [
-      {
-        id: 'start',
-        type: 'input',
-        label: 'User Input',
-        config: {},
-      },
-      {
-        id: 'analyze',
-        type: 'llm',
-        label: 'Analyze Request',
-        config: {
-          model: 'gpt-4',
-          prompt: 'Analyze the customer request and categorize it.',
-        },
-      },
-      {
-        id: 'respond',
-        type: 'output',
-        label: 'Send Response',
-        config: {},
-      },
-    ],
-    edges: [
-      { source: 'start', target: 'analyze' },
-      { source: 'analyze', target: 'respond' },
-    ],
+const mockNodes = [
+  {
+    id: 'start',
+    type: 'input',
+    position: { x: 100, y: 100 },
+    data: {
+      label: 'User Input',
+    },
   },
-}
+  {
+    id: 'analyze',
+    type: 'llm',
+    position: { x: 300, y: 100 },
+    data: {
+      label: 'Analyze Request',
+      model: 'gpt-4',
+      prompt: 'Analyze the customer request and categorize it.',
+    },
+  },
+  {
+    id: 'respond',
+    type: 'output',
+    position: { x: 500, y: 100 },
+    data: {
+      label: 'Send Response',
+    },
+  },
+]
 
 export const Default: Story = {
   args: {
-    workflow: mockWorkflow,
-    onUpdate: (workflow) => console.log('Updated workflow:', workflow),
-    onClose: () => console.log('Editor closed'),
+    initial_nodes: mockNodes,
+    on_save: (nodes: any, connections: any) => console.log('Saved nodes:', nodes, 'connections:', connections),
+    on_run: () => console.log('Run workflow'),
+    workflow_id: 'workflow_1',
   },
 }
 
 export const EmptyWorkflow: Story = {
   args: {
-    workflow: {
-      ...mockWorkflow,
-      config: {
-        nodes: [],
-        edges: [],
-      },
-    },
-    onUpdate: (workflow) => console.log('Updated workflow:', workflow),
-    onClose: () => console.log('Editor closed'),
+    initial_nodes: [],
+    on_save: (nodes: any, connections: any) => console.log('Saved nodes:', nodes, 'connections:', connections),
+    on_run: () => console.log('Run workflow'),
+    workflow_id: 'workflow_empty',
   },
 }
 
 export const ComplexWorkflow: Story = {
   args: {
-    workflow: {
-      ...mockWorkflow,
-      name: 'Content Generation Pipeline',
-      config: {
-        nodes: [
-          { id: 'input', type: 'input', label: 'Topic Input', config: {} },
-          { id: 'research', type: 'llm', label: 'Research', config: { model: 'gpt-4' } },
-          { id: 'outline', type: 'llm', label: 'Create Outline', config: { model: 'gpt-4' } },
-          { id: 'write', type: 'llm', label: 'Write Content', config: { model: 'gpt-4' } },
-          { id: 'image', type: 'tool', label: 'Generate Images', config: { tool: 'image_generation' } },
-          { id: 'review', type: 'llm', label: 'Review & Edit', config: { model: 'gpt-4' } },
-          { id: 'output', type: 'output', label: 'Final Content', config: {} },
-        ],
-        edges: [
-          { source: 'input', target: 'research' },
-          { source: 'research', target: 'outline' },
-          { source: 'outline', target: 'write' },
-          { source: 'write', target: 'image' },
-          { source: 'write', target: 'review' },
-          { source: 'image', target: 'review' },
-          { source: 'review', target: 'output' },
-        ],
-      },
-    },
-    onUpdate: (workflow) => console.log('Updated workflow:', workflow),
-    onClose: () => console.log('Editor closed'),
+    initial_nodes: [
+      { id: 'input', type: 'input', position: { x: 100, y: 100 }, data: { label: 'Topic Input' } },
+      { id: 'research', type: 'llm', position: { x: 300, y: 50 }, data: { label: 'Research', model: 'gpt-4' } },
+      { id: 'outline', type: 'llm', position: { x: 500, y: 50 }, data: { label: 'Create Outline', model: 'gpt-4' } },
+      { id: 'write', type: 'llm', position: { x: 700, y: 100 }, data: { label: 'Write Content', model: 'gpt-4' } },
+      { id: 'image', type: 'tool', position: { x: 700, y: 200 }, data: { label: 'Generate Images', tool: 'image_generation' } },
+      { id: 'review', type: 'llm', position: { x: 900, y: 150 }, data: { label: 'Review & Edit', model: 'gpt-4' } },
+      { id: 'output', type: 'output', position: { x: 1100, y: 150 }, data: { label: 'Final Content' } },
+    ],
+    on_save: (nodes: any, connections: any) => console.log('Saved nodes:', nodes, 'connections:', connections),
+    on_run: () => console.log('Run workflow'),
+    workflow_id: 'workflow_complex',
+  },
+}
+
+export const DataProcessing: Story = {
+  args: {
+    initial_nodes: [
+      { id: 'data-input', type: 'input', position: { x: 100, y: 150 }, data: { label: 'Data Source' } },
+      { id: 'clean', type: 'llm', position: { x: 300, y: 100 }, data: { label: 'Clean Data', model: 'gpt-3.5-turbo' } },
+      { id: 'analyze', type: 'llm', position: { x: 300, y: 200 }, data: { label: 'Analyze Data', model: 'gpt-4' } },
+      { id: 'visualize', type: 'tool', position: { x: 500, y: 150 }, data: { label: 'Create Charts', tool: 'chart_generator' } },
+      { id: 'report', type: 'output', position: { x: 700, y: 150 }, data: { label: 'Generate Report' } },
+    ],
+    on_save: (nodes: any, connections: any) => console.log('Saved nodes:', nodes, 'connections:', connections),
+    on_run: () => console.log('Run workflow'),
+    workflow_id: 'workflow_data',
   },
 }
 
 export const MobileView: Story = {
   args: {
-    workflow: mockWorkflow,
-    onUpdate: (workflow) => console.log('Updated workflow:', workflow),
-    onClose: () => console.log('Editor closed'),
+    initial_nodes: mockNodes,
+    on_save: (nodes: any, connections: any) => console.log('Saved nodes:', nodes, 'connections:', connections),
+    on_run: () => console.log('Run workflow'),
+    workflow_id: 'workflow_mobile',
   },
   parameters: {
     viewport: {

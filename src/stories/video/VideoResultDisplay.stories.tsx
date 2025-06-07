@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { VideoResultDisplay } from '@/app/tools/video-effects/components/video_result_display'
 
 const meta = {
@@ -9,23 +9,11 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    videoUrl: {
+    video_url: {
       control: 'text',
       description: 'URL of the processed video',
     },
-    originalPrompt: {
-      control: 'text',
-      description: 'Original prompt used for generation',
-    },
-    cost: {
-      control: { type: 'number', min: 0, max: 500 },
-      description: 'Token cost',
-    },
-    onDownload: {
-      action: 'download clicked',
-      description: 'Called when download button is clicked',
-    },
-    onNewVideo: {
+    on_new_video: {
       action: 'new video clicked',
       description: 'Called when new video button is clicked',
     },
@@ -40,55 +28,38 @@ const mockVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket
 
 export const Default: Story = {
   args: {
-    videoUrl: mockVideoUrl,
-    originalPrompt: 'A futuristic city with flying cars',
-    cost: 150,
-    onDownload: () => console.log('Downloading video...'),
-    onNewVideo: () => console.log('Creating new video...'),
-  },
-}
-
-export const LongPrompt: Story = {
-  args: {
-    videoUrl: mockVideoUrl,
-    originalPrompt: 'A serene landscape with mountains in the background, a crystal clear lake reflecting the sky, birds flying overhead, and a small wooden cabin nestled among pine trees',
-    cost: 200,
-    onDownload: () => console.log('Downloading video...'),
-    onNewVideo: () => console.log('Creating new video...'),
-  },
-}
-
-export const LowCost: Story = {
-  args: {
-    videoUrl: mockVideoUrl,
-    originalPrompt: 'Simple animation test',
-    cost: 50,
-    onDownload: () => console.log('Downloading video...'),
-    onNewVideo: () => console.log('Creating new video...'),
+    video_url: mockVideoUrl,
+    on_new_video: () => console.log('Creating new video...'),
   },
 }
 
 export const NoVideo: Story = {
   args: {
-    videoUrl: '',
-    originalPrompt: 'Failed generation',
-    cost: 0,
-    onDownload: () => console.log('Downloading video...'),
-    onNewVideo: () => console.log('Creating new video...'),
+    video_url: '',
+    on_new_video: () => console.log('Creating new video...'),
   },
 }
 
 export const MobileView: Story = {
   args: {
-    videoUrl: mockVideoUrl,
-    originalPrompt: 'Mobile video test',
-    cost: 100,
-    onDownload: () => console.log('Downloading video...'),
-    onNewVideo: () => console.log('Creating new video...'),
+    video_url: mockVideoUrl,
+    on_new_video: () => console.log('Creating new video...'),
   },
   parameters: {
     viewport: {
       defaultViewport: 'mobile',
+    },
+  },
+}
+
+export const TabletView: Story = {
+  args: {
+    video_url: mockVideoUrl,
+    on_new_video: () => console.log('Creating new video...'),
+  },
+  parameters: {
+    viewport: {
+      defaultViewport: 'tablet',
     },
   },
 }

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { VoiceRecorder } from '@/app/tools/audio/components/voice_recorder'
 
 const meta = {
@@ -9,15 +9,11 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    onRecordingComplete: {
+    on_recording_complete: {
       action: 'recording complete',
-      description: 'Called when recording is finished with audio blob',
+      description: 'Called when recording is finished with base64 URL',
     },
-    onClear: {
-      action: 'cleared',
-      description: 'Called when recording is cleared',
-    },
-    maxDuration: {
+    max_duration: {
       control: { type: 'number', min: 5, max: 300 },
       description: 'Maximum recording duration in seconds',
     },
@@ -29,31 +25,27 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   args: {
-    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
-    onClear: () => console.log('Recording cleared'),
+    on_recording_complete: (base64_url: string) => console.log('Recording complete:', base64_url),
   },
 }
 
 export const WithShortMaxDuration: Story = {
   args: {
-    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
-    onClear: () => console.log('Recording cleared'),
-    maxDuration: 10,
+    on_recording_complete: (base64_url: string) => console.log('Recording complete:', base64_url),
+    max_duration: 10,
   },
 }
 
 export const WithLongMaxDuration: Story = {
   args: {
-    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
-    onClear: () => console.log('Recording cleared'),
-    maxDuration: 180,
+    on_recording_complete: (base64_url: string) => console.log('Recording complete:', base64_url),
+    max_duration: 180,
   },
 }
 
 export const MobileView: Story = {
   args: {
-    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
-    onClear: () => console.log('Recording cleared'),
+    on_recording_complete: (base64_url: string) => console.log('Recording complete:', base64_url),
   },
   parameters: {
     viewport: {
@@ -64,8 +56,7 @@ export const MobileView: Story = {
 
 export const InForm: Story = {
   args: {
-    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
-    onClear: () => console.log('Recording cleared'),
+    on_recording_complete: (base64_url: string) => console.log('Recording complete:', base64_url),
   },
   decorators: [
     (Story) => (

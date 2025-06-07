@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { VideoProgressIndicator } from '@/app/tools/video-effects/components/video_progress_indicator'
 
 const meta = {
@@ -9,18 +9,13 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
+    job_id: {
+      control: 'text',
+      description: 'Job ID for the video generation',
+    },
     progress: {
       control: { type: 'range', min: 0, max: 100 },
       description: 'Progress percentage',
-    },
-    status: {
-      control: 'select',
-      options: ['idle', 'uploading', 'processing', 'completed', 'error'],
-      description: 'Current status',
-    },
-    message: {
-      control: 'text',
-      description: 'Status message to display',
     },
   },
 } satisfies Meta<typeof VideoProgressIndicator>
@@ -30,56 +25,50 @@ type Story = StoryObj<typeof meta>
 
 export const Idle: Story = {
   args: {
+    job_id: 'job_123',
     progress: 0,
-    status: 'idle',
-    message: 'Ready to start',
   },
 }
 
-export const Uploading: Story = {
+export const InProgress: Story = {
   args: {
+    job_id: 'job_456',
     progress: 45,
-    status: 'uploading',
-    message: 'Uploading video...',
   },
 }
 
 export const Processing: Story = {
   args: {
+    job_id: 'job_789',
     progress: 75,
-    status: 'processing',
-    message: 'Applying effects...',
+    // message: 'Applying effects...',
   },
 }
 
 export const Completed: Story = {
   args: {
+    job_id: 'job_complete',
     progress: 100,
-    status: 'completed',
-    message: 'Video ready!',
   },
 }
 
-export const Error: Story = {
+export const PartialProgress: Story = {
   args: {
+    job_id: 'job_partial',
     progress: 30,
-    status: 'error',
-    message: 'Failed to process video',
   },
 }
 
-export const LongMessage: Story = {
+export const MidProgress: Story = {
   args: {
+    job_id: 'job_mid',
     progress: 60,
-    status: 'processing',
-    message: 'Analyzing video frames and applying AI-powered enhancement effects. This may take a few minutes...',
   },
 }
 
 export const AlmostComplete: Story = {
   args: {
+    job_id: 'job_almost',
     progress: 95,
-    status: 'processing',
-    message: 'Finalizing video...',
   },
 }

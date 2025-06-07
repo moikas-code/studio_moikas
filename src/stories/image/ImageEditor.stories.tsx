@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import ImageEditor from '@/app/components/image_editor'
 
 const meta = {
@@ -29,7 +29,7 @@ export const WithMockImage: Story = {
   args: {
     onClose: () => console.log('Editor closed'),
   },
-  play: async ({ canvasElement }) => {
+  play: async () => {
     // Simulate loading an image
     console.log('ImageEditor story loaded')
   },

@@ -1,17 +1,19 @@
 import { describe, it, expect, mock } from "bun:test";
 import { chat_tool } from "../../tools/chat-tool";
 import { workflow_node } from "../../types";
+import { ChatXAI } from "@langchain/xai";
 
 describe("chat-tool", () => {
-  const mock_model = {
-    invoke: mock(() => Promise.resolve({
-      content: "Hello! I'm doing great, thanks for asking. How are you today?",
-      usage_metadata: {
-        input_tokens: 15,
-        output_tokens: 25
-      }
-    }))
-  };
+  const mock_invoke = mock(() => Promise.resolve({
+    content: "Hello! I'm doing great, thanks for asking. How are you today?",
+    usage_metadata: {
+      input_tokens: 15,
+      output_tokens: 25
+    }
+  }));
+  
+  const mock_model = Object.create(ChatXAI.prototype);
+  mock_model.invoke = mock_invoke;
 
   describe("create", () => {
     it("should create a chat tool from a workflow node", () => {
@@ -24,7 +26,7 @@ describe("chat-tool", () => {
         }
       };
 
-      const tool = chat_tool.create(node, mock_model);
+      const tool = chat_tool.create(node, mock_model as ChatXAI);
 
       expect(tool).not.toBeNull();
       expect(tool.name).toBe("chat_chat-1");
@@ -40,7 +42,7 @@ describe("chat-tool", () => {
         data: {}
       };
 
-      const tool = chat_tool.create(node, mock_model);
+      const tool = chat_tool.create(node, mock_model as ChatXAI);
 
       expect(tool).not.toBeNull();
       expect(tool.name).toBe("chat_chat-2");
@@ -59,7 +61,7 @@ describe("chat-tool", () => {
         }
       };
 
-      const tool = chat_tool.create(node, mock_model);
+      const tool = chat_tool.create(node, mock_model as ChatXAI);
       const input = {
         user_message: "How are you doing today?",
         personality: "enthusiastic"
@@ -93,7 +95,7 @@ describe("chat-tool", () => {
         data: {}
       };
 
-      const tool = chat_tool.create(node, mock_model);
+      const tool = chat_tool.create(node, mock_model as ChatXAI);
       const input = {
         user_message: "Hello there!"
       };
@@ -113,7 +115,7 @@ describe("chat-tool", () => {
         }
       };
 
-      const tool = chat_tool.create(node, mock_model);
+      const tool = chat_tool.create(node, mock_model as ChatXAI);
       const input = {
         user_message: "What should I cook for dinner?",
         context: "User is vegetarian"

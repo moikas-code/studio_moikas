@@ -1,11 +1,12 @@
 import { describe, it, expect, mock } from "bun:test";
 import { tool_factory } from "../../tools/tool-factory";
 import { workflow_node } from "../../types";
+import { ChatXAI } from "@langchain/xai";
 
 describe("tool-factory", () => {
-  const mock_model = {
-    invoke: mock(() => Promise.resolve({ content: "mock response" }))
-  };
+  const mock_invoke = mock(() => Promise.resolve({ content: "mock response" }));
+  const mock_model = Object.create(ChatXAI.prototype);
+  mock_model.invoke = mock_invoke;
 
   describe("create_tool_from_node", () => {
     it("should create image generation tool", () => {
@@ -15,7 +16,7 @@ describe("tool-factory", () => {
         data: { model: "test-model" }
       };
 
-      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      const tool = tool_factory.create_tool_from_node(node, mock_model as ChatXAI);
       
       expect(tool).not.toBeNull();
       expect(tool?.name).toBe("generate_image_img-1");
@@ -29,7 +30,7 @@ describe("tool-factory", () => {
         data: {}
       };
 
-      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      const tool = tool_factory.create_tool_from_node(node, mock_model as ChatXAI);
       
       expect(tool).not.toBeNull();
       expect(tool?.name).toBe("analyze_text_text-1");
@@ -43,7 +44,7 @@ describe("tool-factory", () => {
         data: { prompt: "test prompt" }
       };
 
-      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      const tool = tool_factory.create_tool_from_node(node, mock_model as ChatXAI);
       
       expect(tool).not.toBeNull();
       expect(tool?.name).toBe("llm_process_llm-1");
@@ -57,7 +58,7 @@ describe("tool-factory", () => {
         data: { personality: "friendly" }
       };
 
-      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      const tool = tool_factory.create_tool_from_node(node, mock_model as ChatXAI);
       
       expect(tool).not.toBeNull();
       expect(tool?.name).toBe("chat_chat-1");
@@ -71,7 +72,7 @@ describe("tool-factory", () => {
         data: {}
       };
 
-      const tool = tool_factory.create_tool_from_node(node, mock_model);
+      const tool = tool_factory.create_tool_from_node(node, mock_model as ChatXAI);
       
       expect(tool).toBeNull();
     });

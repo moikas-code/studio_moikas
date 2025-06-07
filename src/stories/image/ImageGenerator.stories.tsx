@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import ImageGenerator from '@/app/components/image_generator'
 
 const meta = {
@@ -23,7 +23,6 @@ export const WithInitialPrompt: Story = {
     // Simulate entering a prompt
     const promptInput = canvasElement.querySelector('textarea')
     if (promptInput) {
-      // @ts-ignore
       promptInput.value = 'A futuristic cityscape at sunset with flying cars'
     }
   },

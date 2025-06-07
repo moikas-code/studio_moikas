@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/nextjs'
 import { VoiceSelectionPanel } from '@/app/tools/audio/components/voice_selection_panel'
 
 const meta = {
@@ -9,13 +9,17 @@ const meta = {
   },
   tags: ['autodocs'],
   argTypes: {
-    selectedVoice: {
+    selected_voice: {
       control: 'text',
       description: 'Currently selected voice',
     },
-    onVoiceChange: {
+    on_voice_change: {
       action: 'voice changed',
       description: 'Called when voice selection changes',
+    },
+    disabled: {
+      control: 'boolean',
+      description: 'Whether the panel is disabled',
     },
   },
 } satisfies Meta<typeof VoiceSelectionPanel>
@@ -25,21 +29,22 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   args: {
-    onVoiceChange: (voice) => console.log('Selected voice:', voice),
+    selected_voice: 'Richard',
+    on_voice_change: (voice: string) => console.log('Selected voice:', voice),
   },
 }
 
 export const WithSelectedVoice: Story = {
   args: {
-    selectedVoice: 'alloy',
-    onVoiceChange: (voice) => console.log('Selected voice:', voice),
+    selected_voice: 'Richard',
+    on_voice_change: (voice: string) => console.log('Selected voice:', voice),
   },
 }
 
 export const MobileView: Story = {
   args: {
-    selectedVoice: 'echo',
-    onVoiceChange: (voice) => console.log('Selected voice:', voice),
+    selected_voice: 'Richard',
+    on_voice_change: (voice: string) => console.log('Selected voice:', voice),
   },
   parameters: {
     viewport: {
@@ -50,8 +55,8 @@ export const MobileView: Story = {
 
 export const InSettings: Story = {
   args: {
-    selectedVoice: 'nova',
-    onVoiceChange: (voice) => console.log('Selected voice:', voice),
+    selected_voice: 'Richard',
+    on_voice_change: (voice: string) => console.log('Selected voice:', voice),
   },
   decorators: [
     (Story) => (
@@ -66,4 +71,12 @@ export const InSettings: Story = {
       </div>
     ),
   ],
+}
+
+export const Disabled: Story = {
+  args: {
+    selected_voice: 'Richard',
+    on_voice_change: (voice: string) => console.log('Selected voice:', voice),
+    disabled: true,
+  },
 }

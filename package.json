@@ -21,9 +21,7 @@
     "supabase:migration:down": "supabase migration down",
     "tunnel:init": "docker pull cloudflare/cloudflared:latest",
     "tunnel:login": "docker run -it --rm cloudflare/cloudflared:latest tunnel login",
-    "tunnel:start": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://host.docker.internal:3000",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "tunnel:start": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://host.docker.internal:3000"
   },
   "dependencies": {
     "@ai-sdk/fal": "^0.1.11",
@@ -88,5 +86,8 @@
     "supabase": "^2.24.3",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "storybook": "$storybook"
   }
 }
