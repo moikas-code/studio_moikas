@@ -137,12 +137,12 @@ export async function GET(req: NextRequest) {
             if (chunk.status === 'completed' && !chunk.audio_url) {
               console.log(`Chunk ${chunk.job_id} is marked completed but has no audio URL - skipping status check`)
               fal_status = { status: 'COMPLETED' }
-            } else {
-              const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
-                requestId: chunk.fal_request_id
-              })
-              fal_status = status_response as { status: string; result?: unknown }
-            }
+                          } else {
+                const status_response = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+                  requestId: chunk.fal_request_id!
+                })
+                fal_status = status_response as { status: string; result?: unknown }
+              }
             
             // If completed, try to get the actual result
             let fal_result = null
