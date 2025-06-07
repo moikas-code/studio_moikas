@@ -27,7 +27,6 @@ export function useWebhookChunkedTts() {
 
   // Job polling hook
   const {
-    is_polling,
     start_polling,
     stop_polling
   } = useJobPolling({
@@ -120,7 +119,12 @@ export function useWebhookChunkedTts() {
   }
 
   const check_document_status = useCallback(async () => {
-    if (!generated_audio?.job_id) return
+    if (!generated_audio?.job_id) {
+      console.log('No job ID, skipping status check')
+      return
+    }
+
+    console.log('Checking document status for job:', generated_audio.job_id)
 
     try {
       // Determine which endpoint to use based on job ID pattern
@@ -129,14 +133,24 @@ export function useWebhookChunkedTts() {
         ? `/api/audio/document/status?job_id=${generated_audio.job_id}`
         : `/api/audio/status?job_id=${generated_audio.job_id}`
       
+      console.log('Fetching from endpoint:', status_endpoint)
       const response = await fetch(status_endpoint)
       
       if (!response.ok) {
+        console.error('Status check failed:', response.status, response.statusText)
         throw new Error('Failed to check status')
       }
 
       const data = await response.json()
       const status = data.data
+      console.log('Status response:', {
+        job_id: status.job_id,
+        status: status.status,
+        progress: status.progress,
+        chunks_count: status.chunks?.length,
+        total_cost: status.metadata?.total_cost,
+        total_text_length: status.metadata?.total_text_length
+      })
 
       // Update generated audio based on job type
       if (is_document_job) {
@@ -144,6 +158,11 @@ export function useWebhookChunkedTts() {
         const updated_chunks = generated_audio.chunks.map((chunk, index) => {
           const chunk_status = status.chunks.find((c: { chunk_index: number; status: string; audio_url?: string }) => c.chunk_index === index)
           if (chunk_status) {
+            console.log(`Updating chunk ${index}:`, {
+              old_status: chunk.status,
+              new_status: chunk_status.status,
+              has_audio: !!chunk_status.audio_url
+            })
             return {
               ...chunk,
               status: chunk_status.status,
@@ -153,16 +172,23 @@ export function useWebhookChunkedTts() {
           return chunk
         })
 
-        set_generated_audio({
+        const updated_audio = {
           ...generated_audio,
           chunks: updated_chunks,
           overall_status: status.status,
           overall_progress: status.progress,
-          total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points
+          total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points,
+          total_characters: status.metadata?.total_text_length || generated_audio.total_characters
+        }
+        console.log('Setting updated audio state:', {
+          overall_status: updated_audio.overall_status,
+          chunks_with_audio: updated_audio.chunks.filter(c => c.audio_url).length,
+          total_chunks: updated_audio.chunks.length
         })
+        set_generated_audio(updated_audio)
       } else {
         // Single chunk regular audio job
-        set_generated_audio({
+        const updated_audio = {
           ...generated_audio,
           chunks: [{
             ...generated_audio.chunks[0],
@@ -170,8 +196,15 @@ export function useWebhookChunkedTts() {
             audio_url: status.audio_url
           }],
           overall_status: status.status,
-          overall_progress: status.status === 'completed' ? 100 : 0
+          overall_progress: status.status === 'completed' ? 100 : 0,
+          total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points,
+          total_characters: status.metadata?.total_text_length || generated_audio.total_characters
+        }
+        console.log('Setting updated audio state (single chunk):', {
+          status: updated_audio.overall_status,
+          has_audio: !!status.audio_url
         })
+        set_generated_audio(updated_audio)
       }
 
       // Check if all chunks are complete
@@ -202,11 +235,18 @@ export function useWebhookChunkedTts() {
 
   // Poll for document status updates
   useEffect(() => {
-    if (generated_audio?.job_id && is_generating && !is_polling) {
-      const interval = setInterval(check_document_status, 5000) // Check every 5 seconds
-      return () => clearInterval(interval)
+    if (generated_audio?.job_id && is_generating) {
+      console.log('Starting status polling for job:', generated_audio.job_id)
+      const interval = setInterval(() => {
+        console.log('Polling status for job:', generated_audio.job_id)
+        check_document_status()
+      }, 3000) // Check every 3 seconds
+      return () => {
+        console.log('Stopping status polling')
+        clearInterval(interval)
+      }
     }
-  }, [generated_audio?.job_id, is_generating, is_polling, check_document_status])
+  }, [generated_audio?.job_id, is_generating, check_document_status])
 
   const generate_chunked_speech = useCallback(async (params: TTSParams): Promise<ChunkedTTSResult | null> => {
     set_is_generating(true)
@@ -392,13 +432,15 @@ export function useWebhookChunkedTts() {
       
       set_generated_audio(result)
       
-      // If still processing, start polling
+      // If still processing, ensure is_generating is true to trigger polling
       if (status.status === 'processing' || status.status === 'pending') {
         set_is_generating(true)
-        // Start checking status periodically
-        setTimeout(check_document_status, 2000)
+        console.log('Job is still processing, polling will continue')
+        // Do an immediate check
+        check_document_status()
       } else {
         set_is_generating(false)
+        console.log('Job is complete or failed, stopping polling')
       }
       
       return true
