@@ -231,6 +231,12 @@ export async function POST(req: NextRequest) {
         // Handle audio job completion
         let audio_url: string | undefined
         
+        console.log('Audio job completion webhook received:', {
+          request_id: validated.request_id,
+          output: validated.output,
+          output_type: typeof validated.output
+        })
+        
         // Check various possible locations for the audio URL
         if (validated.output) {
           if (typeof validated.output === 'string') {
@@ -244,6 +250,9 @@ export async function POST(req: NextRequest) {
             } else if (typeof output.audio === 'string') {
               audio_url = output.audio
             }
+            
+            // Log all keys in output for debugging
+            console.log('Output keys:', Object.keys(output))
           }
         }
         

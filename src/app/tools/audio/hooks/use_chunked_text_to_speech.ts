@@ -21,7 +21,7 @@ export function useChunkedTextToSpeech() {
   const [generated_audio, set_generated_audio] = useState<ChunkedTTSResult | null>(null)
   const [is_regenerating_chunk, set_is_regenerating_chunk] = useState<number | null>(null)
 
-  const chunk_text = (text: string, chunk_size: number = 512): string[] => {
+  const chunk_text = (text: string, chunk_size: number = 1000): string[] => {
     const chunks: string[] = []
     let current_position = 0
 

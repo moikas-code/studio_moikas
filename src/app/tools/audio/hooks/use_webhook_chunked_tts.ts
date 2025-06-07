@@ -50,7 +50,7 @@ export function useWebhookChunkedTts() {
     }
   })
 
-  const chunk_text = (text: string, chunk_size: number = 512): string[] => {
+  const chunk_text = (text: string, chunk_size: number = 1000): string[] => {
     const chunks: string[] = []
     let current_position = 0
 

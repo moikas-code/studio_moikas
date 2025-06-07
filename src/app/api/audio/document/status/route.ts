@@ -85,12 +85,23 @@ export async function GET(req: NextRequest) {
     chunks_data = chunks || []
     
     console.log('Found chunks:', chunks_data.length)
-    console.log('Chunk statuses:', chunks_data.map(c => ({ 
+    console.log('Chunk details:', chunks_data.map(c => ({ 
       job_id: c.job_id, 
       status: c.status, 
+      audio_url: c.audio_url,
       has_audio_url: !!c.audio_url,
-      chunk_index: c.metadata?.chunk_index 
+      chunk_index: c.metadata?.chunk_index,
+      fal_request_id: c.fal_request_id
     })))
+    
+    // If any chunks don't have audio URLs but have fal_request_ids, log warning
+    const missing_audio = chunks_data.filter(c => c.status === 'completed' && !c.audio_url && c.fal_request_id)
+    if (missing_audio.length > 0) {
+      console.warn('Completed chunks missing audio URLs:', missing_audio.map(c => ({
+        job_id: c.job_id,
+        fal_request_id: c.fal_request_id
+      })))
+    }
     // Check fal status
     // console.log(fal_status)
     // // TODO: Update parent job status based on fal status
@@ -114,14 +125,23 @@ export async function GET(req: NextRequest) {
         let chunk_status = chunk.status
         let chunk_audio_url = chunk.audio_url
         
-        // Check fal.ai status if we have a request ID and job is not completed
-        if (chunk.fal_request_id && chunk.status !== 'completed' && chunk.status !== 'failed') {
+        // Check fal.ai status if we have a request ID and either:
+        // 1. Job is not completed/failed OR
+        // 2. Job is completed but has no audio URL (webhook might have failed)
+        if (chunk.fal_request_id && (
+          (chunk.status !== 'completed' && chunk.status !== 'failed') ||
+          (chunk.status === 'completed' && !chunk.audio_url)
+        )) {
           try {
             const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", { 
               requestId: chunk.fal_request_id 
             })
             
-            console.log(`Fal status for chunk ${chunk.job_id}:`, fal_status.status)
+            console.log(`Fal status for chunk ${chunk.job_id}:`, {
+              status: fal_status.status,
+              result: (fal_status as any).result,
+              result_type: typeof (fal_status as any).result
+            })
             
             if (fal_status.status === 'IN_PROGRESS') {
               chunk_status = 'processing'
@@ -129,10 +149,46 @@ export async function GET(req: NextRequest) {
               chunk_status = 'pending'
             } else if (fal_status.status === 'COMPLETED') {
               chunk_status = 'completed'
-              // Get audio URL from fal result if available
-              if ((fal_status as any).result?.url) {
-                chunk_audio_url = (fal_status as any).result.url
-                console.log(`Got audio URL from fal result for chunk ${chunk.job_id}:`, chunk_audio_url)
+              // Try different possible locations for audio URL
+              const result = (fal_status as any).result
+              console.log(`Fal result structure for ${chunk.job_id}:`, {
+                has_result: !!result,
+                result_type: typeof result,
+                result_is_string: typeof result === 'string',
+                result_keys: result && typeof result === 'object' ? Object.keys(result) : []
+              })
+              
+              if (result) {
+                // If result is a string, it might be the URL directly
+                if (typeof result === 'string') {
+                  chunk_audio_url = result
+                } else if (typeof result === 'object') {
+                  // Try various possible paths
+                  chunk_audio_url = result.url || result.audio_url || result.audio || result.output
+                }
+                
+                if (chunk_audio_url) {
+                  console.log(`Got audio URL from fal result for chunk ${chunk.job_id}:`, chunk_audio_url)
+                  
+                  // Update the database if we found the URL but it wasn't saved
+                  if (!chunk.audio_url) {
+                    const update_result = await supabase
+                      .from('audio_jobs')
+                      .update({
+                        audio_url: chunk_audio_url,
+                        status: 'completed',
+                        completed_at: new Date().toISOString()
+                      })
+                      .eq('job_id', chunk.job_id)
+                      .eq('user_id', user.user_id)
+                    
+                    console.log(`Updated chunk ${chunk.job_id} with audio URL:`, update_result)
+                  }
+                } else {
+                  console.warn(`No audio URL found in fal result for chunk ${chunk.job_id}`)
+                }
+              } else {
+                console.warn(`No result in fal status for chunk ${chunk.job_id}`)
               }
             }
           } catch (error) {
@@ -181,7 +237,7 @@ export async function GET(req: NextRequest) {
       metadata: {
         plan: parent_job.metadata?.plan,
         total_text_length: parent_job.metadata?.total_text_length,
-        total_cost: parent_job.cost
+        total_cost: parent_job.cost || 0
       }
     }
     
