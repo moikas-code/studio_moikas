@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
       requestId: job.fal_request_id
     })
+    console.log('Fal status:', fal_status)
 
     // 5. Check fal.ai status if job is completed but has no audio URL
     let audio_url = job.audio_url

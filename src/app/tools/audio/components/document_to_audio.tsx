@@ -42,7 +42,20 @@ export function DocumentToAudio() {
   
   // Saved jobs state
   const [show_saved_jobs, set_show_saved_jobs] = useState(false)
-  const [saved_jobs, set_saved_jobs] = useState(AudioJobStorage.get_recent_jobs())
+  interface RecentJob {
+    job_id: string
+    type: 'document' | 'audio'
+    status: string
+    text_preview: string
+    character_count: number
+    chunk_count: number
+    created_at: string
+    completed_at?: string
+    has_audio: boolean
+  }
+  
+  const [saved_jobs, set_saved_jobs] = useState<RecentJob[]>([])
+  const [is_loading_jobs, set_is_loading_jobs] = useState(false)
   
   // Hook for webhook-based chunked TTS functionality
   const { 
@@ -57,11 +70,26 @@ export function DocumentToAudio() {
     restore_job 
   } = useWebhookChunkedTts()
   
+  // Fetch recent jobs from database
+  const fetch_recent_jobs = useCallback(async () => {
+    set_is_loading_jobs(true)
+    try {
+      const response = await fetch('/api/audio/recent-jobs?limit=20&days=7')
+      if (response.ok) {
+        const data = await response.json()
+        set_saved_jobs(data.data.jobs)
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent jobs:', error)
+    } finally {
+      set_is_loading_jobs(false)
+    }
+  }, [])
+  
   // Check for saved jobs on mount
   useEffect(() => {
-    const jobs = AudioJobStorage.get_recent_jobs()
-    set_saved_jobs(jobs)
-  }, [])
+    fetch_recent_jobs()
+  }, [fetch_recent_jobs])
   
   const handle_text_extracted = (text: string) => {
     set_extracted_text(text)
@@ -103,8 +131,8 @@ export function DocumentToAudio() {
       
       AudioJobStorage.save_job(result.job_id, extracted_text, voice_settings, result.chunks.length)
       
-      // Update saved jobs list
-      set_saved_jobs(AudioJobStorage.get_recent_jobs())
+      // Refresh the jobs list to include the new job
+      fetch_recent_jobs()
     }
   }
   
@@ -116,41 +144,57 @@ export function DocumentToAudio() {
     // Also remove from local storage if there's a current job
     if (generated_audio?.job_id) {
       AudioJobStorage.remove_job(generated_audio.job_id)
-      set_saved_jobs(AudioJobStorage.get_recent_jobs())
+      fetch_recent_jobs()
     }
   }
   
-  const handle_restore_job = async (job_id: string) => {
+  const handle_restore_job = async (job_id: string, job_data?: RecentJob) => {
+    // First try to get from local storage for full data
     const stored_job = AudioJobStorage.get_job(job_id)
-    if (!stored_job) {
-      toast.error('Job not found in storage')
-      return
-    }
     
-    // Restore the text and settings
-    set_extracted_text(stored_job.extracted_text)
-    if (stored_job.voice_settings.selected_voice) {
-      set_selected_voice(stored_job.voice_settings.selected_voice)
-    }
-    if (stored_job.voice_settings.voice_clone_url) {
-      set_voice_clone_url(stored_job.voice_settings.voice_clone_url)
-    }
-    set_exaggeration(stored_job.voice_settings.exaggeration || TTS_LIMITS.default_exaggeration)
-    set_cfg(stored_job.voice_settings.cfg || TTS_LIMITS.default_cfg)
-    set_temperature(stored_job.voice_settings.temperature || TTS_LIMITS.default_temperature)
-    set_high_quality(stored_job.voice_settings.high_quality ?? true)
-    set_use_seed(stored_job.voice_settings.use_seed ?? false)
-    if (stored_job.voice_settings.seed !== undefined) {
-      set_seed(stored_job.voice_settings.seed)
-    }
-    
-    // Try to restore the job status
-    const success = await restore_job(job_id, stored_job.extracted_text)
-    if (success) {
-      set_show_saved_jobs(false)
-      toast.success('Job restored successfully')
+    if (stored_job) {
+      // Restore from local storage (has full text and settings)
+      set_extracted_text(stored_job.extracted_text)
+      if (stored_job.voice_settings.selected_voice) {
+        set_selected_voice(stored_job.voice_settings.selected_voice)
+      }
+      if (stored_job.voice_settings.voice_clone_url) {
+        set_voice_clone_url(stored_job.voice_settings.voice_clone_url)
+      }
+      set_exaggeration(stored_job.voice_settings.exaggeration || TTS_LIMITS.default_exaggeration)
+      set_cfg(stored_job.voice_settings.cfg || TTS_LIMITS.default_cfg)
+      set_temperature(stored_job.voice_settings.temperature || TTS_LIMITS.default_temperature)
+      set_high_quality(stored_job.voice_settings.high_quality ?? true)
+      set_use_seed(stored_job.voice_settings.use_seed ?? false)
+      if (stored_job.voice_settings.seed !== undefined) {
+        set_seed(stored_job.voice_settings.seed)
+      }
+      
+      // Try to restore the job status
+      const success = await restore_job(job_id, stored_job.extracted_text)
+      if (success) {
+        set_show_saved_jobs(false)
+        toast.success('Job restored successfully')
+      } else {
+        toast.error('Failed to restore job status')
+      }
+    } else if (job_data) {
+      // Restore from database (limited data)
+      // For database jobs, we can only restore the status, not the full text
+      const success = await restore_job(job_id)
+      if (success) {
+        set_show_saved_jobs(false)
+        toast.success('Job status restored')
+        
+        // If it's a document job, show a note about limited restoration
+        if (job_data.type === 'document') {
+          toast('Note: Original text not available. Only audio playback restored.', { icon: 'ℹ️' })
+        }
+      } else {
+        toast.error('Failed to restore job status')
+      }
     } else {
-      toast.error('Failed to restore job status')
+      toast.error('Job data not available')
     }
   }
   
@@ -168,12 +212,12 @@ export function DocumentToAudio() {
       // Remove from storage after a delay to ensure user has seen the result
       const timer = setTimeout(() => {
         AudioJobStorage.remove_job(generated_audio.job_id)
-        set_saved_jobs(AudioJobStorage.get_recent_jobs())
+        fetch_recent_jobs()
       }, 5000) // 5 second delay
       
       return () => clearTimeout(timer)
     }
-  }, [generated_audio?.overall_status, generated_audio?.job_id])
+  }, [generated_audio?.overall_status, generated_audio?.job_id, fetch_recent_jobs])
   
   // If audio is generated, show chunked player
   if (generated_audio) {
@@ -236,43 +280,72 @@ export function DocumentToAudio() {
             
             {show_saved_jobs && (
               <div className="space-y-2">
-                {saved_jobs.slice(0, 5).map((job) => {
-                  const created_date = new Date(job.created_at)
-                  const expires_date = new Date(job.expires_at)
-                  const days_left = Math.ceil((expires_date.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-                  
-                  return (
-                    <div key={job.job_id} className="bg-base-200 p-3 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">
-                            {job.total_chunks} chunk{job.total_chunks > 1 ? 's' : ''} • {job.extracted_text.length.toLocaleString()} characters
-                          </p>
-                          <p className="text-xs text-base-content/60 mt-1">
-                            Created {created_date.toLocaleDateString()} at {created_date.toLocaleTimeString()}
-                          </p>
-                          <p className="text-xs text-base-content/60">
-                            Expires in {days_left} day{days_left !== 1 ? 's' : ''}
-                          </p>
-                          <p className="text-xs mt-2 line-clamp-2 opacity-70">
-                            {job.extracted_text.substring(0, 150)}...
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handle_restore_job(job.job_id)}
-                          className="btn btn-primary btn-sm ml-2"
-                        >
-                          Restore
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-                
-                {saved_jobs.length > 5 && (
-                  <p className="text-sm text-center text-base-content/60 mt-2">
-                    Showing 5 of {saved_jobs.length} saved jobs
+                {is_loading_jobs ? (
+                  <div className="text-center py-4">
+                    <span className="loading loading-spinner loading-md"></span>
+                    <p className="text-sm mt-2">Loading recent jobs...</p>
+                  </div>
+                ) : saved_jobs.length === 0 ? (
+                  <p className="text-center text-base-content/60 py-4">
+                    No recent audio jobs found
                   </p>
+                ) : (
+                  <>
+                    {saved_jobs.slice(0, 10).map((job) => {
+                      const created_date = new Date(job.created_at)
+                      const is_local = AudioJobStorage.get_job(job.job_id) !== null
+                      
+                      return (
+                        <div key={job.job_id} className="bg-base-200 p-3 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium">
+                                  {job.type === 'document' ? (
+                                    <>{job.chunk_count} chunk{job.chunk_count > 1 ? 's' : ''} • {job.character_count.toLocaleString()} characters</>
+                                  ) : (
+                                    <>{job.character_count.toLocaleString()} characters</>
+                                  )}
+                                </p>
+                                <span className={`badge badge-xs ${
+                                  job.status === 'completed' ? 'badge-success' : 
+                                  job.status === 'processing' ? 'badge-warning' : 
+                                  job.status === 'failed' ? 'badge-error' : 
+                                  'badge-ghost'
+                                }`}>
+                                  {job.status}
+                                </span>
+                                {is_local && (
+                                  <span className="badge badge-xs badge-primary">Local</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-base-content/60 mt-1">
+                                Created {created_date.toLocaleDateString()} at {created_date.toLocaleTimeString()}
+                              </p>
+                              {job.text_preview && (
+                                <p className="text-xs mt-2 line-clamp-2 opacity-70">
+                                  {job.text_preview}...
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handle_restore_job(job.job_id, job)}
+                              className="btn btn-primary btn-sm ml-2"
+                              disabled={job.status === 'failed'}
+                            >
+                              {job.status === 'completed' ? 'Play' : 'View'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    
+                    {saved_jobs.length > 10 && (
+                      <p className="text-sm text-center text-base-content/60 mt-2">
+                        Showing 10 of {saved_jobs.length} recent jobs
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             )}
