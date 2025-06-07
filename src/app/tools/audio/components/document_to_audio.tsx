@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react'
+import React, { useState, useContext, useMemo, useEffect, useCallback } from 'react'
 import { Sparkles, Settings, Globe, Upload, History } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import { DocumentUploader } from './document_uploader'
