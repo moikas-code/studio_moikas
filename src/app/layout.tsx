@@ -9,6 +9,7 @@ import Analytics_wrapper from "./components/analytics_wrapper";
 import Session_tracking from "./components/session_tracking";
 import Cookie_consent_banner from "./components/cookie_consent_banner";
 import User_sync from "./components/user_sync";
+import JobNotifications from "./components/job_notifications";
 import { auth } from "@clerk/nextjs/server";
 
 const geist_sans = Geist({
@@ -91,6 +92,7 @@ export default async function RootLayout({
           <MpProvider>
             <Session_tracking />
             <User_sync plan={plan} />
+            <JobNotifications />
             <LayoutWithSidebar>{children}</LayoutWithSidebar>
 
             <Analytics_wrapper />
