@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     if (!job_id) {
       return api_error('Missing job_id parameter', 400)
     }
+    
 
     // 3. Get job from database
     const supabase = get_service_role_client()
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
       .eq('job_id', job_id)
       .eq('user_id', user.user_id)
       .single()
+    const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+      requestId: job.fal_request_id
+    })
 
     if (error || !job) {
       console.error('Job not found:', job_id, 'error:', error)
@@ -40,11 +44,9 @@ export async function GET(req: NextRequest) {
     // 5. Check fal.ai status if job is completed but has no audio URL
     let audio_url = job.audio_url
     
-    if (job.fal_request_id && job.status === 'completed' && !job.audio_url) {
+    if (job.fal_request_id && job.status === 'completed' && !job.audio_url || fal_status.status === 'COMPLETED') {
       try {
-        const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", { 
-          requestId: job.fal_request_id 
-        })
+
         
         // Define proper type for fal status response
         interface FalStatusResponse {
