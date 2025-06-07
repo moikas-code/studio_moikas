@@ -26,14 +26,11 @@ import {
 
 // Types for fal.ai responses
 interface FalAudioInput {
-  prompt: string
-  voice?: string
-  source_audio_url?: string
-  high_quality_audio?: boolean
+  text: string
+  audio_url?: string  // for voice cloning
   exaggeration?: number
   cfg?: number
   temperature?: number
-  seed?: number
 }
 
 interface FalAudioResult {
@@ -154,18 +151,13 @@ export async function POST(req: NextRequest) {
 
     // 9. Prepare fal.ai request
     const fal_input: FalAudioInput = {
-      prompt: validated.text
+      text: validated.text
     }
 
     // Add optional parameters
-    if (validated.voice && !validated.source_audio_url) {
-      fal_input.voice = validated.voice
-    }
+    // Use audio_url for voice cloning
     if (validated.source_audio_url) {
-      fal_input.source_audio_url = validated.source_audio_url
-    }
-    if (validated.high_quality_audio !== undefined) {
-      fal_input.high_quality_audio = validated.high_quality_audio
+      fal_input.audio_url = validated.source_audio_url
     }
     if (validated.exaggeration !== undefined) {
       fal_input.exaggeration = validated.exaggeration
@@ -175,9 +167,6 @@ export async function POST(req: NextRequest) {
     }
     if (validated.temperature !== undefined) {
       fal_input.temperature = validated.temperature
-    }
-    if (validated.seed !== undefined) {
-      fal_input.seed = validated.seed
     }
 
     // 10. Determine if we should use webhook

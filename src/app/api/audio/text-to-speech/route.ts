@@ -106,43 +106,48 @@ export async function POST(req: NextRequest) {
       // Prepare fal.ai request
       const fal_params: {
         text: string
-        voice?: string
+        audio_url?: string  // ChatterboxHD uses 'audio_url' for voice cloning
         exaggeration?: number
         cfg?: number
-        high_quality_audio?: boolean
         temperature?: number
-        seed?: number
-        source_audio_url?: string
       } = {
         text: params.text
       }
 
       // Add optional parameters
-      if (params.voice) fal_params.voice = params.voice
+      // Use audio_url for voice cloning (not source_audio_url)
+      if (params.source_audio_url) {
+        fal_params.audio_url = params.source_audio_url
+      }
       if (params.exaggeration !== undefined) fal_params.exaggeration = params.exaggeration
       if (params.cfg !== undefined) fal_params.cfg = params.cfg
-      if (params.high_quality_audio !== undefined) fal_params.high_quality_audio = params.high_quality_audio
       if (params.temperature !== undefined) fal_params.temperature = params.temperature
-      if (params.seed !== undefined) fal_params.seed = params.seed
-      if (params.source_audio_url) fal_params.source_audio_url = params.source_audio_url
 
-      // Call fal.ai API
+      // Call fal.ai API with ChatterboxHD model (supports voice cloning)
       const result = await fal.run('resemble-ai/chatterboxhd/text-to-speech', {
         input: fal_params
-      }) as { audio: { url: string } }
+      }) as { url?: string; data?: { url?: string }; audio?: { url?: string } }
+
+      // Extract audio URL from result (ChatterboxHD has different response structure)
+      const audio_url = result.url || result.data?.url || result.audio?.url
+      
+      if (!audio_url) {
+        throw new Error('No audio URL in response')
+      }
 
       // Track successful generation
       track('tts_generated', {
         userId,
-        voice: params.voice || 'default',
+        voice: params.source_audio_url ? 'cloned' : (params.voice || 'default'),
         text_length,
         mp_cost,
-        high_quality: params.high_quality_audio || false
+        high_quality: params.high_quality_audio || false,
+        voice_cloning: !!params.source_audio_url
       })
 
       return NextResponse.json({
         success: true,
-        audio_url: result.audio.url,
+        audio_url,
         text_characters: text_length,
         mana_points_used: mp_cost
       })
