@@ -1,5 +1,5 @@
-import React, { useState, useContext, useMemo } from 'react'
-import { Sparkles, Settings, Globe, Upload } from 'lucide-react'
+import React, { useState, useContext, useMemo, useEffect } from 'react'
+import { Sparkles, Settings, Globe, Upload, History } from 'lucide-react'
 import { MpContext } from '@/app/context/mp_context'
 import { DocumentUploader } from './document_uploader'
 import { UrlInput } from './url_input'
@@ -14,6 +14,8 @@ import {
   calculateTTSCost,
   type TTSParams 
 } from '../types'
+import { AudioJobStorage } from '../utils/audio_job_storage'
+import { toast } from 'react-hot-toast'
 
 type InputMethod = 'document' | 'url'
 
@@ -38,6 +40,10 @@ export function DocumentToAudio() {
   const [use_seed, set_use_seed] = useState(false)
   const [seed, set_seed] = useState(0)
   
+  // Saved jobs state
+  const [show_saved_jobs, set_show_saved_jobs] = useState(false)
+  const [saved_jobs, set_saved_jobs] = useState(AudioJobStorage.get_recent_jobs())
+  
   // Hook for webhook-based chunked TTS functionality
   const { 
     is_generating, 
@@ -47,8 +53,15 @@ export function DocumentToAudio() {
     generate_chunked_speech,
     regenerate_chunk,
     is_regenerating_chunk,
-    clear_audio 
+    clear_audio,
+    restore_job 
   } = useWebhookChunkedTts()
+  
+  // Check for saved jobs on mount
+  useEffect(() => {
+    const jobs = AudioJobStorage.get_recent_jobs()
+    set_saved_jobs(jobs)
+  }, [])
   
   const handle_text_extracted = (text: string) => {
     set_extracted_text(text)
@@ -73,13 +86,72 @@ export function DocumentToAudio() {
     if (temperature !== TTS_LIMITS.default_temperature) params.temperature = temperature
     if (use_seed) params.seed = seed
     
-    await generate_chunked_speech(params)
+    const result = await generate_chunked_speech(params)
+    
+    // Save job to local storage if successful
+    if (result && result.job_id) {
+      const voice_settings = {
+        selected_voice: voice_clone_url ? undefined : selected_voice,
+        voice_clone_url,
+        exaggeration,
+        cfg,
+        temperature,
+        high_quality,
+        use_seed,
+        seed: use_seed ? seed : undefined
+      }
+      
+      AudioJobStorage.save_job(result.job_id, extracted_text, voice_settings, result.chunks.length)
+      
+      // Update saved jobs list
+      set_saved_jobs(AudioJobStorage.get_recent_jobs())
+    }
   }
   
   const handle_reset = () => {
     set_extracted_text('')
     set_voice_clone_url(null)
     clear_audio()
+    
+    // Also remove from local storage if there's a current job
+    if (generated_audio?.job_id) {
+      AudioJobStorage.remove_job(generated_audio.job_id)
+      set_saved_jobs(AudioJobStorage.get_recent_jobs())
+    }
+  }
+  
+  const handle_restore_job = async (job_id: string) => {
+    const stored_job = AudioJobStorage.get_job(job_id)
+    if (!stored_job) {
+      toast.error('Job not found in storage')
+      return
+    }
+    
+    // Restore the text and settings
+    set_extracted_text(stored_job.extracted_text)
+    if (stored_job.voice_settings.selected_voice) {
+      set_selected_voice(stored_job.voice_settings.selected_voice)
+    }
+    if (stored_job.voice_settings.voice_clone_url) {
+      set_voice_clone_url(stored_job.voice_settings.voice_clone_url)
+    }
+    set_exaggeration(stored_job.voice_settings.exaggeration || TTS_LIMITS.default_exaggeration)
+    set_cfg(stored_job.voice_settings.cfg || TTS_LIMITS.default_cfg)
+    set_temperature(stored_job.voice_settings.temperature || TTS_LIMITS.default_temperature)
+    set_high_quality(stored_job.voice_settings.high_quality ?? true)
+    set_use_seed(stored_job.voice_settings.use_seed ?? false)
+    if (stored_job.voice_settings.seed !== undefined) {
+      set_seed(stored_job.voice_settings.seed)
+    }
+    
+    // Try to restore the job status
+    const success = await restore_job(job_id, stored_job.extracted_text)
+    if (success) {
+      set_show_saved_jobs(false)
+      toast.success('Job restored successfully')
+    } else {
+      toast.error('Failed to restore job status')
+    }
   }
   
   // Calculate cost for the full text (all chunks)
@@ -92,6 +164,19 @@ export function DocumentToAudio() {
   
   // If audio is generated, show chunked player
   if (generated_audio) {
+    // Clean up completed jobs from storage after successful completion
+    useEffect(() => {
+      if (generated_audio.overall_status === 'completed' && generated_audio.job_id) {
+        // Remove from storage after a delay to ensure user has seen the result
+        const timer = setTimeout(() => {
+          AudioJobStorage.remove_job(generated_audio.job_id)
+          set_saved_jobs(AudioJobStorage.get_recent_jobs())
+        }, 5000) // 5 second delay
+        
+        return () => clearTimeout(timer)
+      }
+    }, [generated_audio.overall_status, generated_audio.job_id])
+    
     const handle_regenerate_chunk = async (chunk_index: number) => {
       const params: Omit<TTSParams, 'text'> = {
         voice: voice_clone_url ? undefined : selected_voice,
@@ -133,6 +218,67 @@ export function DocumentToAudio() {
   
   return (
     <div className="space-y-6">
+      {/* Saved Jobs */}
+      {!extracted_text && !generated_audio && saved_jobs.length > 0 && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="card-title">Previous Jobs</h2>
+              <button
+                onClick={() => set_show_saved_jobs(!show_saved_jobs)}
+                className="btn btn-ghost btn-sm gap-2"
+              >
+                <History className="w-4 h-4" />
+                {show_saved_jobs ? 'Hide' : 'Show'} ({saved_jobs.length})
+              </button>
+            </div>
+            
+            {show_saved_jobs && (
+              <div className="space-y-2">
+                {saved_jobs.slice(0, 5).map((job) => {
+                  const created_date = new Date(job.created_at)
+                  const expires_date = new Date(job.expires_at)
+                  const days_left = Math.ceil((expires_date.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  
+                  return (
+                    <div key={job.job_id} className="bg-base-200 p-3 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {job.total_chunks} chunk{job.total_chunks > 1 ? 's' : ''} • {job.extracted_text.length.toLocaleString()} characters
+                          </p>
+                          <p className="text-xs text-base-content/60 mt-1">
+                            Created {created_date.toLocaleDateString()} at {created_date.toLocaleTimeString()}
+                          </p>
+                          <p className="text-xs text-base-content/60">
+                            Expires in {days_left} day{days_left !== 1 ? 's' : ''}
+                          </p>
+                          <p className="text-xs mt-2 line-clamp-2 opacity-70">
+                            {job.extracted_text.substring(0, 150)}...
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handle_restore_job(job.job_id)}
+                          className="btn btn-primary btn-sm ml-2"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+                
+                {saved_jobs.length > 5 && (
+                  <p className="text-sm text-center text-base-content/60 mt-2">
+                    Showing 5 of {saved_jobs.length} saved jobs
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Input Method Selection */}
       {!extracted_text && (
         <div className="card bg-base-100 shadow-xl">

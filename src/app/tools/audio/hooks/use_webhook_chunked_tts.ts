@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
 import { TTSParams } from '../types'
 import { useJobPolling } from './use_job_polling'
+import { AudioJobStorage } from '../utils/audio_job_storage'
 
 export interface ChunkedTTSResult {
   job_id: string
@@ -302,6 +303,65 @@ export function useWebhookChunkedTts() {
     set_generated_audio(null)
     stop_polling()
   }, [stop_polling])
+  
+  const restore_job = useCallback(async (job_id: string, extracted_text?: string): Promise<boolean> => {
+    set_is_generating(true)
+    set_error_message(null)
+    
+    try {
+      // Get job status from API
+      const response = await fetch(`/api/audio/document/status?job_id=${job_id}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to restore job')
+      }
+      
+      const data = await response.json()
+      const status = data.data
+      
+      // Split the extracted text into chunks if provided
+      let chunk_texts: string[] = []
+      if (extracted_text) {
+        chunk_texts = chunk_text(extracted_text)
+      }
+      
+      // Reconstruct the ChunkedTTSResult from the status
+      const result: ChunkedTTSResult = {
+        job_id: status.job_id,
+        chunks: status.chunks.map((chunk: any, index: number) => ({
+          index: chunk.chunk_index || index,
+          text: chunk_texts[chunk.chunk_index || index] || '',
+          audio_url: chunk.audio_url,
+          status: chunk.status,
+          mana_points_used: chunk_texts[chunk.chunk_index || index] 
+            ? Math.ceil(chunk_texts[chunk.chunk_index || index].length / 10) 
+            : 0
+        })),
+        total_characters: status.metadata?.total_text_length || 0,
+        total_mana_points: status.metadata?.total_cost || 0,
+        overall_status: status.status,
+        overall_progress: status.progress
+      }
+      
+      set_generated_audio(result)
+      
+      // If still processing, start polling
+      if (status.status === 'processing' || status.status === 'pending') {
+        set_is_generating(true)
+        // Start checking status periodically
+        setTimeout(check_document_status, 2000)
+      } else {
+        set_is_generating(false)
+      }
+      
+      return true
+    } catch (error) {
+      console.error('Failed to restore job:', error)
+      set_is_generating(false)
+      set_error_message('Failed to restore previous job')
+      return false
+    }
+  }, [check_document_status])
 
   const regenerate_chunk = useCallback(async (
     chunk_index: number, 
@@ -410,6 +470,7 @@ export function useWebhookChunkedTts() {
     regenerate_chunk,
     is_regenerating_chunk,
     clear_error,
-    clear_audio
+    clear_audio,
+    restore_job
   }
 }
