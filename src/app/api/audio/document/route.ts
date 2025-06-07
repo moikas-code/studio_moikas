@@ -297,27 +297,8 @@ export async function POST(req: NextRequest) {
           })
         } else {
           // Sync fallback (not recommended for documents)
-          const result = await fal.run("resemble-ai/chatterboxhd/text-to-speech", {
-            input: fal_input
-          })
-
-          const audioResult = result as FalAudioResult
-          const audioUrl = audioResult.url || audioResult.data?.url
-
-          await service_supabase
-            .from('audio_jobs')
-            .update({
-              status: 'completed',
-              audio_url: audioUrl,
-              completed_at: new Date().toISOString()
-            })
-            .eq('id', chunk_job.id)
-
-          chunk_results.push({
-            chunk_index: chunk.index,
-            job_id: chunk_job_id,
-            audio_url: audioUrl
-          })
+         // Throw error to trigger the error handling in the catch block and refund tokens
+         throw new Error('Webhook URL not found')
         }
         
         processed_chunks++
