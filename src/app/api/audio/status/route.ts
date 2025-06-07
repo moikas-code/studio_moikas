@@ -32,21 +32,21 @@ export async function GET(req: NextRequest) {
       .eq('job_id', job_id)
       .eq('user_id', user.user_id)
       .single()
-    const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
-      requestId: job.fal_request_id
-    })
 
     if (error || !job) {
       console.error('Job not found:', job_id, 'error:', error)
       return api_error('Job not found', 404)
     }
+    const fal_status = await fal.queue.status("resemble-ai/chatterboxhd/text-to-speech", {
+      requestId: job.fal_request_id
+    })
 
     // 5. Check fal.ai status if job is completed but has no audio URL
     let audio_url = job.audio_url
     
-    if (job.fal_request_id && job.status === 'completed' && !job.audio_url || fal_status.status === 'COMPLETED') {
+    if (job.fal_request_id && (job.status === 'completed' && !job.audio_url) || fal_status.status === 'COMPLETED') {
       try {
-
+  
         
         // Define proper type for fal status response
         interface FalStatusResponse {

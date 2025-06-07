@@ -123,35 +123,56 @@ export function useWebhookChunkedTts() {
     if (!generated_audio?.job_id) return
 
     try {
-      const response = await fetch(`/api/audio/document/status?job_id=${generated_audio.job_id}`)
+      // Determine which endpoint to use based on job ID pattern
+      const is_document_job = generated_audio.job_id.startsWith('audio_doc_')
+      const status_endpoint = is_document_job 
+        ? `/api/audio/document/status?job_id=${generated_audio.job_id}`
+        : `/api/audio/status?job_id=${generated_audio.job_id}`
+      
+      const response = await fetch(status_endpoint)
       
       if (!response.ok) {
-        throw new Error('Failed to check document status')
+        throw new Error('Failed to check status')
       }
 
       const data = await response.json()
       const status = data.data
 
-      // Update generated audio with chunk statuses
-      const updated_chunks = generated_audio.chunks.map((chunk, index) => {
-        const chunk_status = status.chunks.find((c: { chunk_index: number; status: string; audio_url?: string }) => c.chunk_index === index)
-        if (chunk_status) {
-          return {
-            ...chunk,
-            status: chunk_status.status,
-            audio_url: chunk_status.audio_url
+      // Update generated audio based on job type
+      if (is_document_job) {
+        // Multi-chunk document job
+        const updated_chunks = generated_audio.chunks.map((chunk, index) => {
+          const chunk_status = status.chunks.find((c: { chunk_index: number; status: string; audio_url?: string }) => c.chunk_index === index)
+          if (chunk_status) {
+            return {
+              ...chunk,
+              status: chunk_status.status,
+              audio_url: chunk_status.audio_url
+            }
           }
-        }
-        return chunk
-      })
+          return chunk
+        })
 
-      set_generated_audio({
-        ...generated_audio,
-        chunks: updated_chunks,
-        overall_status: status.status,
-        overall_progress: status.progress,
-        total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points
-      })
+        set_generated_audio({
+          ...generated_audio,
+          chunks: updated_chunks,
+          overall_status: status.status,
+          overall_progress: status.progress,
+          total_mana_points: status.metadata?.total_cost || generated_audio.total_mana_points
+        })
+      } else {
+        // Single chunk regular audio job
+        set_generated_audio({
+          ...generated_audio,
+          chunks: [{
+            ...generated_audio.chunks[0],
+            status: status.status,
+            audio_url: status.audio_url
+          }],
+          overall_status: status.status,
+          overall_progress: status.status === 'completed' ? 100 : 0
+        })
+      }
 
       // Check if all chunks are complete
       if (status.status === 'completed') {
@@ -308,8 +329,14 @@ export function useWebhookChunkedTts() {
     set_error_message(null)
     
     try {
-      // Get job status from API
-      const response = await fetch(`/api/audio/document/status?job_id=${job_id}`)
+      // Determine which endpoint to use based on job ID pattern
+      const is_document_job = job_id.startsWith('audio_doc_')
+      const status_endpoint = is_document_job 
+        ? `/api/audio/document/status?job_id=${job_id}`
+        : `/api/audio/status?job_id=${job_id}`
+      
+      // Get job status from appropriate API endpoint
+      const response = await fetch(status_endpoint)
       
       if (!response.ok) {
         throw new Error('Failed to restore job')
@@ -325,21 +352,42 @@ export function useWebhookChunkedTts() {
       }
       
       // Reconstruct the ChunkedTTSResult from the status
-      const result: ChunkedTTSResult = {
-        job_id: status.job_id,
-        chunks: status.chunks.map((chunk: { chunk_index?: number; audio_url?: string; status: string }, index: number) => ({
-          index: chunk.chunk_index || index,
-          text: chunk_texts[chunk.chunk_index || index] || '',
-          audio_url: chunk.audio_url,
-          status: chunk.status,
-          mana_points_used: chunk_texts[chunk.chunk_index || index] 
-            ? Math.ceil(chunk_texts[chunk.chunk_index || index].length / 10) 
-            : 0
-        })),
-        total_characters: status.metadata?.total_text_length || 0,
-        total_mana_points: status.metadata?.total_cost || 0,
-        overall_status: status.status,
-        overall_progress: status.progress
+      let result: ChunkedTTSResult
+      
+      if (is_document_job) {
+        // Multi-chunk document job
+        result = {
+          job_id: status.job_id,
+          chunks: status.chunks.map((chunk: { chunk_index?: number; audio_url?: string; status: string }, index: number) => ({
+            index: chunk.chunk_index || index,
+            text: chunk_texts[chunk.chunk_index || index] || '',
+            audio_url: chunk.audio_url,
+            status: chunk.status,
+            mana_points_used: chunk_texts[chunk.chunk_index || index] 
+              ? Math.ceil(chunk_texts[chunk.chunk_index || index].length / 10) 
+              : 0
+          })),
+          total_characters: status.metadata?.total_text_length || 0,
+          total_mana_points: status.metadata?.total_cost || 0,
+          overall_status: status.status,
+          overall_progress: status.progress
+        }
+      } else {
+        // Single chunk regular audio job
+        result = {
+          job_id: status.job_id,
+          chunks: [{
+            index: 0,
+            text: extracted_text || '',
+            audio_url: status.audio_url,
+            status: status.status,
+            mana_points_used: extracted_text ? Math.ceil(extracted_text.length / 10) : 0
+          }],
+          total_characters: extracted_text?.length || 0,
+          total_mana_points: 0, // Will be calculated
+          overall_status: status.status,
+          overall_progress: status.status === 'completed' ? 100 : 0
+        }
       }
       
       set_generated_audio(result)
