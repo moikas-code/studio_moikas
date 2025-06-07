@@ -3,6 +3,7 @@ import { Download, Play, Pause, SkipForward, SkipBack, List, Archive, RefreshCw,
 import { ChunkedTTSResult } from '../hooks/use_webhook_chunked_tts'
 import { toast } from 'react-hot-toast'
 import JSZip from 'jszip'
+import { calculateTTSCost } from '../types'
 
 interface ChunkedAudioPlayerProps {
   chunked_result: ChunkedTTSResult
@@ -264,7 +265,7 @@ export function ChunkedAudioPlayer({
           </div>
           <div className="stat">
             <div className="stat-title">Total Cost</div>
-            <div className="stat-value">{chunked_result.total_mana_points} MP</div>
+            <div className="stat-value">{calculateTTSCost(chunked_result.total_characters)} MP</div>
           </div>
         </div>
 
