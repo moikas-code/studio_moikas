@@ -111,7 +111,6 @@ UPDATE models SET
   default_steps = 25,
   max_steps = 50,
   max_images = 8,
-  supports_both_size_modes = true,
   metadata = jsonb_build_object(
     'supports_seed', true,
     'supports_negative_prompt', true,
