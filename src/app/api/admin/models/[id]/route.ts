@@ -180,18 +180,53 @@ export async function DELETE(
     
     const supabase = get_service_role_client();
     
-    // Hard delete - actually remove the model
-    const { error } = await supabase
+    // First check if model exists
+    const { data: model, error: check_error } = await supabase
       .from('models')
-      .delete()
-      .eq('id', model_id);
+      .select('id, name')
+      .eq('id', model_id)
+      .single();
+    
+    if (check_error || !model) {
+      return api_error('Model not found', 404);
+    }
+    
+    // Use the database function to handle deletion with proper audit logging
+    const { data: result, error } = await supabase
+      .rpc('delete_model_with_audit', { p_model_id: model_id });
     
     if (error) {
-      throw error;
+      // If the function doesn't exist yet, fall back to direct deletion
+      if (error.code === '42883') {
+        console.log('Function not found, using direct deletion');
+        
+        // Disable the trigger by deleting related audit logs first
+        await supabase
+          .from('model_audit_log')
+          .delete()
+          .eq('model_id', model_id);
+        
+        // Now delete the model
+        const { error: delete_error } = await supabase
+          .from('models')
+          .delete()
+          .eq('id', model_id);
+        
+        if (delete_error) {
+          console.error('Delete error:', delete_error);
+          throw delete_error;
+        }
+      } else {
+        console.error('Delete error:', error);
+        throw error;
+      }
+    } else if (result && !result.success) {
+      throw new Error(result.error || 'Failed to delete model');
     }
     
     return api_success({
-      success: true
+      success: true,
+      deleted_model: model.name
     });
     
   } catch (error) {

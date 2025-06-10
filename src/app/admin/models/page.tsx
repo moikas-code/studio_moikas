@@ -115,10 +115,18 @@ function ModelManagementPageContent() {
       const response = await fetch(`/api/admin/models/${model_id}`, {
         method: 'DELETE'
       });
+      
+      if (!response.ok) {
+        const error_data = await response.json();
+        toast.error(error_data.error || `Failed to delete model: ${response.statusText}`);
+        return;
+      }
+      
       const data = await response.json();
       
-      if (data.success || data.data) {
-        toast.success('Model deleted');
+      // The api_success function returns { success: true, data: {...} }
+      if (data.success) {
+        toast.success(data.data?.deleted_model ? `Model "${data.data.deleted_model}" deleted` : 'Model deleted');
         fetch_models();
       } else {
         toast.error(data.error || 'Failed to delete model');
