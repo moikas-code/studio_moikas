@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 
-export function use_admin_status() {
+export function useAdminStatus() {
   const { userId } = useAuth();
   const [is_admin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);

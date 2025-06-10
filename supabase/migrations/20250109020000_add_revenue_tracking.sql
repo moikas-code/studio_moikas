@@ -58,15 +58,18 @@ FROM usage
 WHERE tokens_used < 0
   AND description LIKE '%Token purchase%';
 
--- Now update the admin revenue view to use the real data
-CREATE OR REPLACE VIEW admin_revenue_stats AS
+-- Drop the existing view first to avoid type conflicts
+DROP VIEW IF EXISTS admin_revenue_stats;
+
+-- Now create the admin revenue view with real data
+CREATE VIEW admin_revenue_stats AS
 SELECT 
-  COUNT(DISTINCT CASE WHEN operation = 'token_purchase' THEN user_id END) as paying_customers,
-  COALESCE(SUM(CASE WHEN operation = 'token_purchase' THEN amount_cents END) / 100.0, 0) as total_revenue,
-  COALESCE(AVG(CASE WHEN operation = 'token_purchase' THEN amount_cents END) / 100.0, 0) as avg_transaction_value,
-  COALESCE(COUNT(CASE WHEN operation = 'token_purchase' THEN 1 END), 0) as total_purchases,
-  COALESCE(SUM(CASE WHEN operation = 'token_refund' THEN amount_cents END) / 100.0, 0) as total_refunds,
-  COALESCE(COUNT(CASE WHEN operation = 'token_refund' THEN 1 END), 0) as refund_count
+  COUNT(DISTINCT CASE WHEN operation = 'token_purchase' THEN user_id END)::integer as paying_customers,
+  COALESCE(SUM(CASE WHEN operation = 'token_purchase' THEN amount_cents END) / 100.0, 0)::numeric as total_revenue,
+  COALESCE(AVG(CASE WHEN operation = 'token_purchase' THEN amount_cents END) / 100.0, 0)::numeric as avg_transaction_value,
+  COALESCE(COUNT(CASE WHEN operation = 'token_purchase' THEN 1 END), 0)::integer as total_purchases,
+  COALESCE(SUM(CASE WHEN operation = 'token_refund' THEN amount_cents END) / 100.0, 0)::numeric as total_refunds,
+  COALESCE(COUNT(CASE WHEN operation = 'token_refund' THEN 1 END), 0)::integer as refund_count
 FROM revenue_transactions
 WHERE created_at >= NOW() - INTERVAL '30 days';
 

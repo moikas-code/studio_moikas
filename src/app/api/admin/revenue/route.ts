@@ -43,7 +43,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to flatten the user email
-    const transactions = data?.map((item: any) => ({
+    const transactions = data?.map((item: {
+      id: string;
+      operation: string;
+      amount_cents: number;
+      tokens_amount: number;
+      description: string;
+      created_at: string;
+      stripe_payment_intent_id?: string;
+      users?: { email: string };
+    }) => ({
       ...item,
       user_email: item.users?.email || 'Unknown'
     })) || [];
@@ -58,7 +67,7 @@ export async function GET(request: NextRequest) {
       average_transaction: 0
     };
 
-    transactions.forEach((t: any) => {
+    transactions.forEach((t: typeof transactions[0]) => {
       if (t.operation === 'token_purchase') {
         stats.total_revenue += t.amount_cents;
         stats.transaction_count++;

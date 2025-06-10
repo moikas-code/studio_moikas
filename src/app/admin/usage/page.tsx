@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 
 interface UsageData {
@@ -8,7 +8,7 @@ interface UsageData {
   user_email: string;
   tokens_used: number;
   created_at: string;
-  details: any;
+  details: Record<string, unknown>;
 }
 
 export default function AdminUsagePage() {
@@ -19,9 +19,9 @@ export default function AdminUsagePage() {
 
   useEffect(() => {
     fetch_usage_data();
-  }, [filter]);
+  }, [filter, fetch_usage_data]);
 
-  const fetch_usage_data = async () => {
+  const fetch_usage_data = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -42,7 +42,7 @@ export default function AdminUsagePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   const operation_types = [
     { value: 'all', label: 'All Operations' },

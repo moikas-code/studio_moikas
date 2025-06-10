@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 
 interface User {
@@ -37,9 +37,9 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetch_users();
-  }, [page, search]);
+  }, [page, search, fetch_users]);
 
-  const fetch_users = async () => {
+  const fetch_users = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -65,7 +65,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, limit]);
 
   const update_user_role = async (user_id: string, new_role: 'user' | 'admin') => {
     try {

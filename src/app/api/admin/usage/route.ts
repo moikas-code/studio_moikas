@@ -40,7 +40,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to flatten the user email
-    const usage_data = data?.map((item: any) => ({
+    const usage_data = data?.map((item: {
+      operation_type: string;
+      tokens_used: number;
+      created_at: string;
+      details: Record<string, unknown>;
+      users?: { email: string };
+    }) => ({
       ...item,
       user_email: item.users?.email || 'Unknown'
     })) || [];

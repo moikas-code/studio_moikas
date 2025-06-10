@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 
 interface Transaction {
@@ -32,9 +32,9 @@ export default function AdminRevenuePage() {
 
   useEffect(() => {
     fetch_revenue_data();
-  }, [filter]);
+  }, [filter, fetch_revenue_data]);
 
-  const fetch_revenue_data = async () => {
+  const fetch_revenue_data = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -56,7 +56,7 @@ export default function AdminRevenuePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   return (
     <div className="space-y-6">
