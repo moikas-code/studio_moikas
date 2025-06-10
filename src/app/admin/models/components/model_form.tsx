@@ -17,6 +17,7 @@ import {
   DEFAULT_ASPECT_RATIOS,
   DEFAULT_DURATION_OPTIONS
 } from '@/types/models';
+import MetadataEditor from './metadata_editor';
 
 interface ModelFormProps {
   model?: ModelConfig;
@@ -63,10 +64,6 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
   // Custom tag input
   const [custom_tag, set_custom_tag] = useState('');
   
-  // Custom metadata input
-  const [metadata_key, set_metadata_key] = useState('');
-  const [metadata_value, set_metadata_value] = useState('');
-  
   // Initialize form with existing model data
   useEffect(() => {
     console.log('ModelForm received model:', model); // Debug log
@@ -84,23 +81,66 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         supported_aspect_ratios: model.supported_aspect_ratios,
         supports_both_size_modes: model.supports_both_size_modes,
         supports_cfg: model.supports_cfg,
-        default_cfg: model.default_cfg,
-        max_cfg: model.max_cfg,
+        default_cfg: model.default_cfg || undefined,
+        max_cfg: model.max_cfg || undefined,
         supports_steps: model.supports_steps,
-        default_steps: model.default_steps,
-        max_steps: model.max_steps,
+        default_steps: model.default_steps || undefined,
+        max_steps: model.max_steps || undefined,
         max_images: model.max_images,
         duration_options: model.duration_options,
         supports_audio_generation: model.supports_audio_generation,
         metadata: model.metadata,
-        api_endpoint: model.api_endpoint,
-        api_version: model.api_version,
+        api_endpoint: model.api_endpoint || undefined,
+        api_version: model.api_version || undefined,
         tags: model.tags,
         display_order: model.display_order,
         is_default: model.is_default
       });
     }
   }, [model]);
+  
+  // Clean form data before submission
+  const clean_form_data = (data: ModelFormData): ModelFormData => {
+    const cleaned = { ...data };
+    
+    // Convert empty values to undefined for optional fields
+    // Only set to undefined if the field is not being used
+    if (!cleaned.supports_cfg) {
+      cleaned.default_cfg = undefined;
+      cleaned.max_cfg = undefined;
+    } else {
+      // Keep non-zero values, convert zero/null to undefined
+      if (!cleaned.default_cfg || cleaned.default_cfg === 0) {
+        cleaned.default_cfg = undefined;
+      }
+      if (!cleaned.max_cfg || cleaned.max_cfg === 0) {
+        cleaned.max_cfg = undefined;
+      }
+    }
+    
+    if (!cleaned.supports_steps) {
+      cleaned.default_steps = undefined;
+      cleaned.max_steps = undefined;
+    } else {
+      // Keep non-zero values, convert zero/null to undefined
+      if (!cleaned.default_steps || cleaned.default_steps === 0) {
+        cleaned.default_steps = undefined;
+      }
+      if (!cleaned.max_steps || cleaned.max_steps === 0) {
+        cleaned.max_steps = undefined;
+      }
+    }
+    
+    // Clean string fields
+    if (!cleaned.api_endpoint || cleaned.api_endpoint.trim() === '') {
+      cleaned.api_endpoint = undefined;
+    }
+    if (!cleaned.api_version || cleaned.api_version.trim() === '') {
+      cleaned.api_version = undefined;
+    }
+    
+    return cleaned;
+  };
   
   // Handle form submission
   const handle_submit = async (e: React.FormEvent) => {
@@ -109,8 +149,10 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     try {
       set_loading(true);
       
+      const cleaned_data = clean_form_data(form_data);
+      
       if (on_submit) {
-        await on_submit(form_data);
+        await on_submit(cleaned_data);
       } else {
         // Default submission
         const method = model ? 'PUT' : 'POST';
@@ -121,7 +163,7 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         const response = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form_data)
+          body: JSON.stringify(cleaned_data)
         });
         
         const data = await response.json();
@@ -204,30 +246,6 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     });
   };
   
-  // Add metadata
-  const add_metadata = () => {
-    if (metadata_key) {
-      set_form_data({
-        ...form_data,
-        metadata: {
-          ...form_data.metadata,
-          [metadata_key]: metadata_value
-        }
-      });
-      set_metadata_key('');
-      set_metadata_value('');
-    }
-  };
-  
-  // Remove metadata
-  const remove_metadata = (key: string) => {
-    const new_metadata = { ...form_data.metadata };
-    delete new_metadata[key];
-    set_form_data({
-      ...form_data,
-      metadata: new_metadata
-    });
-  };
   
   return (
     <form onSubmit={handle_submit} className="space-y-6">
@@ -723,48 +741,15 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
           <h2 className="card-title">Additional Metadata</h2>
+          <p className="text-sm text-base-content/60 mb-4">
+            Configure model-specific settings and capabilities based on the API schema
+          </p>
           
-          <div className="space-y-2">
-            {Object.entries(form_data.metadata || {}).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-2">
-                <span className="font-mono text-sm flex-1">
-                  {key}: {JSON.stringify(value)}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-xs"
-                  onClick={() => remove_metadata(key)}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex gap-2 mt-2">
-            <input
-              type="text"
-              className="input input-bordered input-sm"
-              placeholder="Key"
-              value={metadata_key}
-              onChange={(e) => set_metadata_key(e.target.value)}
-            />
-            <input
-              type="text"
-              className="input input-bordered input-sm flex-1"
-              placeholder="Value"
-              value={metadata_value}
-              onChange={(e) => set_metadata_value(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), add_metadata())}
-            />
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={add_metadata}
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+          <MetadataEditor
+            metadata={form_data.metadata || {}}
+            on_change={(new_metadata) => set_form_data({ ...form_data, metadata: new_metadata })}
+            model_id={form_data.model_id}
+          />
         </div>
       </div>
       
