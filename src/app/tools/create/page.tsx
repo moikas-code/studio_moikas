@@ -12,12 +12,10 @@ export default function Create_page() {
   const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
   
   return (
-    <div className="h-full w-full px-0">
-      <ImageGenerator 
-        available_mp={mp_tokens || 0}
-        on_mp_update={refresh_mp}
-        user_plan={plan || 'free'}
-      />
-    </div>
+    <ImageGenerator 
+      available_mp={mp_tokens || 0}
+      on_mp_update={refresh_mp}
+      user_plan={plan || 'free'}
+    />
   );
 }
