@@ -10,8 +10,6 @@ import Session_tracking from "../components/session_tracking";
 import Cookie_consent_banner from "../components/cookie_consent_banner";
 import User_sync from "../components/user_sync";
 import JobNotifications from "../components/job_notifications";
-import { auth } from "@clerk/nextjs/server";
-
 const geist_sans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -76,13 +74,11 @@ export const metadata: Metadata = {
   ),
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { has } = await auth();
-  const plan = has({ plan: "standard" }) ? "standard" : "free";
   return (
     <html lang="en">
       <body
@@ -91,7 +87,7 @@ export default async function RootLayout({
         <ClerkProvider>
           <MpProvider>
             <Session_tracking />
-            <User_sync plan={plan} />
+            <User_sync />
             <JobNotifications />
             <LayoutWithSidebar>{children}</LayoutWithSidebar>
 

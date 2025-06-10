@@ -148,7 +148,12 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user_row.id,
         tokens_used: actual_cost,
-        description: `Text analysis: ${feature}`
+        operation_type: 'text_analysis',
+        description: `Text analysis: ${feature}`,
+        metadata: {
+          feature: feature,
+          file_name: file_name
+        }
       })
     // Track analytics event
     await track('Text Analyzer Used', {

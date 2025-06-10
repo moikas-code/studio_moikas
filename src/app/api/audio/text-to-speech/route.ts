@@ -99,7 +99,12 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: userData.id,
         tokens_used: mp_cost,
-        description: `Text-to-speech: ${text_length} characters`
+        operation_type: 'audio_generation',
+        description: `Text-to-speech: ${text_length} characters`,
+        metadata: {
+          character_count: text_length,
+          voice: params.voice
+        }
       })
 
     try {

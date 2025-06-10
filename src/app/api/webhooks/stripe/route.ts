@@ -140,13 +140,22 @@ export async function POST(req: NextRequest) {
             throw new Error(`Failed to add tokens: ${add_error.message}`)
           }
 
-          // Log the token purchase
+          // Log to revenue_transactions table only
           await supabase
-            .from('usage')
+            .from('revenue_transactions')
             .insert({
                 user_id: invoice.metadata!.user_id,
-                tokens_used: -token_amount, // negative to indicate addition
-                description: `Token purchase: ${token_amount} permanent tokens`
+                operation: 'token_purchase',
+                amount_cents: invoice.amount_paid,
+                tokens_amount: token_amount,
+                currency: invoice.currency,
+                description: `Purchase of ${token_amount} MP tokens`,
+                stripe_invoice_id: invoice.id,
+                stripe_payment_intent_id: invoice.payment_intent as string,
+                metadata: {
+                  invoice_number: invoice.number,
+                  customer_email: invoice.customer_email
+                }
               })
         }
         break

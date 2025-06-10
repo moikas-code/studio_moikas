@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { useUser } from "@clerk/nextjs";
 
 import { useSupabaseClient } from "@/lib/supabase_client";
+import { MpContext } from "@/context/mp_context";
 
 /**
  * User_sync component ensures the signed-in Clerk user is present in Supabase,
  * and initializes a subscription if missing. Runs on login and user change.
  * Does NOT handle monthly token resets; those are handled by scheduled DB jobs.
  */
-interface User_sync_props {
-  plan: string;
-}
 
-export default function User_sync({ plan }: User_sync_props) {
+export default function User_sync() {
   const { user, isLoaded } = useUser();
+  const { plan } = useContext(MpContext);
 
   const supabase = useSupabaseClient();
 
@@ -28,6 +27,9 @@ export default function User_sync({ plan }: User_sync_props) {
       const clerk_user_id = user.id;
       const email = user.emailAddresses?.[0]?.emailAddress || null;
       if (!clerk_user_id || !email) return;
+
+      // Use free plan as default if plan is not set
+      const current_plan = plan || "free";
 
       // Check if user exists in Supabase
       const { data: existing_user, error: user_error } = await supabase
@@ -45,8 +47,8 @@ export default function User_sync({ plan }: User_sync_props) {
       let user_id = existing_user?.id;
       // If user does not exist, upsert
       if (!user_id) {
-        const renewable_tokens = plan === "standard" ? 20480 : plan === "free" ? 125 : 0;
-        const permanent_tokens = plan === "free" ? 100 : 0;
+        const renewable_tokens = current_plan === "standard" ? 20480 : current_plan === "free" ? 125 : 0;
+        const permanent_tokens = current_plan === "free" ? 100 : 0;
         const { data: upserted_user, error: upsert_error } = await supabase
           .from("users")
           .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
@@ -62,7 +64,7 @@ export default function User_sync({ plan }: User_sync_props) {
           .from("subscriptions")
           .insert({
             user_id,
-            plan,
+            plan: current_plan,
             renewable_tokens,
             permanent_tokens,
             renewed_at: new Date().toISOString(),
@@ -86,13 +88,13 @@ export default function User_sync({ plan }: User_sync_props) {
 
         // If subscription does not exist, create it
         if (!subscription) {
-          const renewable_tokens = plan === "standard" ? 20480 : plan === "free" ? 125 : 0;
-          const permanent_tokens = plan === "free" ? 100 : 0;
+          const renewable_tokens = current_plan === "standard" ? 20480 : current_plan === "free" ? 125 : 0;
+          const permanent_tokens = current_plan === "free" ? 100 : 0;
           const { error: insert_error } = await supabase
             .from("subscriptions")
             .insert({
               user_id,
-              plan,
+              plan: current_plan,
               renewable_tokens,
               permanent_tokens,
               renewed_at: new Date().toISOString(),
@@ -100,13 +102,13 @@ export default function User_sync({ plan }: User_sync_props) {
           if (insert_error) {
             console.error("Supabase subscription insert error:", insert_error.message);
           }
-        } else if (subscription.plan !== plan) {
+        } else if (subscription.plan !== current_plan) {
           // If plan changed, update subscription
-          const update_fields: { plan: string; renewable_tokens?: number; permanent_tokens?: number; renewed_at?: string } = { plan };
-          if (plan === "standard") {
+          const update_fields: { plan: string; renewable_tokens?: number; permanent_tokens?: number; renewed_at?: string } = { plan: current_plan };
+          if (current_plan === "standard") {
             update_fields.renewable_tokens = 20480;
             update_fields.renewed_at = new Date().toISOString();
-          } else if (plan === "free") {
+          } else if (current_plan === "free") {
             update_fields.renewable_tokens = 125;
             update_fields.renewed_at = new Date().toISOString();
           }

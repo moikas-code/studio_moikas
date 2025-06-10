@@ -81,6 +81,8 @@ export async function POST(req: NextRequest) {
         .insert({
           user_id: user.user_id,
           tokens_used: ENHANCE_COST,
+          operation_type: 'text_analysis',
+          action: 'prompt_enhancement',
           description: `Prompt enhancement`
         })
 

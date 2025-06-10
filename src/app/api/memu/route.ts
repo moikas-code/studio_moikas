@@ -132,7 +132,12 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.user_id,
         tokens_used: token_cost,
-        description: `MEMU workflow execution`
+        operation_type: 'memu_chat',
+        description: `MEMU workflow execution`,
+        metadata: {
+          workflow_id: validated.workflow_id,
+          session_id: session_data.id
+        }
       })
     
     // 14. Save message to history

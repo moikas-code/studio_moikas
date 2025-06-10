@@ -136,7 +136,13 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.user_id,
         tokens_used: cost,
-        description: `Video generation: ${validated.model}`
+        operation_type: 'video_generation',
+        description: `Video generation: ${validated.model}`,
+        metadata: {
+          model: validated.model,
+          duration: validated.duration,
+          aspect_ratio: validated.aspect_ratio
+        }
       })
     
     // 10. Trigger actual video generation

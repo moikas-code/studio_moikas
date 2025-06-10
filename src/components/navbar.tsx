@@ -4,6 +4,7 @@ import Link from "next/link";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import React, { useContext } from "react";
 import { MpContext } from "../context/mp_context";
+import { use_admin_status } from "@/hooks/use_admin_status";
 
 /**
  * Navbar component for Studio App.
@@ -12,6 +13,8 @@ import { MpContext } from "../context/mp_context";
  */
 export default function Navbar() {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
+  const { is_admin } = use_admin_status();
+  
   return (
     <nav
       className="navbar bg-base-100 shadow-md px-4 md:px-6"
@@ -30,6 +33,14 @@ export default function Navbar() {
       <div className="flex-none gap-2">
         <SignedIn>
           <div className="flex items-center gap-3">
+            {is_admin && (
+              <Link
+                href="/admin"
+                className="btn btn-sm btn-outline btn-primary"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/buy-tokens"
               className="ml-2 underline text-black-500 hover:text-blue-700 text-xs font-normal"

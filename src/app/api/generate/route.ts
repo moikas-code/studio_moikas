@@ -137,7 +137,13 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.user_id,
         tokens_used: model_cost,
-        description: `Image generation: ${validated.model}`
+        operation_type: 'image_generation',
+        description: `Image generation: ${validated.model}`,
+        metadata: {
+          model: validated.model,
+          width: validated.width,
+          height: validated.height
+        }
       })
     
     // 10. Generate image
