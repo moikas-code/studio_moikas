@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { MpContext } from "@/app/context/mp_context";
+import { MpContext } from "@/context/mp_context";
 import { Coins, Zap, Shield, Sparkles } from "lucide-react";
 import Link from "next/link";
 

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ImageGenerator from '@/app/components/image_generator'
+import ImageGenerator from '@/components/image_generator'
 
 const meta = {
   title: 'Image/ImageGenerator',

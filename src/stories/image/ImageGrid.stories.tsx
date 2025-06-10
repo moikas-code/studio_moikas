@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ImageGrid from '@/app/components/image_grid'
+import ImageGrid from '@/components/image_grid'
 
 const meta = {
   title: 'Image/ImageGrid',

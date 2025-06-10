@@ -3,7 +3,7 @@ import { Protect } from "@clerk/nextjs";
 import React, { useEffect, useState } from "react";
 import { Coins, Zap, Shield, ArrowLeft, CheckCircle, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
-import TokenBalanceCard from "@/app/components/TokenBalanceCard";
+import TokenBalanceCard from "@/components/TokenBalanceCard";
 
 // Example product IDs (replace with your actual Stripe product IDs)
 const PRODUCT_IDS = [

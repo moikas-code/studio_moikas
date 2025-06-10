@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
-import { MpContext } from "@/app/context/mp_context";
+import { MpContext } from "@/context/mp_context";
 import { v4 as uuidv4 } from "uuid";
 
 import { message, workflow, chat_state, default_chat_settings, chat_session, workflow_template, workflow_limits } from "./types";

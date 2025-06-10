@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useContext } from "react";
-import { ImageGenerator } from "../../components/image_generator/index";
-import { MpContext } from "../../context/mp_context";
+import { ImageGenerator } from "../../../components/image_generator/index";
+import { MpContext } from "../../../context/mp_context";
 
 /**
  * Page for the Image Generator tool.

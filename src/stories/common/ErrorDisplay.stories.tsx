@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ErrorDisplay from '@/app/components/error_display'
+import ErrorDisplay from '@/components/error_display'
 
 const meta = {
   title: 'Common/ErrorDisplay',

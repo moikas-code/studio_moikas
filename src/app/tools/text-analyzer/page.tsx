@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useContext } from "react";
-import { MpContext } from "../../context/mp_context";
+import { MpContext } from "../../../context/mp_context";
 import { MoreVertical } from "lucide-react";
 import jsPDF from "jspdf";
 import { use_complete_token_estimation, feature_type } from "@/lib/token_estimation";
-import Compact_token_display from "@/app/components/CompactTokenDisplay";
+import Compact_token_display from "@/components/CompactTokenDisplay";
 
 const FEATURES = [
   { value: "script", label: "Generate Script" },

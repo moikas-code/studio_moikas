@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ImageEditor from '@/app/components/image_editor'
+import ImageEditor from '@/components/image_editor'
 
 const meta = {
   title: 'Image/ImageEditor',

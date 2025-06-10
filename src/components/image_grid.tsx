@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
-import { MODEL_OPTIONS } from "../../lib/generate_helpers";
+import { MODEL_OPTIONS } from "../lib/generate_helpers";
 
 interface Image_grid_props {
   image_base64: string[];

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import CompactTokenDisplay from '@/app/components/CompactTokenDisplay'
+import CompactTokenDisplay from '@/components/CompactTokenDisplay'
 
 const meta = {
   title: 'Common/CompactTokenDisplay',

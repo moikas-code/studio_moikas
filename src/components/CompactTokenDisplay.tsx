@@ -1,6 +1,6 @@
 "use client";
 import React, { useContext } from "react";
-import { MpContext } from "@/app/context/mp_context";
+import { MpContext } from "@/context/mp_context";
 import { Zap } from "lucide-react";
 
 interface CompactTokenDisplayProps {

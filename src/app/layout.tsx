@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import LayoutWithSidebar from "./components/LayoutWithSidebar";
-import { MpProvider } from "./context/mp_context";
-import Analytics_wrapper from "./components/analytics_wrapper";
-import Session_tracking from "./components/session_tracking";
-import Cookie_consent_banner from "./components/cookie_consent_banner";
-import User_sync from "./components/user_sync";
-import JobNotifications from "./components/job_notifications";
+import LayoutWithSidebar from "../components/LayoutWithSidebar";
+import { MpProvider } from "../context/mp_context";
+import Analytics_wrapper from "../components/analytics_wrapper";
+import Session_tracking from "../components/session_tracking";
+import Cookie_consent_banner from "../components/cookie_consent_banner";
+import User_sync from "../components/user_sync";
+import JobNotifications from "../components/job_notifications";
 import { auth } from "@clerk/nextjs/server";
 
 const geist_sans = Geist({

@@ -1,7 +1,7 @@
 "use client";
 import React, { useContext } from "react";
 import { useUser } from "@clerk/nextjs";
-import { MpContext } from "../components/../context/mp_context";
+import { MpContext } from "../../context/mp_context";
 import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot, FaMicrophone } from "react-icons/fa";
 import Link from "next/link";
 

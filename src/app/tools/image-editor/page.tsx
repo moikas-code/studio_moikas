@@ -1,4 +1,4 @@
-import Image_editor from "../../components/image_editor";
+import Image_editor from "../../../components/image_editor";
 import React from "react";
 
 /**

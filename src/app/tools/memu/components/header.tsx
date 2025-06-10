@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import { Workflow, Settings, History, MoreVertical } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import CompactTokenDisplay from "@/app/components/CompactTokenDisplay";
+import CompactTokenDisplay from "@/components/CompactTokenDisplay";
 
 interface HeaderProps {
   show_workflow_panel: boolean;

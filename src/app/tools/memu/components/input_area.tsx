@@ -1,7 +1,7 @@
 import React from "react";
 import { Send } from "lucide-react";
 import TokenUsageDisplay from "./token_usage_display";
-import Token_count_display from "@/app/components/TokenCountDisplay";
+import Token_count_display from "@/components/TokenCountDisplay";
 
 interface InputAreaProps {
   input: string;

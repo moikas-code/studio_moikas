@@ -3,9 +3,9 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost, video_model_to_legacy_model } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import { MoreVertical } from "lucide-react";
-import CostDisplay from "../../components/CostDisplay";
-import Compact_token_display from "@/app/components/CompactTokenDisplay";
-import { MpContext } from "@/app/context/mp_context";
+import CostDisplay from "../../../components/CostDisplay";
+import Compact_token_display from "@/components/CompactTokenDisplay";
+import { MpContext } from "@/context/mp_context";
 import VideoJobHistory from "./components/video_job_history";
 
 const ASPECT_OPTIONS = [

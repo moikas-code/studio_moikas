@@ -1,13 +1,13 @@
 import React, { useState, useContext, useMemo, useEffect, useCallback } from 'react'
 import { Sparkles, Settings, Globe, Upload, History } from 'lucide-react'
-import { MpContext } from '@/app/context/mp_context'
+import { MpContext } from '@/context/mp_context'
 import { DocumentUploader } from './document_uploader'
 import { UrlInput } from './url_input'
 import { VoiceSelectionPanel } from './voice_selection_panel'
 import { VoiceCloningPanel } from './voice_cloning_panel'
 import { ChunkedAudioPlayer } from './chunked_audio_player'
 import { useWebhookChunkedTts } from '../hooks/use_webhook_chunked_tts'
-import ErrorDisplay from '@/app/components/error_display'
+import ErrorDisplay from '@/components/error_display'
 import { 
   TTS_LIMITS, 
   TTS_MIN_CHARGE_CHARACTERS,

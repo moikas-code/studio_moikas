@@ -4,7 +4,7 @@ import { SignedIn, SignedOut, PricingTable, useAuth } from '@clerk/nextjs';
 import Link from "next/link";
 import { CheckCircle2, Sparkles, Zap, Shield, ArrowRight, ChevronDown, Plus, HelpCircle } from "lucide-react";
 import { useState, useContext } from "react";
-import { MpContext } from "@/app/context/mp_context";
+import { MpContext } from "@/context/mp_context";
 
 /**
  * Pricing page for Studio.Moikas

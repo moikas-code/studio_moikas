@@ -3,7 +3,7 @@
 import React from 'react'
 import { AspectRatioSelector } from './aspect_ratio_selector'
 import { FaClock } from 'react-icons/fa'
-import CostDisplay from '@/app/components/CostDisplay'
+import CostDisplay from '@/components/CostDisplay'
 
 interface VideoSettingsPanelProps {
   is_open: boolean

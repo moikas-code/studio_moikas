@@ -1,14 +1,14 @@
 "use client";
-import HeroSection from "./components/common/HeroSection";
-import AnimatedDemoSection from "./components/AnimatedDemoSection";
-import HowItWorksSection from "./components/HowItWorksSection";
-import FeaturesSection from "./components/FeaturesSection";
-import UseCasesSection from "./components/UseCasesSection";
-import TechnologySection from "./components/TechnologySection";
-import TestimonialsSection from "./components/TestimonialsSection";
-import CTASection from "./components/common/CTASection";
-import PricingSection from "./components/PricingSection";
-import FAQSection from "./components/common/FAQSection";
+import HeroSection from "../components/common/HeroSection";
+import AnimatedDemoSection from "../components/AnimatedDemoSection";
+import HowItWorksSection from "../components/HowItWorksSection";
+import FeaturesSection from "../components/FeaturesSection";
+import UseCasesSection from "../components/UseCasesSection";
+import TechnologySection from "../components/TechnologySection";
+import TestimonialsSection from "../components/TestimonialsSection";
+import CTASection from "../components/common/CTASection";
+import PricingSection from "../components/PricingSection";
+import FAQSection from "../components/common/FAQSection";
 
 export default function Home() {
   return (

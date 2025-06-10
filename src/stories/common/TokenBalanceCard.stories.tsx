@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import TokenBalanceCard from '@/app/components/TokenBalanceCard'
+import TokenBalanceCard from '@/components/TokenBalanceCard'
 
 const meta = {
   title: 'Common/TokenBalanceCard',

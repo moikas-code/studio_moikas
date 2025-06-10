@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import CostDisplay from '@/app/components/CostDisplay'
+import CostDisplay from '@/components/CostDisplay'
 import { get_legacy_model_options } from '@/lib/generate_helpers'
 
 const meta = {

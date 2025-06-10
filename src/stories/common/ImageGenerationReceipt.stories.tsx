@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ImageGenerationReceipt from '@/app/components/ImageGenerationReceipt'
+import ImageGenerationReceipt from '@/components/ImageGenerationReceipt'
 
 const meta = {
   title: 'Common/ImageGenerationReceipt',

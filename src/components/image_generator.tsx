@@ -14,7 +14,7 @@ import {
   calculateGenerationMP,
   sort_models_by_cost,
   get_legacy_model_options,
-} from "../../lib/generate_helpers";
+} from "../lib/generate_helpers";
 import { track } from "@vercel/analytics";
 import Error_display from "./error_display";
 import { ChefHat, Sparkles, MoreVertical } from "lucide-react";
