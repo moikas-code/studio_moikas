@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PromptInput } from './components/input/prompt_input'
 import { EnhanceButton } from './components/input/enhance_button'
@@ -13,9 +13,8 @@ import { useAspectRatio } from './hooks/use_aspect_ratio'
 import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster } from 'react-hot-toast'
 import { Settings } from 'lucide-react'
-import { FREE_IMAGE_MODELS, PREMIUM_IMAGE_MODELS } from '@/lib/ai_models'
-import { calculate_final_cost } from '@/lib/pricing_config'
 import type { EmbeddingInput, LoraWeight } from './types'
+import type { ModelConfig } from '@/types/models'
 
 interface ImageGeneratorProps {
   available_mp: number
@@ -23,37 +22,6 @@ interface ImageGeneratorProps {
   user_plan?: string
 }
 
-// Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
-const cost_to_mp = (cost: number, plan: string) => {
-  // Admin users have 0 cost
-  if (plan === 'admin') {
-    return 0
-  }
-  const base_mp_cost = cost / 0.001
-  return calculate_final_cost(base_mp_cost, plan)
-}
-
-// Get models based on user plan
-const get_available_models = (plan: string = 'free') => {
-  const all_models = [...FREE_IMAGE_MODELS, ...PREMIUM_IMAGE_MODELS]
-  
-  // Admin users get access to all models
-  if (plan === 'admin') {
-    return all_models.map(model => ({
-      id: model.value,
-      name: model.name,
-      cost: 0  // Admin users have 0 cost
-    }))
-  }
-  
-  return all_models
-    .filter(model => model.plans.includes(plan))
-    .map(model => ({
-      id: model.value,
-      name: model.name,
-      cost: cost_to_mp(model.custom_cost, plan)
-    }))
-}
 
 export function ImageGenerator({ 
   available_mp, 
@@ -62,12 +30,18 @@ export function ImageGenerator({
 }: ImageGeneratorProps) {
   const router = useRouter()
   
-  // Get available models based on user plan
-  const available_models = get_available_models(user_plan)
+  // State for models from database
+  const [available_models, set_available_models] = useState<{
+    id: string
+    name: string
+    cost: number
+    model_config?: ModelConfig
+  }[]>([])
+  const [models_loading, set_models_loading] = useState(true)
   
   // State
   const [prompt_text, set_prompt_text] = useState('')
-  const [model_id, set_model_id] = useState(available_models[0]?.id || 'fal-ai/sana/sprint')
+  const [model_id, set_model_id] = useState('')
   const [show_settings, set_show_settings] = useState(false)
   const [generated_images, set_generated_images] = useState<{
     id?: string
@@ -85,6 +59,42 @@ export function ImageGenerator({
   const aspect_ratio = useAspectRatio()
   const sana = useSanaSettings()
   
+  // Fetch available models from database
+  useEffect(() => {
+    const fetch_models = async () => {
+      try {
+        set_models_loading(true)
+        const response = await fetch('/api/models?type=image')
+        const data = await response.json()
+        
+        if (data.data && data.data.models) {
+          const models = data.data.models.map((model: ModelConfig & { effective_cost_mp: number }) => ({
+            id: model.model_id,
+            name: model.name,
+            cost: model.effective_cost_mp,
+            model_config: model
+          }))
+          
+          set_available_models(models)
+          
+          // Set default model
+          if (models.length > 0) {
+            const default_model = models.find((m: any) => m.model_config?.is_default) || models[0]
+            set_model_id(default_model.id)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch models:', error)
+        // Fallback to empty models
+        set_available_models([])
+      } finally {
+        set_models_loading(false)
+      }
+    }
+    
+    fetch_models()
+  }, [user_plan])
+  
   // Handle prompt enhancement
   const handle_enhance = async () => {
     const enhanced = await enhance_prompt(prompt_text)
@@ -97,6 +107,9 @@ export function ImageGenerator({
   const handle_generate = async () => {
     if (!prompt_text.trim()) return
     
+    const selected_model = available_models.find(m => m.id === model_id)
+    const model_config = selected_model?.model_config
+    
     const dimensions = aspect_ratio.get_dimensions()
     const params: GenerationParams = {
       prompt: prompt_text,
@@ -105,24 +118,36 @@ export function ImageGenerator({
       height: dimensions.height
     }
     
-    // Add SANA-specific params
-    if (model_id.includes('sana')) {
-      const sana_params = sana.get_sana_params()
-      params.num_inference_steps = sana_params.num_inference_steps
-      params.guidance_scale = sana_params.guidance_scale
-      params.style_name = sana_params.style_name
+    // Add model-specific params based on database configuration
+    if (model_config) {
+      // Add CFG if supported
+      if (model_config.supports_cfg) {
+        params.guidance_scale = sana.guidance_scale || model_config.default_cfg
+      }
+      
+      // Add steps if supported
+      if (model_config.supports_steps) {
+        params.num_inference_steps = sana.num_inference_steps || model_config.default_steps
+      }
+      
+      // Add style for SANA models
+      if (model_id.includes('sana') && sana.style_name) {
+        params.style_name = sana.style_name
+      }
+      
+      // Add seed if provided
       if (sana.seed !== undefined) {
         params.seed = sana.seed
       }
-    }
-    
-    // Add embeddings and LoRAs for SDXL models
-    if (model_id.includes('sdxl') && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
-      if (selected_embeddings.length > 0) {
-        params.embeddings = selected_embeddings
-      }
-      if (selected_loras.length > 0) {
-        params.loras = selected_loras
+      
+      // Add embeddings and LoRAs for models that support them
+      if (model_config.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
+        if (selected_embeddings.length > 0) {
+          params.embeddings = selected_embeddings
+        }
+        if (selected_loras.length > 0) {
+          params.loras = selected_loras
+        }
       }
     }
     
@@ -151,6 +176,28 @@ export function ImageGenerator({
                       !is_loading && 
                       selected_model && 
                       (user_plan === 'admin' || available_mp >= selected_model.cost)
+  
+  // Show loading state while fetching models
+  if (models_loading) {
+    return (
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="flex justify-center items-center h-64">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show error if no models available
+  if (available_models.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="alert alert-warning">
+          <span>No image generation models available. Please contact support.</span>
+        </div>
+      </div>
+    )
+  }
   
   return (
     <div className="max-w-7xl mx-auto p-4">
@@ -238,7 +285,7 @@ export function ImageGenerator({
               aspect_index={aspect_ratio.aspect_index}
               on_aspect_change={aspect_ratio.set_aspect_preset}
               get_aspect_label={aspect_ratio.get_aspect_label}
-              show_sana_options={model_id.includes('sana')}
+              show_sana_options={selected_model?.model_config?.metadata?.supports_styles || model_id.includes('sana')}
               sana_settings={{
                 num_inference_steps: sana.num_inference_steps,
                 guidance_scale: sana.guidance_scale,

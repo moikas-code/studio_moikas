@@ -69,6 +69,7 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
   
   // Initialize form with existing model data
   useEffect(() => {
+    console.log('ModelForm received model:', model); // Debug log
     if (model) {
       set_form_data({
         model_id: model.model_id,

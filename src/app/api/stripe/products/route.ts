@@ -5,7 +5,7 @@ import { check_rate_limit } from "@/lib/generate_helpers";
 
 const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
 const stripe = new Stripe(stripe_secret_key, {
-  apiVersion: "2025-04-30.basil",
+  apiVersion: "2025-05-28.basil",
 });
 
 const redis = new Redis({

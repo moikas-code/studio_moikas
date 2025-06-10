@@ -4,7 +4,7 @@ import {
   get_service_role_client 
 } from '@/lib/utils/database/supabase';
 import { 
-  require_admin_access 
+  check_admin_access 
 } from '@/lib/utils/api/admin';
 import {
   api_success,
@@ -59,8 +59,10 @@ export async function GET(
 ) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     const { id: model_id } = await params;
     if (!model_id) {
@@ -96,8 +98,10 @@ export async function PUT(
 ) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     const { id: model_id } = await params;
     if (!model_id) {
@@ -164,8 +168,10 @@ export async function DELETE(
 ) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     const { id: model_id } = await params;
     if (!model_id) {
@@ -174,10 +180,10 @@ export async function DELETE(
     
     const supabase = get_service_role_client();
     
-    // Soft delete by setting is_active to false
+    // Hard delete - actually remove the model
     const { error } = await supabase
       .from('models')
-      .update({ is_active: false })
+      .delete()
       .eq('id', model_id);
     
     if (error) {
@@ -200,8 +206,10 @@ export async function PATCH(
 ) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     const { id: model_id } = await params;
     if (!model_id) {

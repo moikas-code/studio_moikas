@@ -16,7 +16,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 30 // Webhooks may need time to process
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-04-30.basil'
+  apiVersion: '2025-05-28.basil'
 })
 
 const webhook_secret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
                 currency: invoice.currency,
                 description: `Purchase of ${token_amount} MP tokens`,
                 stripe_invoice_id: invoice.id,
-                stripe_payment_intent_id: invoice.payment_intent as string,
+                stripe_payment_intent_id: null, // Invoices don't always have payment_intent
                 metadata: {
                   invoice_number: invoice.number,
                   customer_email: invoice.customer_email

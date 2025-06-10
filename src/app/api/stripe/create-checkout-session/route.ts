@@ -10,7 +10,7 @@ const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabase_service_key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const stripe = new Stripe(stripe_secret_key, {
-  apiVersion: "2025-04-30.basil",
+  apiVersion: "2025-05-28.basil",
 });
 
 const redis = new Redis({

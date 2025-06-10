@@ -1,12 +1,12 @@
 "use client";
 import React, { useState, useRef, useEffect, useContext } from "react";
-import { VIDEO_MODELS, calculateGenerationMP, sort_models_by_cost, video_model_to_legacy_model } from "@/lib/generate_helpers";
 import { FaVideo, FaImage, FaClock, FaExpandArrowsAlt } from "react-icons/fa";
 import { MoreVertical } from "lucide-react";
 import CostDisplay from "../../../components/CostDisplay";
 import Compact_token_display from "@/components/CompactTokenDisplay";
 import { MpContext } from "@/context/mp_context";
 import VideoJobHistory from "./components/video_job_history";
+import { useVideoModels } from "./hooks/use_video_models";
 
 const ASPECT_OPTIONS = [
   { label: "16:9 (Landscape)", value: "16:9", sliderValue: 0 },
@@ -16,6 +16,8 @@ const ASPECT_OPTIONS = [
 
 export default function Video_effects_page() {
   const { plan } = useContext(MpContext);
+  const { models: video_models, loading: models_loading, default_model_id } = useVideoModels(plan || 'free');
+  
   const [prompt, set_prompt] = useState("");
   const [image_file, set_image_file] = useState<File | null>(null);
   const [aspect, set_aspect] = useState("1:1");
@@ -28,18 +30,21 @@ export default function Video_effects_page() {
   const prompt_input_ref = useRef<HTMLDivElement>(null);
   const [prompt_input_height, set_prompt_input_height] = useState(0);
   const [window_width, set_window_width] = useState(1200);
-  const sorted_video_models = sort_models_by_cost(
-    VIDEO_MODELS.map(video_model_to_legacy_model)
-  ).filter((m) => !m.is_image_to_video);
-  const [model_id, set_model_id] = useState(
-    sorted_video_models[0]?.value || "",
-  );
-  const selected_model = sorted_video_models.find((m) => m.value === model_id);
+  const [model_id, set_model_id] = useState("");
   const [video_duration, set_video_duration] = useState(5);
   const [enhancing, set_enhancing] = useState(false);
   const [job_id, set_job_id] = useState<string | null>(null);
   // Derived state: job in progress
   const job_in_progress = !!job_id && !video_url;
+  
+  // Set default model when models are loaded
+  useEffect(() => {
+    if (default_model_id && !model_id) {
+      set_model_id(default_model_id);
+    }
+  }, [default_model_id, model_id]);
+  
+  const selected_model = video_models.find((m) => m.id === model_id);
 
   useEffect(() => {
     set_window_width(typeof window !== "undefined" ? window.innerWidth : 1200);
@@ -50,12 +55,12 @@ export default function Video_effects_page() {
 
     // Load saved model preference
     const savedModel = localStorage.getItem('videoEffectsModel');
-    if (savedModel && sorted_video_models.some(m => m.value === savedModel)) {
+    if (savedModel && video_models.some(m => m.id === savedModel)) {
       set_model_id(savedModel);
     }
 
     return () => window.removeEventListener("resize", handle_resize);
-  }, [sorted_video_models]);
+  }, [video_models]);
 
   useEffect(() => {
     // On mount, restore job state if present
@@ -201,7 +206,7 @@ export default function Video_effects_page() {
         final_image_url = upload_data.url;
       }
       // If model requires image and no image provided, use black placeholder
-      if (selected_model?.is_image_to_video && !final_image_url) {
+      if (selected_model?.model_config?.is_image_input && !final_image_url) {
         final_image_url = black_placeholder;
       }
       // Convert image to base64 if needed
@@ -324,6 +329,26 @@ export default function Video_effects_page() {
     transition: "all 0.3s ease",
   };
 
+  // Show loading state while models are loading
+  if (models_loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
+  }
+
+  // Show error if no models available
+  if (video_models.length === 0) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="alert alert-warning">
+          <span>No video generation models available. Please contact support.</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
@@ -344,11 +369,17 @@ export default function Video_effects_page() {
               }}
               aria-label="Select video model"
             >
-              {sorted_video_models.map((model) => (
-                <option key={model.value} value={model.value}>
-                  {model.name} ({calculateGenerationMP(model)} MP/1s)
-                </option>
-              ))}
+              {models_loading ? (
+                <option value="">Loading models...</option>
+              ) : video_models.length === 0 ? (
+                <option value="">No models available</option>
+              ) : (
+                video_models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name} ({model.cost} MP/1s)
+                  </option>
+                ))
+              )}
             </select>
           </div>
           
@@ -413,7 +444,7 @@ export default function Video_effects_page() {
                   style={{ boxShadow: "0 2px 16px 0 rgba(0,0,0,0.18)" }}
                 >
                   {/* Upload/URL button for image2video models */}
-                  {selected_model?.is_image_to_video ? (
+                  {selected_model?.model_config?.is_image_input ? (
                     <div className="flex items-center gap-2">
                       <input
                         type="file"
@@ -683,11 +714,19 @@ export default function Video_effects_page() {
                     onChange={(e) => set_video_duration(Number(e.target.value))}
                     aria-label="Select video duration"
                   >
-                    <option value={5}>5 seconds</option>
-                    <option value={10}>10 seconds</option>
+                    {selected_model?.duration_options?.map((duration) => (
+                      <option key={duration} value={duration}>
+                        {duration} seconds
+                      </option>
+                    )) || [
+                      <option key={5} value={5}>5 seconds</option>,
+                      <option key={10} value={10}>10 seconds</option>
+                    ]}
                   </select>
                   <div className="mt-auto">
-                    <CostDisplay model={selected_model} planType={plan} />
+                    {selected_model && (
+                      <CostDisplay model={selected_model} planType={plan} />
+                    )}
                   </div>
                 </div>
               </div>

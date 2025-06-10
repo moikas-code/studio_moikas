@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useContext } from 'react'
+import React, { useState, useContext, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { Mic, Settings, Sparkles, FileText, Type } from 'lucide-react'
 import { MpContext } from '@/context/mp_context'
@@ -10,6 +10,7 @@ import { VoiceSelectionPanel } from './components/voice_selection_panel'
 import { VoiceCloningPanel } from './components/voice_cloning_panel'
 import { DocumentToAudio } from './components/document_to_audio'
 import { useTextToSpeech } from './hooks/use_text_to_speech'
+import { useAudioModels } from './hooks/use_audio_models'
 import { 
   TTS_LIMITS, 
   TTS_MIN_CHARGE_CHARACTERS,
@@ -23,11 +24,27 @@ export default function AudioPage() {
   const { mp_tokens, plan } = useContext(MpContext)
   const [active_tab, set_active_tab] = useState<TabType>('text-to-speech')
   
+  // Get audio models from database
+  const { models: audio_models, loading: models_loading, default_model_id } = useAudioModels(plan || 'free')
+  
   // Form state
   const [text_input, set_text_input] = useState('')
+  const [selected_model_id, set_selected_model_id] = useState('')
   const [selected_voice, set_selected_voice] = useState('Richard')
   const [voice_clone_url, set_voice_clone_url] = useState<string | null>(null)
   const [show_advanced, set_show_advanced] = useState(false)
+  
+  // Set default model when loaded
+  useEffect(() => {
+    if (default_model_id && !selected_model_id) {
+      set_selected_model_id(default_model_id)
+      // If model has default voice presets, use the first one
+      const model = audio_models.find(m => m.id === default_model_id)
+      if (model?.voice_presets && model.voice_presets.length > 0) {
+        set_selected_voice(model.voice_presets[0])
+      }
+    }
+  }, [default_model_id, selected_model_id, audio_models])
   
   // Advanced settings
   const [exaggeration, set_exaggeration] = useState(TTS_LIMITS.default_exaggeration)
@@ -46,19 +63,23 @@ export default function AudioPage() {
     clear_audio 
   } = useTextToSpeech()
   
-  // Calculate cost
+  // Calculate cost based on selected model
+  const selected_model = audio_models.find(m => m.id === selected_model_id)
   const text_length = text_input.length
-  const estimated_cost = calculateTTSCost(text_length, plan)
+  const chars_to_charge = Math.ceil(text_length / TTS_MIN_CHARGE_CHARACTERS) * TTS_MIN_CHARGE_CHARACTERS
+  const estimated_cost = selected_model ? Math.ceil(selected_model.cost * chars_to_charge / TTS_MIN_CHARGE_CHARACTERS) : 0
   const can_generate = text_length > 0 && 
                       text_length <= TTS_LIMITS.max_text_length && 
-                      (mp_tokens ?? 0) >= estimated_cost &&
-                      !is_generating
+                      (plan === 'admin' || (mp_tokens ?? 0) >= estimated_cost) &&
+                      !is_generating &&
+                      selected_model_id
   
   const handle_generate = async () => {
     if (!can_generate) return
     
     const params: TTSParams = {
       text: text_input,
+      model: selected_model_id,
       voice: voice_clone_url ? undefined : selected_voice, // Don't send voice if using clone
       high_quality_audio: high_quality
     }
@@ -157,23 +178,25 @@ export default function AudioPage() {
                   </div>
                 </div>
                 
-                <div className="alert alert-info mt-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                  <div>
-                    <p className="font-semibold text-sm">
-                      Pricing: {plan === 'standard' ? '16 MP' : '25 MP'} per 250 characters ({plan === 'standard' ? 'Standard' : 'Free'} plan)
-                    </p>
-                    <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
+                {selected_model && (
+                  <div className="alert alert-info mt-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                      <p className="font-semibold text-sm">
+                        Pricing: {selected_model.cost} MP per 250 characters
+                      </p>
+                      <p className="text-xs">Minimum charge of 250 characters applies. Charges are rounded up to the nearest 250 character increment.</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
             
-            {/* Voice Selection */}
+            {/* Model & Voice Selection */}
             <div className="card bg-base-100 shadow-xl">
               <div className="card-body">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="card-title"></h2>
+                  <h2 className="card-title">Voice Settings</h2>
                   <button
                     onClick={() => set_show_advanced(!show_advanced)}
                     className="btn btn-ghost btn-sm gap-2"
@@ -183,19 +206,60 @@ export default function AudioPage() {
                   </button>
                 </div>
                 
-                <VoiceSelectionPanel
-                  selected_voice={selected_voice}
-                  on_voice_change={set_selected_voice}
-                  disabled={is_generating || !!voice_clone_url}
-                />
+                {/* Model Selection */}
+                <div className="mb-4">
+                  <label className="label">
+                    <span className="label-text">Model</span>
+                  </label>
+                  <select
+                    value={selected_model_id}
+                    onChange={(e) => {
+                      set_selected_model_id(e.target.value)
+                      // Update voice if model has presets
+                      const model = audio_models.find(m => m.id === e.target.value)
+                      if (model?.voice_presets && model.voice_presets.length > 0) {
+                        set_selected_voice(model.voice_presets[0])
+                      }
+                    }}
+                    className="select select-bordered w-full"
+                    disabled={models_loading || is_generating}
+                  >
+                    {models_loading ? (
+                      <option value="">Loading models...</option>
+                    ) : audio_models.length === 0 ? (
+                      <option value="">No models available</option>
+                    ) : (
+                      audio_models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.name} ({model.cost} MP per 250 chars)
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                
+                {/* Show voice selection only if model has voice presets */}
+                {selected_model?.voice_presets && selected_model.voice_presets.length > 0 && (
+                  <VoiceSelectionPanel
+                    selected_voice={selected_voice}
+                    on_voice_change={set_selected_voice}
+                    disabled={is_generating || !!voice_clone_url}
+                    voice_options={selected_model.voice_presets.map(v => ({ id: v, name: v }))}
+                  />
+                )}
                 
                 {/* Voice Cloning Section */}
                 <div className="divider">OR</div>
                 
-                <VoiceCloningPanel
-                  on_voice_ready={set_voice_clone_url}
-                  is_uploading={false}
-                />
+                {/* Show voice cloning only if model supports it */}
+                {selected_model?.supports_voice_cloning && (
+                  <>
+                    <VoiceCloningPanel
+                      on_voice_ready={set_voice_clone_url}
+                      is_uploading={false}
+                    />
+                  </>
+                )}
                 
                 {/* Advanced Settings */}
                 {show_advanced && (

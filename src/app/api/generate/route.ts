@@ -36,7 +36,6 @@ import {
 import {
   generate_imggen_cache_key
 } from "@/lib/generate_helpers"
-import { get_image_model_config } from "@/lib/ai_models"
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
 import { calculate_final_cost } from "@/lib/pricing_config"
 
@@ -74,10 +73,17 @@ export async function POST(req: NextRequest) {
         : RATE_LIMITS.image_generation_standard
     )
     
-    // 6. Calculate cost
-    const model_config = get_image_model_config(validated.model)
+    // 6. Get model from database and calculate cost
+    const supabase = get_service_role_client()
+    const { data: model_config } = await supabase
+      .from('models')
+      .select('*')
+      .eq('model_id', validated.model)
+      .eq('is_active', true)
+      .single()
+    
     if (!model_config) {
-      throw new Error(`Invalid model: ${validated.model}`)
+      throw new Error(`Invalid or inactive model: ${validated.model}`)
     }
     
     // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
@@ -133,8 +139,6 @@ export async function POST(req: NextRequest) {
     }
     
     // 9. Deduct tokens with admin check
-    const supabase = get_service_role_client()
-    
     // Check if user is admin and handle token deduction accordingly
     const token_result = await deduct_tokens_with_admin_check(
       supabase,

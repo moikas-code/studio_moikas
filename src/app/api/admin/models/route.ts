@@ -4,7 +4,7 @@ import {
   get_service_role_client 
 } from '@/lib/utils/database/supabase';
 import { 
-  require_admin_access 
+  check_admin_access 
 } from '@/lib/utils/api/admin';
 import {
   api_success,
@@ -72,8 +72,10 @@ const model_filters_schema = z.object({
 export async function GET(req: NextRequest) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     // Parse query parameters
     const search_params = req.nextUrl.searchParams;
@@ -153,8 +155,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     // Parse and validate request body
     const body = await req.json();
@@ -201,8 +205,10 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     // Extract model ID from URL
     const url_parts = req.url.split('/');
@@ -269,8 +275,10 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // Check admin access
-    const admin_error = await require_admin_access();
-    if (admin_error) return admin_error;
+    const admin_check = await check_admin_access();
+    if (!admin_check.is_admin) {
+      return api_error('Admin access required', 403);
+    }
     
     // Extract model ID from URL
     const url_parts = req.url.split('/');

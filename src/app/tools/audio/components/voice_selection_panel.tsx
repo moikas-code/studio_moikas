@@ -1,17 +1,19 @@
 import React, { useState } from 'react'
 import { User, Bot, Info } from 'lucide-react'
-import { VOICE_OPTIONS } from '../types'
+import { VOICE_OPTIONS, type VoiceOption } from '../types'
 
 interface VoiceSelectionPanelProps {
   selected_voice: string
   on_voice_change: (voice: string) => void
   disabled?: boolean
+  voice_options?: VoiceOption[]
 }
 
 export function VoiceSelectionPanel({ 
   selected_voice,
   on_voice_change,
-  disabled = false
+  disabled = false,
+  voice_options = VOICE_OPTIONS
 }: VoiceSelectionPanelProps) {
   const [show_descriptions, set_show_descriptions] = useState(false)
   
@@ -31,7 +33,7 @@ export function VoiceSelectionPanel({
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {VOICE_OPTIONS.map((voice) => {
+        {voice_options.map((voice) => {
           const is_selected = selected_voice === voice.id
           
           return (

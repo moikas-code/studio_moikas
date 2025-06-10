@@ -43,16 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to flatten the user email
-    const transactions = data?.map((item: {
-      id: string;
-      operation: string;
-      amount_cents: number;
-      tokens_amount: number;
-      description: string;
-      created_at: string;
-      stripe_payment_intent_id?: string;
-      users: { email: string }[];
-    }) => ({
+    const transactions = data?.map((item) => ({
       ...item,
       user_email: item.users?.[0]?.email || 'Unknown'
     })) || [];

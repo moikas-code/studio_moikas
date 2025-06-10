@@ -26,7 +26,7 @@ const update_embedding_schema = z.object({
 // GET /api/admin/embeddings/[id] - Get a specific embedding
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin_check = await check_admin_access()
@@ -34,12 +34,13 @@ export async function GET(
       return api_error('Admin access required', 403)
     }
     
+    const { id } = await params
     const supabase = get_service_role_client()
     
     const { data, error } = await supabase
       .from('embeddings')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -61,7 +62,7 @@ export async function GET(
 // PUT /api/admin/embeddings/[id] - Update an embedding
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin_check = await check_admin_access()
@@ -69,6 +70,7 @@ export async function PUT(
       return api_error('Admin access required', 403)
     }
     
+    const { id } = await params
     const body = await req.json()
     const validated = update_embedding_schema.parse(body)
 
@@ -80,7 +82,7 @@ export async function PUT(
         ...validated,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -104,7 +106,7 @@ export async function PUT(
 // PATCH /api/admin/embeddings/[id] - Partial update
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin_check = await check_admin_access()
@@ -112,6 +114,7 @@ export async function PATCH(
       return api_error('Admin access required', 403)
     }
     
+    const { id } = await params
     const body = await req.json()
     const supabase = get_service_role_client()
     
@@ -121,7 +124,7 @@ export async function PATCH(
         ...body,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single()
 
@@ -145,7 +148,7 @@ export async function PATCH(
 // DELETE /api/admin/embeddings/[id] - Delete an embedding
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin_check = await check_admin_access()
@@ -153,12 +156,13 @@ export async function DELETE(
       return api_error('Admin access required', 403)
     }
     
+    const { id } = await params
     const supabase = get_service_role_client()
     
     const { error } = await supabase
       .from('embeddings')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (error) {
       if (error.code === 'PGRST116') {

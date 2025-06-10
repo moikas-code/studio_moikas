@@ -17,7 +17,13 @@ export default function EditModelPage() {
         const response = await fetch(`/api/admin/models/${params.id}`);
         const data = await response.json();
         
-        if (data.success !== false) {
+        console.log('Model API response:', data); // Debug log
+        
+        if (data.success && data.data) {
+          // Handle api_success wrapper
+          set_model(data.data);
+        } else if (data.model_id) {
+          // Handle direct model data
           set_model(data);
         } else {
           toast.error(data.error || 'Failed to fetch model');

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import dynamic from 'next/dynamic';
 import { 
   Plus, 
   Edit, 
@@ -28,7 +27,7 @@ import {
   get_model_cost_in_mp 
 } from '@/types/models';
 
-function ModelManagementPageContent() {
+export default function ModelManagementPage() {
   const router = useRouter();
   const [models, set_models] = useState<ModelConfig[]>([]);
   const [loading, set_loading] = useState(true);
@@ -62,24 +61,16 @@ function ModelManagementPageContent() {
       
       const response = await fetch(`/api/admin/models?${params}`);
       const data = await response.json();
-      console.log('API Response:', data); // Debug log
       
-      if (data.success && data.data) {
-        // Handle the response structure from api_success
-        set_models(data.data.models || []);
-        set_total(data.data.total || 0);
-      } else if (data.models) {
-        // Handle direct response
-        set_models(data.models || []);
-        set_total(data.total || 0);
+      if (data.success) {
+        set_models(data.models);
+        set_total(data.total);
       } else {
         toast.error(data.error || 'Failed to fetch models');
-        set_models([]);
       }
     } catch (error) {
       toast.error('Failed to fetch models');
-      console.error('Fetch models error:', error);
-      set_models([]); // Ensure models is never undefined
+      console.error(error);
     } finally {
       set_loading(false);
     }
@@ -93,7 +84,7 @@ function ModelManagementPageContent() {
       });
       const data = await response.json();
       
-      if (data.success || data.data) {
+      if (data.success) {
         toast.success('Model status updated');
         fetch_models();
       } else {
@@ -117,7 +108,7 @@ function ModelManagementPageContent() {
       });
       const data = await response.json();
       
-      if (data.success || data.data) {
+      if (data.success) {
         toast.success('Model deleted');
         fetch_models();
       } else {
@@ -259,15 +250,15 @@ function ModelManagementPageContent() {
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body p-0">
           <div className="overflow-x-auto">
-            <table className="table table-zebra table-xs sm:table-sm lg:table-md">
+            <table className="table table-zebra">
               <thead>
                 <tr>
-                  <th className="w-20">Status</th>
-                  <th className="min-w-[200px]">Model</th>
-                  <th className="w-24">Type</th>
-                  <th className="w-32">Cost (MP)</th>
-                  <th className="min-w-[150px]">Features</th>
-                  <th className="w-32">Actions</th>
+                  <th>Status</th>
+                  <th>Model</th>
+                  <th>Type</th>
+                  <th>Cost (MP)</th>
+                  <th>Features</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,14 +268,14 @@ function ModelManagementPageContent() {
                       <span className="loading loading-spinner loading-lg"></span>
                     </td>
                   </tr>
-                ) : !models || models.length === 0 ? (
+                ) : models.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="text-center py-8">
                       No models found
                     </td>
                   </tr>
                 ) : (
-                  models && models.map(model => (
+                  models.map(model => (
                     <tr key={model.id}>
                       <td>
                         <button
@@ -300,18 +291,18 @@ function ModelManagementPageContent() {
                         </button>
                       </td>
                       <td>
-                        <div className="min-w-0">
-                          <div className="font-semibold flex items-center gap-1 flex-wrap">
-                            <span className="truncate">{model.name}</span>
+                        <div>
+                          <div className="font-semibold flex items-center gap-2">
+                            {model.name}
                             {model.is_default && (
-                              <span className="badge badge-primary badge-xs">Default</span>
+                              <span className="badge badge-primary badge-sm">Default</span>
                             )}
                           </div>
-                          <div className="text-xs text-base-content/50 flex items-center gap-1">
-                            <code className="truncate max-w-[150px] sm:max-w-[200px]">{model.model_id}</code>
+                          <div className="text-sm text-base-content/50 flex items-center gap-1">
+                            <code>{model.model_id}</code>
                             <button
                               onClick={() => copy_model_id(model.model_id)}
-                              className="btn btn-ghost btn-xs p-0 h-auto min-h-0"
+                              className="btn btn-ghost btn-xs"
                             >
                               <Copy className="w-3 h-3" />
                             </button>
@@ -319,11 +310,8 @@ function ModelManagementPageContent() {
                         </div>
                       </td>
                       <td>
-                        <span className="badge badge-outline badge-sm whitespace-nowrap">
-                          {model.type === 'image' ? 'Image' : 
-                           model.type === 'video' ? 'Video' :
-                           model.type === 'audio' ? 'Audio' : 
-                           model.type === 'text' ? 'Text' : model.type}
+                        <span className="badge badge-outline">
+                          {format_model_type(model.type)}
                         </span>
                       </td>
                       <td>
@@ -337,46 +325,46 @@ function ModelManagementPageContent() {
                         </div>
                       </td>
                       <td>
-                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        <div className="flex flex-wrap gap-1">
                           {model.supports_image_input && (
-                            <span className="badge badge-xs badge-primary">Img</span>
+                            <span className="badge badge-sm badge-primary">Image Input</span>
                           )}
                           {model.supports_cfg && (
-                            <span className="badge badge-xs badge-secondary">CFG</span>
+                            <span className="badge badge-sm badge-secondary">CFG</span>
                           )}
                           {model.supports_steps && (
-                            <span className="badge badge-xs badge-secondary">Steps</span>
+                            <span className="badge badge-sm badge-secondary">Steps</span>
                           )}
                           {model.type === 'video' && model.supports_audio_generation && (
-                            <span className="badge badge-xs badge-accent">Audio</span>
+                            <span className="badge badge-sm badge-accent">Audio</span>
                           )}
                           {model.supports_both_size_modes === true && (
-                            <span className="badge badge-xs badge-info">Flex</span>
+                            <span className="badge badge-sm badge-info">Flexible Size</span>
                           )}
                         </div>
                       </td>
                       <td>
-                        <div className="flex gap-1">
+                        <div className="flex gap-2">
                           <button
                             onClick={() => set_selected_model(model)}
-                            className="btn btn-ghost btn-xs"
+                            className="btn btn-ghost btn-sm"
                             title="View Details"
                           >
-                            <Eye className="w-3 h-3" />
+                            <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => router.push(`/admin/models/${model.id}/edit`)}
-                            className="btn btn-ghost btn-xs"
+                            className="btn btn-ghost btn-sm"
                             title="Edit"
                           >
-                            <Edit className="w-3 h-3" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => delete_model(model.id, model.name)}
-                            className="btn btn-ghost btn-xs text-error"
+                            className="btn btn-ghost btn-sm text-error"
                             title="Delete"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -533,19 +521,5 @@ function ModelManagementPageContent() {
         </div>
       )}
     </div>
-  );
-}
-
-export default function ModelManagementPage() {
-  return (
-    <Suspense fallback={
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-center py-8">
-          <span className="loading loading-spinner loading-lg"></span>
-        </div>
-      </div>
-    }>
-      <ModelManagementPageContent />
-    </Suspense>
   );
 }

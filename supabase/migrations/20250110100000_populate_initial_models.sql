@@ -13,14 +13,12 @@ INSERT INTO models (
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
   true, true, 1, 10, ARRAY['fast', 'basic'], false
 ),
-
 -- FLUX Models
 ('fal-ai/flux-1/dev', 'FLUX Dev', 'image', 0.025, 0.025,
   false, true, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
   true, true, 4, 40, ARRAY['quality', 'detailed'], false
 ),
-
 ('fal-ai/flux-pro/kontext/text-to-image', 'FLUX Kontext Pro', 'image', 0.04, 0.04,
   false, true, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
@@ -31,20 +29,17 @@ INSERT INTO models (
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
   true, true, 4, 70, ARRAY['ultra', 'high-quality'], false
 ),
-('fal-ai/flux-1/schnell', 'FLUX Schnell', 'image', 0.002, 0.002,
+('fal-ai/flux-1/schnell', 'FLUX Schnell', 'image', 0.003, 0.003,
   false, true, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
   false, false, 4, 80, ARRAY['fast', 'efficient'], false
 ),
-
 -- Stable Diffusion
-
 ('fal-ai/fast-sdxl', 'Fast SDXL', 'image', 0.002, 0.002,
   false, true, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
   true, true, 1, 100, ARRAY['fast', 'sdxl'], true
-),
-
+);
 
 -- Update metadata for SANA models with their specific configurations
 UPDATE models SET 
@@ -141,8 +136,6 @@ UPDATE models SET
   )
 WHERE model_id = 'fal-ai/fast-sdxl';
 
-
-
 -- Video Models
 INSERT INTO models (
   model_id, name, type, cost_per_mp, custom_cost,
@@ -155,7 +148,7 @@ INSERT INTO models (
   ARRAY['1:1', '16:9', '9:16'],
   ARRAY[1, 2, 3, 4, 5],
   false, 200, ARRAY['video', 'high-quality'], true
-)
+);
 
 -- Audio Models  
 INSERT INTO models (

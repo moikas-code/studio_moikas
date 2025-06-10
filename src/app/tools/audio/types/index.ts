@@ -6,6 +6,7 @@ export type VoiceOption = {
 
 export type TTSParams = {
   text: string
+  model?: string
   voice?: string
   exaggeration?: number
   cfg?: number
