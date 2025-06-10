@@ -14,7 +14,6 @@ import { useAudioModels } from './hooks/use_audio_models'
 import { 
   TTS_LIMITS, 
   TTS_MIN_CHARGE_CHARACTERS,
-  calculateTTSCost,
   type TTSParams 
 } from './types'
 

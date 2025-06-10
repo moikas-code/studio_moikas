@@ -9,7 +9,7 @@ interface CostDisplayProps {
   planType?: string | null;
 }
 
-const CostDisplay: React.FC<CostDisplayProps> = ({ model, cost, planType }) => {
+const CostDisplay: React.FC<CostDisplayProps> = ({ model, cost }) => {
   // If cost is provided directly, use it
   if (cost !== undefined) {
     return (

@@ -89,7 +89,7 @@ export function ImageGenerator({
           
           // Set default model
           if (models.length > 0) {
-            const default_model = models.find((m: any) => m.model_config?.is_default) || models[0]
+            const default_model = models.find(m => m.model_config?.is_default) || models[0]
             set_model_id(default_model.id)
           }
         }
@@ -606,6 +606,7 @@ export function ImageGenerator({
               {generated_image ? (
                 <div className="w-full space-y-4">
                   <div className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={generated_image.url.startsWith('data:') ? generated_image.url : `data:image/png;base64,${generated_image.url}`}
                       alt="Generated image"

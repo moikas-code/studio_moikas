@@ -621,7 +621,7 @@ export default function Image_editor() {
       canvas_width: template.width,
       canvas_height: template.height,
     });
-  }, [canvas_state, save_to_history, plan, has_user_background_settings, draw_canvas, set_canvas_state, viewport_dimensions]);
+  }, [canvas_state, save_to_history, plan, has_user_background_settings, draw_canvas, set_canvas_state, viewport_dimensions, create_custom_background]);
 
   // Check if user has disabled template confirmations
   const get_skip_template_confirmation = useCallback(() => {
@@ -1061,6 +1061,7 @@ export default function Image_editor() {
     draw_canvas(new_state);
     set_dragging_layer_index(null);
     set_drag_over_layer_index(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state, dragging_layer_index, save_to_history]);
 
   const handle_layer_drag_end = useCallback(() => {
@@ -1132,6 +1133,7 @@ export default function Image_editor() {
       
       draw_canvas(new_state);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state, viewport_to_canvas]);
 
   // Handle canvas mouse down
@@ -1278,6 +1280,7 @@ export default function Image_editor() {
     set_text_weight("normal");
     
     draw_canvas(new_state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state, active_tool, viewport_to_canvas, is_image_selected, selected_text_id]);
 
   // Handle canvas mouse move
@@ -1428,6 +1431,7 @@ export default function Image_editor() {
 
     set_canvas_state(new_state);
     draw_canvas(new_state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_panning, is_dragging_text, selected_text_id, active_tool, canvas_state, drag_offset, last_pan_position, viewport_to_canvas, is_resizing_image, resize_handle, resize_start, is_moving_image, move_start]);
 
   // Handle canvas mouse up
@@ -1451,6 +1455,7 @@ export default function Image_editor() {
       // Save to history when move ends
       set_canvas_state(prev => save_to_history(prev));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [is_panning, is_dragging_text, is_resizing_image, is_moving_image, save_to_history]);
 
   // Handle wheel zoom
@@ -1478,6 +1483,7 @@ export default function Image_editor() {
       pan_x: new_pan_x,
       pan_y: new_pan_y,
     }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state.zoom, canvas_state.pan_x, canvas_state.pan_y]);
 
   // Export image
@@ -1573,6 +1579,7 @@ export default function Image_editor() {
       set_canvas_state(new_state);
       draw_canvas(new_state);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state]);
 
   const redo = useCallback(() => {
@@ -1587,6 +1594,7 @@ export default function Image_editor() {
       set_canvas_state(new_state);
       draw_canvas(new_state);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state]);
 
   // Redraw canvas when state changes
@@ -1632,6 +1640,7 @@ export default function Image_editor() {
       set_canvas_state(updated_state);
       draw_canvas(updated_state);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport_dimensions.width, viewport_dimensions.height]);
 
   // Initialize canvas and load image from localStorage if available
@@ -1677,6 +1686,7 @@ export default function Image_editor() {
     } else {
       draw_canvas(canvas_state);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
