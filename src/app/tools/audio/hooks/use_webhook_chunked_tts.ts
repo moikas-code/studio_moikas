@@ -536,7 +536,8 @@ export function useWebhookChunkedTts() {
       })
       setTimeout(check_document_status, 1000)
     }
-  }, []) // Only run on mount - eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
 
   // Store job ID when it changes
   useEffect(() => {

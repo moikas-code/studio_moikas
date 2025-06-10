@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       return api_error('User not found', 404)
     }
 
-    const user_plan = user_data.subscriptions?.plan || 'free'
+    const user_plan = user_data.subscriptions?.[0]?.plan || 'free'
     
     // Parse query parameters for filtering
     const search_params = req.nextUrl.searchParams

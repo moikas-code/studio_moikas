@@ -113,14 +113,14 @@ export function useJobPolling(options: UseJobPollingOptions = {}) {
     const poll = async () => {
       const is_done = await check_job_status(job_id)
       
-      if (!is_done && is_polling) {
+      if (!is_done) {
         polling_ref.current = setTimeout(poll, POLLING_INTERVAL)
       }
     }
 
     // Initial check
     poll()
-  }, [check_job_status, is_polling])
+  }, [check_job_status])
 
   const start_polling = useCallback((job_id: string) => {
     // Clear any existing polling
@@ -150,10 +150,11 @@ export function useJobPolling(options: UseJobPollingOptions = {}) {
   // Check for existing job on mount
   useEffect(() => {
     const stored_job_id = localStorage.getItem('audio_job_id')
-    if (stored_job_id && !is_polling) {
+    if (stored_job_id) {
       start_polling(stored_job_id)
     }
-  }, [is_polling, start_polling]) // Add dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount - start_polling is stable
 
   return {
     current_job,

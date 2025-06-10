@@ -89,7 +89,7 @@ export function ImageGenerator({
           
           // Set default model
           if (models.length > 0) {
-            const default_model = models.find(m => m.model_config?.is_default) || models[0]
+            const default_model = models.find((m: typeof models[0]) => m.model_config?.is_default) || models[0]
             set_model_id(default_model.id)
           }
         }

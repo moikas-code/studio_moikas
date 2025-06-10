@@ -91,10 +91,10 @@ export function DocumentToAudio() {
     fetch_recent_jobs()
   }, [fetch_recent_jobs])
   
-  const handle_text_extracted = (text: string) => {
+  const handle_text_extracted = useCallback((text: string) => {
     set_extracted_text(text)
     set_is_extracting(false)
-  }
+  }, [])
   
   const handle_generate = async () => {
     if (!extracted_text) return

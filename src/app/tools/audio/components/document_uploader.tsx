@@ -8,6 +8,10 @@ interface DocumentUploaderProps {
   max_file_size?: number // in MB
 }
 
+const SUPPORTED_FORMATS = ['application/pdf', 'text/plain', 'application/msword', 
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.oasis.opendocument.text']
+
 export function DocumentUploader({ 
   on_text_extracted,
   is_processing = false,
@@ -16,13 +20,9 @@ export function DocumentUploader({
   const [selected_file, set_selected_file] = useState<File | null>(null)
   const [drag_active, set_drag_active] = useState(false)
   
-  const supported_formats = ['application/pdf', 'text/plain', 'application/msword', 
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.oasis.opendocument.text']
-  
   const handle_file = useCallback((file: File) => {
     // Validate file type
-    if (!supported_formats.includes(file.type)) {
+    if (!SUPPORTED_FORMATS.includes(file.type)) {
       toast.error('Unsupported file format. Please upload PDF, TXT, DOC, DOCX, or ODT files.')
       return
     }

@@ -206,7 +206,7 @@ export default function Video_effects_page() {
         final_image_url = upload_data.url;
       }
       // If model requires image and no image provided, use black placeholder
-      if (selected_model?.model_config?.is_image_input && !final_image_url) {
+      if (selected_model?.model_config?.supports_image_input && !final_image_url) {
         final_image_url = black_placeholder;
       }
       // Convert image to base64 if needed
@@ -444,7 +444,7 @@ export default function Video_effects_page() {
                   style={{ boxShadow: "0 2px 16px 0 rgba(0,0,0,0.18)" }}
                 >
                   {/* Upload/URL button for image2video models */}
-                  {selected_model?.model_config?.is_image_input ? (
+                  {selected_model?.model_config?.supports_image_input ? (
                     <div className="flex items-center gap-2">
                       <input
                         type="file"

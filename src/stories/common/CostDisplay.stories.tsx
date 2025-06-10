@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
 import CostDisplay from '@/components/CostDisplay'
-import { get_legacy_model_options } from '@/lib/generate_helpers'
 
 const meta = {
   title: 'Common/CostDisplay',
@@ -38,14 +37,14 @@ export const Default: Story = {
 
 export const WithModel: Story = {
   args: {
-    model: get_legacy_model_options().find(m => m.value === 'fal-ai/flux-realism'),
+    model: { cost: 40 },
     planType: 'standard',
   },
 }
 
 export const FreePlan: Story = {
   args: {
-    model: get_legacy_model_options().find(m => m.value === 'fal-ai/sana'),
+    model: { cost: 10 },
     planType: 'free',
   },
 }
@@ -64,7 +63,7 @@ export const ZeroCost: Story = {
 
 export const PremiumModel: Story = {
   args: {
-    model: get_legacy_model_options().find(m => m.value === 'fal-ai/flux-pro'),
+    model: { cost: 60 },
     planType: 'premium',
   },
 }

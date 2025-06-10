@@ -20,6 +20,7 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
   const chunks_ref = useRef<Blob[]>([])
   const timer_ref = useRef<number | null>(null)
   const start_time_ref = useRef<number | null>(null)
+  const audio_url_ref = useRef<string | null>(null)
   
   // Cleanup function
   const cleanup = useCallback(() => {
@@ -27,10 +28,11 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
       clearInterval(timer_ref.current)
       timer_ref.current = null
     }
-    if (audio_url) {
-      URL.revokeObjectURL(audio_url)
+    if (audio_url_ref.current) {
+      URL.revokeObjectURL(audio_url_ref.current)
+      audio_url_ref.current = null
     }
-  }, [audio_url])
+  }, [])
   
   // Stop recording
   const stop_recording = useCallback(() => {
@@ -77,7 +79,10 @@ export function useVoiceRecorder(options: VoiceRecorderOptions = {}) {
       recorder.onstop = async () => {
         const blob = new Blob(chunks_ref.current, { type: recorder.mimeType })
         set_audio_blob(blob)
-        set_audio_url(URL.createObjectURL(blob))
+        
+        const url = URL.createObjectURL(blob)
+        audio_url_ref.current = url
+        set_audio_url(url)
         
         // Convert to base64
         const reader = new FileReader()

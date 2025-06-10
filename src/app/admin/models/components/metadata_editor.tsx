@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface MetadataEditorProps {
-  metadata: Record<string, any>;
-  on_change: (metadata: Record<string, any>) => void;
+  metadata: Record<string, unknown>;
+  on_change: (metadata: Record<string, unknown>) => void;
   model_id?: string;
 }
 
@@ -65,7 +65,7 @@ const COMMON_METADATA_FIELDS: Record<string, MetadataFieldConfig> = {
   max_audio_duration: { type: 'number', description: 'Maximum audio duration (seconds)' }
 };
 
-export default function MetadataEditor({ metadata, on_change, model_id }: MetadataEditorProps) {
+export default function MetadataEditor({ metadata, on_change }: MetadataEditorProps) {
   const [custom_key, set_custom_key] = useState('');
   const [custom_value, set_custom_value] = useState('');
   const [custom_type, set_custom_type] = useState<'string' | 'number' | 'boolean' | 'array' | 'object'>('string');
@@ -73,8 +73,8 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
   const [show_custom_fields, set_show_custom_fields] = useState(true);
   
   // Add common field
-  const add_common_field = (key: string, field_config: any) => {
-    let default_value: any;
+  const add_common_field = (key: string, field_config: MetadataFieldConfig) => {
+    let default_value: unknown;
     switch (field_config.type) {
       case 'boolean':
         default_value = false;
@@ -86,7 +86,7 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
         default_value = [];
         break;
       case 'select':
-        default_value = field_config.options[0];
+        default_value = field_config.options?.[0] || '';
         break;
       default:
         default_value = '';
@@ -99,11 +99,11 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
   };
   
   // Update metadata value
-  const update_value = (key: string, value: any, type?: string) => {
+  const update_value = (key: string, value: unknown, type?: string) => {
     let parsed_value = value;
     
     if (type === 'number') {
-      parsed_value = parseFloat(value) || 0;
+      parsed_value = parseFloat(String(value)) || 0;
     } else if (type === 'boolean') {
       parsed_value = value === 'true' || value === true;
     } else if (type === 'array' && typeof value === 'string') {
@@ -131,7 +131,7 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
   const add_custom_field = () => {
     if (!custom_key) return;
     
-    let value: any = custom_value;
+    let value: unknown = custom_value;
     
     switch (custom_type) {
       case 'number':
@@ -168,14 +168,6 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
     set_custom_type('string');
   };
   
-  // Get field type from value
-  const get_field_type = (value: any): string => {
-    if (typeof value === 'boolean') return 'boolean';
-    if (typeof value === 'number') return 'number';
-    if (Array.isArray(value)) return 'array';
-    if (typeof value === 'object' && value !== null) return 'object';
-    return 'string';
-  };
   
   // Get unused common fields
   const unused_common_fields = Object.entries(COMMON_METADATA_FIELDS).filter(
@@ -239,8 +231,8 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
                             className="input input-bordered input-sm"
                             value={value as number}
                             onChange={(e) => update_value(key, e.target.value, 'number')}
-                            min={(field_config as any).min}
-                            max={(field_config as any).max}
+                            min={field_config.min}
+                            max={field_config.max}
                           />
                         ) : field_config.type === 'array' ? (
                           <input
@@ -346,7 +338,7 @@ export default function MetadataEditor({ metadata, on_change, model_id }: Metada
               <select
                 className="select select-bordered select-sm"
                 value={custom_type}
-                onChange={(e) => set_custom_type(e.target.value as any)}
+                onChange={(e) => set_custom_type(e.target.value as 'string' | 'number' | 'boolean' | 'array' | 'object')}
               >
                 <option value="string">String</option>
                 <option value="number">Number</option>

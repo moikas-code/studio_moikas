@@ -56,8 +56,6 @@ const model_create_schema = z.object({
   is_default: z.boolean().optional()
 });
 
-const model_update_schema = model_create_schema.partial();
-
 const model_filters_schema = z.object({
   type: z.enum(['image', 'video', 'audio', 'text']).optional(),
   is_active: z.boolean().optional(),
