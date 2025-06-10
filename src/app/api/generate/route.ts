@@ -179,19 +179,27 @@ export async function POST(req: NextRequest) {
     // 10. Generate image
     try {
       const generation_options: {
+        negative_prompt?: string;
         num_inference_steps?: number;
         guidance_scale?: number;
         style_name?: string;
         seed?: number;
         embeddings?: Array<{ path: string; tokens?: string[] }>;
         loras?: Array<{ path: string; scale?: number }>;
+        num_images?: number;
+        enable_safety_checker?: boolean;
+        expand_prompt?: boolean;
+        format?: 'jpeg' | 'png';
       } = {}
       
       // Add optional params
-      if (validated.inference_steps) {
-        generation_options.num_inference_steps = validated.inference_steps
+      if (validated.negative_prompt) {
+        generation_options.negative_prompt = validated.negative_prompt
       }
-      if (validated.guidance_scale) {
+      if (validated.num_inference_steps) {
+        generation_options.num_inference_steps = validated.num_inference_steps
+      }
+      if (validated.guidance_scale !== undefined) {
         generation_options.guidance_scale = validated.guidance_scale
       }
       if (validated.style_preset) {
@@ -199,6 +207,21 @@ export async function POST(req: NextRequest) {
       }
       if (validated.seed !== undefined) {
         generation_options.seed = validated.seed
+      }
+      // Fast-SDXL specific parameters
+      if (validated.model === 'fal-ai/fast-sdxl') {
+        if (validated.num_images !== undefined) {
+          generation_options.num_images = validated.num_images
+        }
+        if (validated.enable_safety_checker !== undefined) {
+          generation_options.enable_safety_checker = validated.enable_safety_checker
+        }
+        if (validated.expand_prompt !== undefined) {
+          generation_options.expand_prompt = validated.expand_prompt
+        }
+        if (validated.format !== undefined) {
+          generation_options.format = validated.format
+        }
       }
       // Add embeddings and LoRAs for SDXL models
       if (validated.model.includes('sdxl')) {

@@ -8,12 +8,18 @@ export interface GenerationParams {
   model: string
   width: number
   height: number
+  negative_prompt?: string
   num_inference_steps?: number
   guidance_scale?: number
   style_name?: string
   seed?: number
   embeddings?: EmbeddingInput[]
   loras?: LoraWeight[]
+  // Fast-SDXL specific
+  num_images?: number
+  enable_safety_checker?: boolean
+  expand_prompt?: boolean
+  format?: 'jpeg' | 'png'
 }
 
 export interface GenerationResult {

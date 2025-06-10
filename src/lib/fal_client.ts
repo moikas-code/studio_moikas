@@ -54,6 +54,10 @@ export async function generate_flux_image(
     aspect_ratio?: string;
     embeddings?: Array<{ path: string; tokens?: string[] }>;
     loras?: Array<{ path: string; scale?: number }>;
+    // Fast-SDXL specific
+    enable_safety_checker?: boolean;
+    expand_prompt?: boolean;
+    format?: 'jpeg' | 'png';
   } = {}
 ) {
   // Ensure FAL_KEY is set before attempting to generate
@@ -84,6 +88,16 @@ export async function generate_flux_image(
       : { image_size }),
     ...(options.embeddings !== undefined && { embeddings: options.embeddings }),
     ...(options.loras !== undefined && { loras: options.loras }),
+    // Fast-SDXL specific parameters
+    ...(options.enable_safety_checker !== undefined && { 
+      enable_safety_checker: options.enable_safety_checker 
+    }),
+    ...(options.expand_prompt !== undefined && { 
+      expand_prompt: options.expand_prompt 
+    }),
+    ...(options.format !== undefined && { 
+      format: options.format 
+    }),
   };
   const result = await fal.subscribe(model_id, {
     input,

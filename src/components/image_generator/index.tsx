@@ -48,6 +48,12 @@ export function ImageGenerator({
   } | null>(null)
   const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
   const [selected_loras, set_selected_loras] = useState<LoraWeight[]>([])
+  const [negative_prompt, set_negative_prompt] = useState('')
+  const [num_images, set_num_images] = useState(1)
+  const [enable_safety_checker, set_enable_safety_checker] = useState(true)
+  const [expand_prompt, set_expand_prompt] = useState(false)
+  const [image_format, set_image_format] = useState<'jpeg' | 'png'>('jpeg')
+  const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined)
   
   // Hooks
   const { is_loading, error_message, generate_image } = useImageGeneration()
@@ -122,21 +128,46 @@ export function ImageGenerator({
       height: dimensions.height
     }
     
+    // Add negative prompt if provided
+    if (negative_prompt.trim()) {
+      params.negative_prompt = negative_prompt
+    }
+    
+    // Add seed if provided
+    if (custom_seed !== undefined) {
+      params.seed = custom_seed
+    } else if (sana.seed !== undefined) {
+      params.seed = sana.seed
+    }
+    
     // Add model-specific params
     if (model_config) {
       if (model_config.supports_cfg) {
-        params.guidance_scale = sana.guidance_scale || model_config.default_cfg
+        params.guidance_scale = sana.guidance_scale || model_config.default_cfg || 7.5
       }
       if (model_config.supports_steps) {
-        params.num_inference_steps = sana.num_inference_steps || model_config.default_steps
+        params.num_inference_steps = sana.num_inference_steps || model_config.default_steps || 25
       }
+      
+      // SANA specific
       if (model_id.includes('sana') && sana.style_name) {
         params.style_name = sana.style_name
       }
-      if (sana.seed !== undefined) {
-        params.seed = sana.seed
-      }
-      if (model_config.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
+      
+      // Fast-SDXL specific parameters
+      if (model_id === 'fal-ai/fast-sdxl') {
+        params.num_images = num_images
+        params.enable_safety_checker = enable_safety_checker
+        params.expand_prompt = expand_prompt
+        params.format = image_format
+        
+        if (selected_embeddings.length > 0) {
+          params.embeddings = selected_embeddings
+        }
+        if (selected_loras.length > 0) {
+          params.loras = selected_loras
+        }
+      } else if (model_config.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
         if (selected_embeddings.length > 0) {
           params.embeddings = selected_embeddings
         }
@@ -377,15 +408,31 @@ export function ImageGenerator({
                       </div>
                     </div>
                     
+                    {/* Negative Prompt for all models that support it */}
+                    <div>
+                      <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                        Negative Prompt
+                      </label>
+                      <textarea
+                        value={negative_prompt}
+                        onChange={(e) => set_negative_prompt(e.target.value)}
+                        placeholder="Things to avoid in the image..."
+                        className="w-full px-3 py-2 bg-base-200/50 rounded-lg
+                                 placeholder:text-base-content/40
+                                 focus:outline-none focus:ring-2 focus:ring-primary/20
+                                 min-h-[60px] text-sm"
+                      />
+                    </div>
+                    
                     {/* Model-specific settings */}
                     {selected_model?.model_config?.supports_cfg && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                          Guidance Scale: {sana.guidance_scale}
+                          Guidance Scale (CFG): {sana.guidance_scale}
                         </label>
                         <input
                           type="range"
-                          min="1"
+                          min="0"
                           max={selected_model.model_config.max_cfg || 20}
                           step="0.5"
                           value={sana.guidance_scale}
@@ -395,17 +442,125 @@ export function ImageGenerator({
                       </div>
                     )}
                     
+                    {/* Inference Steps */}
+                    {selected_model?.model_config?.supports_steps && (
+                      <div>
+                        <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                          Inference Steps: {sana.num_inference_steps}
+                        </label>
+                        <input
+                          type="range"
+                          min="1"
+                          max={selected_model.model_config.max_steps || 50}
+                          step="1"
+                          value={sana.num_inference_steps}
+                          onChange={(e) => sana.update_inference_steps(Number(e.target.value))}
+                          className="w-full h-2 bg-base-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Fast-SDXL specific settings */}
+                    {model_id === 'fal-ai/fast-sdxl' && (
+                      <>
+                        {/* Number of Images */}
+                        <div>
+                          <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                            Number of Images: {num_images}
+                          </label>
+                          <input
+                            type="range"
+                            min="1"
+                            max="8"
+                            step="1"
+                            value={num_images}
+                            onChange={(e) => set_num_images(Number(e.target.value))}
+                            className="w-full h-2 bg-base-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+                        
+                        {/* Image Format */}
+                        <div>
+                          <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                            Image Format
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => set_image_format('jpeg')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                image_format === 'jpeg' 
+                                  ? 'bg-primary text-primary-content' 
+                                  : 'bg-base-200/50 hover:bg-base-200'
+                              }`}
+                            >
+                              JPEG
+                            </button>
+                            <button
+                              onClick={() => set_image_format('png')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                image_format === 'png' 
+                                  ? 'bg-primary text-primary-content' 
+                                  : 'bg-base-200/50 hover:bg-base-200'
+                              }`}
+                            >
+                              PNG
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {/* Toggle Options */}
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={expand_prompt}
+                              onChange={(e) => set_expand_prompt(e.target.checked)}
+                              className="checkbox checkbox-sm checkbox-primary"
+                            />
+                            <span className="text-xs font-medium">Expand Prompt</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={enable_safety_checker}
+                              onChange={(e) => set_enable_safety_checker(e.target.checked)}
+                              className="checkbox checkbox-sm checkbox-primary"
+                            />
+                            <span className="text-xs font-medium">Enable Safety Checker</span>
+                          </label>
+                        </div>
+                      </>
+                    )}
+                    
+                    {/* Seed */}
+                    <div>
+                      <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                        Seed (Optional)
+                      </label>
+                      <input
+                        type="number"
+                        value={custom_seed || ''}
+                        onChange={(e) => set_custom_seed(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Random"
+                        className="w-full px-3 py-2 bg-base-200/50 rounded-lg
+                                 placeholder:text-base-content/40
+                                 focus:outline-none focus:ring-2 focus:ring-primary/20
+                                 text-sm"
+                      />
+                    </div>
+                    
                     {/* Embeddings for SDXL */}
-                    {selected_model?.model_config?.metadata?.supports_embeddings && (
+                    {model_id === 'fal-ai/fast-sdxl' && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                           Embeddings & LoRAs
                         </label>
                         <EmbeddingsSelector
-                          selected_embeddings={selected_embeddings}
-                          selected_loras={selected_loras}
-                          on_embeddings_change={set_selected_embeddings}
-                          on_loras_change={set_selected_loras}
+                          modelId={model_id}
+                          selectedEmbeddings={selected_embeddings}
+                          selectedLoras={selected_loras}
+                          onEmbeddingsChange={set_selected_embeddings}
+                          onLorasChange={set_selected_loras}
                         />
                       </div>
                     )}

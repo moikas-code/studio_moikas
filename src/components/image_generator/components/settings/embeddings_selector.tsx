@@ -104,8 +104,9 @@ export default function EmbeddingsSelector({
   const defaultEmbeddings = embeddings.filter(e => e.is_default)
   const publicEmbeddings = embeddings.filter(e => e.is_public && !e.is_default)
 
-  if (!modelId.includes('sdxl')) {
-    return null // Only show for SDXL models
+  // Only show for SDXL models
+  if (!modelId || !modelId.includes('sdxl')) {
+    return null
   }
 
   return (
