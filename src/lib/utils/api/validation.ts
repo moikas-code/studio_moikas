@@ -7,6 +7,16 @@ export const limit_schema = z.number().int().min(1).max(100).default(10)
 export const offset_schema = z.number().int().min(0).default(0)
 
 // Image generation schemas
+const embedding_schema = z.object({
+  path: z.string().url(),
+  tokens: z.array(z.string()).optional()
+})
+
+const lora_schema = z.object({
+  path: z.string().url(),
+  scale: z.number().min(0).max(1).optional().default(1)
+})
+
 export const image_generation_schema = z.object({
   prompt: z.string().min(1).max(1000).transform(s => s.trim()),
   model: z.string().min(1),
@@ -17,7 +27,9 @@ export const image_generation_schema = z.object({
   guidance_scale: z.number().min(0).max(30).optional(),
   style_preset: z.string().optional(),
   seed: z.number().int().optional(),
-  enable_safety_checker: z.boolean().optional()
+  enable_safety_checker: z.boolean().optional(),
+  embeddings: z.array(embedding_schema).optional(),
+  loras: z.array(lora_schema).optional()
 })
 
 // Enhanced prompt schema

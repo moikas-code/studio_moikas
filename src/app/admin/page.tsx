@@ -91,7 +91,20 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <div className="flex gap-2">
+          <a href="/admin/models" className="btn btn-primary btn-sm">
+            Manage Models
+          </a>
+          <a href="/admin/users" className="btn btn-secondary btn-sm">
+            Manage Users
+          </a>
+          <a href="/admin/usage" className="btn btn-accent btn-sm">
+            Usage Logs
+          </a>
+        </div>
+      </div>
       
       {/* User Stats */}
       <div className="stats shadow w-full">

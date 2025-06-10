@@ -21,6 +21,19 @@ export interface GenerationResult {
   num_inference_steps?: number
   guidance_scale?: number
   style_name?: string
+  embeddings?: EmbeddingInput[]
+  loras?: LoraWeight[]
+}
+
+export interface EmbeddingInput {
+  path: string
+  tokens?: string[]
+}
+
+export interface LoraWeight {
+  path: string
+  scale?: number
+  force?: boolean
 }
 
 export interface SanaSettings {

@@ -45,6 +45,16 @@ export default async function AdminLayout({
               </Link>
             </li>
             <li>
+              <Link href="/admin/models">
+                Models
+              </Link>
+            </li>
+            <li>
+              <Link href="/admin/embeddings">
+                Embeddings
+              </Link>
+            </li>
+            <li>
               <Link href="/" className="text-error">
                 Exit Admin
               </Link>

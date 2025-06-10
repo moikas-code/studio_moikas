@@ -15,6 +15,7 @@ import { Toaster } from 'react-hot-toast'
 import { Settings } from 'lucide-react'
 import { FREE_IMAGE_MODELS, PREMIUM_IMAGE_MODELS } from '@/lib/ai_models'
 import { calculate_final_cost } from '@/lib/pricing_config'
+import type { EmbeddingInput, LoraWeight } from './types'
 
 interface ImageGeneratorProps {
   available_mp: number
@@ -75,6 +76,8 @@ export function ImageGenerator({
     model: string
     timestamp: number
   }[]>([])
+  const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
+  const [selected_loras, set_selected_loras] = useState<LoraWeight[]>([])
   
   // Hooks
   const { is_loading, error_message, generate_image } = useImageGeneration()
@@ -110,6 +113,16 @@ export function ImageGenerator({
       params.style_name = sana_params.style_name
       if (sana.seed !== undefined) {
         params.seed = sana.seed
+      }
+    }
+    
+    // Add embeddings and LoRAs for SDXL models
+    if (model_id.includes('sdxl') && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
+      if (selected_embeddings.length > 0) {
+        params.embeddings = selected_embeddings
+      }
+      if (selected_loras.length > 0) {
+        params.loras = selected_loras
       }
     }
     
@@ -238,6 +251,10 @@ export function ImageGenerator({
                 style: sana.update_style,
                 seed: sana.update_seed
               }}
+              selected_embeddings={selected_embeddings}
+              selected_loras={selected_loras}
+              on_embeddings_change={set_selected_embeddings}
+              on_loras_change={set_selected_loras}
             />
           </div>
           
@@ -267,6 +284,10 @@ export function ImageGenerator({
               style: sana.update_style,
               seed: sana.update_seed
             }}
+            selected_embeddings={selected_embeddings}
+            selected_loras={selected_loras}
+            on_embeddings_change={set_selected_embeddings}
+            on_loras_change={set_selected_loras}
           />
           </div>
         </div>

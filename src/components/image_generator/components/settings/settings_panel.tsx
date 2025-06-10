@@ -5,7 +5,8 @@ import { Settings, X } from 'lucide-react'
 import { AspectRatioControl } from './aspect_ratio_control'
 import { ModelSelector } from './model_selector'
 import { SanaAdvancedOptions } from './sana_advanced_options'
-import type { ModelOption, AspectPreset } from '../../types'
+import EmbeddingsSelector from './embeddings_selector'
+import type { ModelOption, AspectPreset, EmbeddingInput, LoraWeight } from '../../types'
 
 interface SettingsPanelProps {
   is_open: boolean
@@ -34,6 +35,11 @@ interface SettingsPanelProps {
     style: (s: string) => void
     seed: (n: number | undefined) => void
   }
+  // Embeddings & LoRAs
+  selected_embeddings: EmbeddingInput[]
+  selected_loras: LoraWeight[]
+  on_embeddings_change: (embeddings: EmbeddingInput[]) => void
+  on_loras_change: (loras: LoraWeight[]) => void
 }
 
 export function SettingsPanel({
@@ -49,7 +55,11 @@ export function SettingsPanel({
   get_aspect_label,
   show_sana_options,
   sana_settings,
-  on_sana_change
+  on_sana_change,
+  selected_embeddings,
+  selected_loras,
+  on_embeddings_change,
+  on_loras_change
 }: SettingsPanelProps) {
   if (!is_open) return null
 
@@ -91,6 +101,14 @@ export function SettingsPanel({
             on_seed_change={on_sana_change.seed}
           />
         )}
+
+        <EmbeddingsSelector
+          modelId={selected_model_id}
+          selectedEmbeddings={selected_embeddings}
+          selectedLoras={selected_loras}
+          onEmbeddingsChange={on_embeddings_change}
+          onLorasChange={on_loras_change}
+        />
       </div>
     </div>
   )

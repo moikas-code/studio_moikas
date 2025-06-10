@@ -179,6 +179,8 @@ export async function POST(req: NextRequest) {
         guidance_scale?: number;
         style_name?: string;
         seed?: number;
+        embeddings?: Array<{ path: string; tokens?: string[] }>;
+        loras?: Array<{ path: string; scale?: number }>;
       } = {}
       
       // Add optional params
@@ -193,6 +195,15 @@ export async function POST(req: NextRequest) {
       }
       if (validated.seed !== undefined) {
         generation_options.seed = validated.seed
+      }
+      // Add embeddings and LoRAs for SDXL models
+      if (validated.model.includes('sdxl')) {
+        if (validated.embeddings && validated.embeddings.length > 0) {
+          generation_options.embeddings = validated.embeddings
+        }
+        if (validated.loras && validated.loras.length > 0) {
+          generation_options.loras = validated.loras
+        }
       }
       
       const result = await generate_flux_image(

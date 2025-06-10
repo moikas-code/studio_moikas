@@ -50,16 +50,16 @@ export async function GET(request: NextRequest) {
       created_at: string;
       description: string;
       metadata: Record<string, unknown>;
-      users?: { email: string; role: string };
+      users: { email: string; role: string }[];
     }) => {
       const is_admin_usage = item.metadata?.is_admin_usage === true;
-      const user_is_admin = item.users?.role === 'admin';
+      const user_is_admin = item.users?.[0]?.role === 'admin';
       const counted_as_plan = item.metadata?.counted_as_plan || 'unknown';
       
       return {
         ...item,
-        user_email: item.users?.email || 'Unknown',
-        user_role: item.users?.role || 'user',
+        user_email: item.users?.[0]?.email || 'Unknown',
+        user_role: item.users?.[0]?.role || 'user',
         is_admin_usage,
         user_is_admin,
         counted_as_plan,

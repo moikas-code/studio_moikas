@@ -52,6 +52,8 @@ export async function generate_flux_image(
     image_size?: string;
     num_images?: number;
     aspect_ratio?: string;
+    embeddings?: Array<{ path: string; tokens?: string[] }>;
+    loras?: Array<{ path: string; scale?: number }>;
   } = {}
 ) {
   // Ensure FAL_KEY is set before attempting to generate
@@ -80,6 +82,8 @@ export async function generate_flux_image(
     ...(options.aspect_ratio !== undefined
       ? { aspect_ratio: options.aspect_ratio }
       : { image_size }),
+    ...(options.embeddings !== undefined && { embeddings: options.embeddings }),
+    ...(options.loras !== undefined && { loras: options.loras }),
   };
   const result = await fal.subscribe(model_id, {
     input,

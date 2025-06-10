@@ -51,10 +51,10 @@ export async function GET(request: NextRequest) {
       description: string;
       created_at: string;
       stripe_payment_intent_id?: string;
-      users?: { email: string };
+      users: { email: string }[];
     }) => ({
       ...item,
-      user_email: item.users?.email || 'Unknown'
+      user_email: item.users?.[0]?.email || 'Unknown'
     })) || [];
 
     // Calculate stats

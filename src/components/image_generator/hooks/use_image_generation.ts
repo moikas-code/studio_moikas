@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { toast } from 'react-hot-toast'
 import { track } from '@vercel/analytics'
+import type { EmbeddingInput, LoraWeight } from '../types'
 
 export interface GenerationParams {
   prompt: string
@@ -11,6 +12,8 @@ export interface GenerationParams {
   guidance_scale?: number
   style_name?: string
   seed?: number
+  embeddings?: EmbeddingInput[]
+  loras?: LoraWeight[]
 }
 
 export interface GenerationResult {
