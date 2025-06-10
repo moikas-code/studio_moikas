@@ -169,7 +169,7 @@ export default function Image_grid({
     { value: "pdf", label: "PDF" },
   ];
   const all_options =
-    plan === "standard" ? [...base_options, ...standard_options] : base_options;
+    (plan === "standard" || plan === "admin") ? [...base_options, ...standard_options] : base_options;
 
   // Get model name from model_id
   const model = MODEL_OPTIONS.find((m) => m.value === model_id);

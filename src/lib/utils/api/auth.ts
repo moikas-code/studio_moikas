@@ -92,6 +92,12 @@ export async function has_sufficient_tokens(
   required_tokens: number
 ): Promise<boolean> {
   const subscription = await get_user_subscription(user_id)
+  
+  // Admin users always have sufficient tokens
+  if (subscription.plan_name === 'admin') {
+    return true
+  }
+  
   const total_tokens = (subscription.renewable_tokens || 0) + 
                       (subscription.permanent_tokens || 0)
   

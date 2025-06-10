@@ -129,21 +129,10 @@ export async function get_admin_user_list(
   const supabase = create_service_role_client();
   const offset = (page - 1) * limit;
   
+  // First, get the users
   let query = supabase
     .from('users')
-    .select(`
-      id,
-      clerk_id,
-      email,
-      role,
-      created_at,
-      subscriptions (
-        plan,
-        renewable_tokens,
-        permanent_tokens,
-        tokens_reset_at
-      )
-    `)
+    .select('*', { count: 'exact' })
     .range(offset, offset + limit - 1)
     .order('created_at', { ascending: false });
 
@@ -151,14 +140,48 @@ export async function get_admin_user_list(
     query = query.or(`email.ilike.%${search}%,clerk_id.ilike.%${search}%`);
   }
 
-  const { data, error, count } = await query;
+  const { data: users, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching admin user list:', error);
+    return {
+      users: [],
+      total_count: 0,
+      page,
+      limit,
+      error
+    };
+  }
+
+  // Get subscriptions for each user
+  if (users && users.length > 0) {
+    const userIds = users.map(u => u.id);
+    const { data: subscriptions } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .in('user_id', userIds);
+
+    // Merge subscription data with users
+    const usersWithSubscriptions = users.map(user => ({
+      ...user,
+      subscriptions: subscriptions?.filter(s => s.user_id === user.id) || []
+    }));
+
+    return {
+      users: usersWithSubscriptions,
+      total_count: count || 0,
+      page,
+      limit,
+      error: null
+    };
+  }
 
   return {
-    users: data || [],
+    users: users || [],
     total_count: count || 0,
     page,
     limit,
-    error
+    error: null
   };
 }
 

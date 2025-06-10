@@ -4,7 +4,7 @@ import Link from "next/link";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import React, { useContext } from "react";
 import { MpContext } from "../context/mp_context";
-import { use_admin_status } from "@/hooks/use_admin_status";
+import { useAdminStatus } from "@/hooks/use_admin_status";
 
 /**
  * Navbar component for Studio App.
@@ -13,7 +13,7 @@ import { use_admin_status } from "@/hooks/use_admin_status";
  */
 export default function Navbar() {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
-  const { is_admin } = use_admin_status();
+  const { is_admin } = useAdminStatus();
   
   return (
     <nav

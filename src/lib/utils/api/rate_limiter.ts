@@ -1,5 +1,6 @@
 import { get_redis_client, check_rate_limit } from '../database/redis'
 import { RateLimitError } from '../errors/handlers'
+import { check_admin_access } from './admin'
 
 interface RateLimitConfig {
   requests: number
@@ -67,12 +68,22 @@ export async function apply_rate_limit(
  * Enforce rate limit or throw error
  * @param user_id - User identifier  
  * @param config - Rate limit configuration
+ * @param skip_for_admin - Whether to skip rate limiting for admin users (default: true)
  * @throws RateLimitError if limit exceeded
  */
 export async function enforce_rate_limit(
   user_id: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
+  skip_for_admin: boolean = true
 ): Promise<void> {
+  // Check if user is admin and skip rate limiting if enabled
+  if (skip_for_admin) {
+    const admin_check = await check_admin_access()
+    if (admin_check.is_admin) {
+      return // Skip rate limiting for admins
+    }
+  }
+  
   const result = await apply_rate_limit(user_id, config)
   
   if (!result.allowed) {

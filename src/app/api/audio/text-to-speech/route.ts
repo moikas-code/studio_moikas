@@ -5,6 +5,7 @@ import { create_service_role_client } from '../../../../lib/supabase_server'
 import { track } from '@vercel/analytics/server'
 import { z } from 'zod'
 import { TTS_LIMITS, calculateTTSCost } from '@/app/tools/audio/types'
+import { deduct_tokens_with_admin_check, log_usage_with_admin_tracking } from '@/lib/utils/token_management'
 
 fal.config({
   credentials: process.env.FAL_KEY!
@@ -67,45 +68,47 @@ export async function POST(req: NextRequest) {
 
     // Calculate MP cost based on plan type
     const text_length = params.text.length
-    const mp_cost = calculateTTSCost(text_length, subscription.plan)
+    const mp_cost = subscription.plan === 'admin'
+      ? 0  // Admin users have 0 cost
+      : calculateTTSCost(text_length, subscription.plan)
 
-    const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
-    if (total_tokens < mp_cost) {
-      return NextResponse.json(
-        { error: 'Insufficient tokens', required: mp_cost, available: total_tokens },
-        { status: 403 }
-      )
+    // Skip token check for admin users
+    if (subscription.plan !== 'admin') {
+      const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
+      if (total_tokens < mp_cost) {
+        return NextResponse.json(
+          { error: 'Insufficient tokens', required: mp_cost, available: total_tokens },
+          { status: 403 }
+        )
+      }
     }
 
-    // Deduct tokens - prioritize renewable tokens first, then permanent
-    const renewable_to_deduct = Math.min(mp_cost, subscription.renewable_tokens)
-    const permanent_to_deduct = mp_cost - renewable_to_deduct
+    // Deduct tokens with admin check
+    const token_result = await deduct_tokens_with_admin_check(
+      supabase,
+      userData.id,
+      mp_cost,
+      subscription
+    )
 
-    const { error: deductError } = await supabase
-      .from('subscriptions')
-      .update({
-        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-      })
-      .eq('user_id', userData.id)
-
-    if (deductError) {
-      return NextResponse.json({ error: 'Failed to deduct tokens' }, { status: 500 })
+    if (!token_result.success) {
+      return NextResponse.json({ error: token_result.error || 'Failed to process tokens' }, { status: 500 })
     }
 
-    // Log the usage
-    await supabase
-      .from('usage')
-      .insert({
-        user_id: userData.id,
-        tokens_used: mp_cost,
-        operation_type: 'audio_generation',
-        description: `Text-to-speech: ${text_length} characters`,
-        metadata: {
-          character_count: text_length,
-          voice: params.voice
-        }
-      })
+    // Log the usage with admin tracking
+    await log_usage_with_admin_tracking(
+      supabase,
+      userData.id,
+      mp_cost,
+      'audio_generation',
+      `Text-to-speech: ${text_length} characters`,
+      {
+        character_count: text_length,
+        voice: params.voice,
+        plan: subscription.plan
+      },
+      token_result
+    )
 
     try {
       // Prepare fal.ai request
@@ -158,23 +161,32 @@ export async function POST(req: NextRequest) {
       })
 
     } catch (fal_error) {
-      // Refund tokens on failure - add back the same way we deducted
-      await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens, // restore original values
-          permanent_tokens: subscription.permanent_tokens
-        })
-        .eq('user_id', userData.id)
+      // Refund tokens on failure - only if not admin
+      if (!token_result.is_admin) {
+        await supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens, // restore original values
+            permanent_tokens: subscription.permanent_tokens
+          })
+          .eq('user_id', userData.id)
 
-      // Log the refund
-      await supabase
-        .from('usage')
-        .insert({
-          user_id: userData.id,
-          tokens_used: -mp_cost, // negative for refund
-          description: `TTS refund: generation failed`
-        })
+        // Log the refund with admin tracking
+        await log_usage_with_admin_tracking(
+          supabase,
+          userData.id,
+          -mp_cost, // negative for refund
+          'audio_generation_refund',
+          'TTS refund: generation failed',
+          {
+            character_count: text_length,
+            voice: params.voice,
+            plan: subscription.plan,
+            refund_reason: 'generation_failed'
+          },
+          token_result
+        )
+      }
 
       console.error('TTS generation error:', fal_error)
       track('tts_generation_error', {

@@ -27,8 +27,8 @@ export default function LayoutWithSidebar({ children}: { children: React.ReactNo
   const [sidebar_state, dispatch] = useReducer(sidebar_reducer, { open: false });
   const pathname = usePathname();
   const show_sidebar = pathname.startsWith("/tools");
-  const hide_navbar = pathname.startsWith("/tools");
-  const hide_footer = pathname.startsWith("/tools");
+  const hide_navbar = pathname.startsWith("/tools") || pathname.startsWith("/admin");
+  const hide_footer = pathname.startsWith("/tools") || pathname.startsWith("/admin");
   return (
     <>
       {!hide_navbar && <Navbar />}

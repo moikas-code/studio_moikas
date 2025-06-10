@@ -30,10 +30,6 @@ export default function AdminRevenuePage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetch_revenue_data();
-  }, [filter, fetch_revenue_data]);
-
   const fetch_revenue_data = useCallback(async () => {
     try {
       setLoading(true);
@@ -57,6 +53,10 @@ export default function AdminRevenuePage() {
       setLoading(false);
     }
   }, [filter]);
+
+  useEffect(() => {
+    fetch_revenue_data();
+  }, [filter, fetch_revenue_data]);
 
   return (
     <div className="space-y-6">

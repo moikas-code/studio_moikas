@@ -29,6 +29,10 @@ import {
   InsufficientTokensError
 } from "@/lib/utils/errors/handlers"
 import { sanitize_text } from "@/lib/utils/security/sanitization"
+import { 
+  deduct_tokens_with_admin_check,
+  log_usage_with_admin_tracking 
+} from "@/lib/utils/token_management"
 import {
   generate_imggen_cache_key
 } from "@/lib/generate_helpers"
@@ -50,7 +54,17 @@ export async function POST(req: NextRequest) {
     
     // 4. Get user subscription
     const subscription = await get_user_subscription(user.user_id)
-    const is_free_user = subscription.plan_name === 'free'
+    const is_free_user = subscription.plan === 'free'
+    
+    // Debug logging for admin users
+    console.log('[Image Generation] User subscription:', {
+      user_id: user.user_id,
+      plan: subscription.plan,
+      is_free_user,
+      is_admin: subscription.plan === 'admin',
+      renewable_tokens: subscription.renewable_tokens,
+      permanent_tokens: subscription.permanent_tokens
+    })
     
     // 5. Apply rate limiting
     await enforce_rate_limit(
@@ -68,11 +82,16 @@ export async function POST(req: NextRequest) {
     
     // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
     const base_mp_cost = model_config.custom_cost / 0.001
-    const model_cost = calculate_final_cost(base_mp_cost, subscription.plan_name)
-    const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
+    const model_cost = subscription.plan === 'admin' 
+      ? 0  // Admin users have 0 cost
+      : calculate_final_cost(base_mp_cost, subscription.plan)
     
-    if (total_tokens < model_cost) {
-      throw new InsufficientTokensError(model_cost, total_tokens)
+    // Skip token check for admin users
+    if (subscription.plan !== 'admin') {
+      const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
+      if (total_tokens < model_cost) {
+        throw new InsufficientTokensError(model_cost, total_tokens)
+      }
     }
     
     // 7. Check cache
@@ -108,43 +127,50 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // 8. Apply queue delay for free users
-    if (is_free_user) {
+    // 8. Apply queue delay for free users (but not admins)
+    if (is_free_user && subscription.plan !== 'admin') {
       await new Promise(resolve => setTimeout(resolve, 2000))
     }
     
-    // 9. Deduct tokens - prioritize renewable tokens first, then permanent
+    // 9. Deduct tokens with admin check
     const supabase = get_service_role_client()
-    const renewable_to_deduct = Math.min(model_cost, subscription.renewable_tokens)
-    const permanent_to_deduct = model_cost - renewable_to_deduct
+    
+    // Check if user is admin and handle token deduction accordingly
+    const token_result = await deduct_tokens_with_admin_check(
+      supabase,
+      user.user_id,
+      model_cost,
+      subscription
+    )
+    
+    console.log('[Image Generation] Token deduction result:', {
+      success: token_result.success,
+      is_admin: token_result.is_admin,
+      plan_type: token_result.plan_type,
+      original_cost: token_result.original_cost,
+      effective_cost: token_result.effective_cost,
+      error: token_result.error
+    })
 
-    // Deduct tokens directly without execute_db_operation
-    const { error: deduct_error } = await supabase
-      .from('subscriptions')
-      .update({
-        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-      })
-      .eq('user_id', user.user_id)
-
-    if (deduct_error) {
-      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    if (!token_result.success) {
+      throw new Error(token_result.error || 'Failed to process tokens')
     }
 
-    // Log the usage
-    await supabase
-      .from('usage')
-      .insert({
-        user_id: user.user_id,
-        tokens_used: model_cost,
-        operation_type: 'image_generation',
-        description: `Image generation: ${validated.model}`,
-        metadata: {
-          model: validated.model,
-          width: validated.width,
-          height: validated.height
-        }
-      })
+    // Log usage with admin tracking for analytics
+    await log_usage_with_admin_tracking(
+      supabase,
+      user.user_id,
+      model_cost,
+      'image_generation',
+      `Image generation: ${validated.model}`,
+      {
+        model: validated.model,
+        width: validated.width,
+        height: validated.height,
+        plan: subscription.plan
+      },
+      token_result
+    )
     
     // 10. Generate image
     try {
@@ -261,8 +287,8 @@ export async function POST(req: NextRequest) {
         base64_image = final_image
       }
       
-      // Apply watermark for free users
-      if (is_free_user) {
+      // Apply watermark for free users (but not admins)
+      if (is_free_user && !token_result.is_admin) {
         const watermarked = await add_overlay_to_image_node(`data:image/png;base64,${base64_image}`)
         base64_image = watermarked.split(',')[1]
       }
@@ -296,23 +322,31 @@ export async function POST(req: NextRequest) {
       return api_success(cache_data)
       
     } catch (generation_error) {
-      // Refund tokens on failure - add back the same way we deducted
-      await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens, // restore original values
-          permanent_tokens: subscription.permanent_tokens
-        })
-        .eq('user_id', user.user_id)
+      // Refund tokens on failure - only if not admin
+      if (!token_result.is_admin) {
+        await supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens, // restore original values
+            permanent_tokens: subscription.permanent_tokens
+          })
+          .eq('user_id', user.user_id)
+      }
 
-      // Log the refund
-      await supabase
-        .from('usage')
-        .insert({
-          user_id: user.user_id,
-          tokens_used: -model_cost, // negative for refund
-          description: `Image generation refund: generation failed`
-        })
+      // Log the refund with admin tracking
+      await log_usage_with_admin_tracking(
+        supabase,
+        user.user_id,
+        -model_cost, // negative for refund
+        'image_generation_refund',
+        'Image generation refund: generation failed',
+        {
+          model: validated.model,
+          plan: subscription.plan,
+          refund_reason: 'generation_failed'
+        },
+        token_result
+      )
       
       console.error('Image generation failed:', generation_error)
       const error_message = generation_error instanceof Error ? generation_error.message : 'Unknown error'

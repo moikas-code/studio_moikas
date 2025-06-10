@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
+import { PlanBadge } from '@/components/common/plan_badge';
 
 interface User {
   id: string;
@@ -35,10 +36,6 @@ export default function AdminUsersPage() {
 
   const limit = 50;
 
-  useEffect(() => {
-    fetch_users();
-  }, [page, search, fetch_users]);
-
   const fetch_users = useCallback(async () => {
     try {
       setLoading(true);
@@ -65,7 +62,11 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, limit]);
+  }, [page, search]);
+
+  useEffect(() => {
+    fetch_users();
+  }, [fetch_users]);
 
   const update_user_role = async (user_id: string, new_role: 'user' | 'admin') => {
     try {
@@ -161,14 +162,16 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td>
-                      <span className={`badge ${user.role === 'admin' ? 'badge-primary' : 'badge-ghost'}`}>
-                        {user.role}
+                      <span className={`badge ${user.role === 'admin' ? 'badge-error' : 'badge-ghost'}`}>
+                        {user.role === 'admin' ? '🛡️ Admin' : '👤 User'}
                       </span>
                     </td>
                     <td>
-                      <span className={`badge ${subscription?.plan === 'standard' ? 'badge-success' : 'badge-secondary'}`}>
-                        {subscription?.plan || 'none'}
-                      </span>
+                      {subscription?.plan ? (
+                        <PlanBadge plan={subscription.plan} size="sm" />
+                      ) : (
+                        <span className="text-sm opacity-50">No plan</span>
+                      )}
                     </td>
                     <td>
                       {subscription ? (

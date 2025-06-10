@@ -7,6 +7,7 @@ import {
   get_user_subscription,
   has_sufficient_tokens
 } from "@/lib/utils/api/auth"
+import { deduct_tokens_with_admin_check, log_usage_with_admin_tracking } from "@/lib/utils/token_management"
 import { 
   api_success, 
   api_error, 
@@ -80,9 +81,11 @@ export async function POST(req: NextRequest) {
     // For video, multiply by duration in seconds
     const base_cost_per_second = model_config.custom_cost / 0.001
     const base_total_cost = base_cost_per_second * validated.duration
-    const cost = calculate_final_cost(base_total_cost, subscription.plan_name)
+    const cost = subscription.plan_name === 'admin'
+      ? 0  // Admin users have 0 cost
+      : calculate_final_cost(base_total_cost, subscription.plan_name)
     
-    // 7. Check token balance
+    // 7. Check token balance (automatically skips for admin in has_sufficient_tokens)
     if (!await has_sufficient_tokens(user.user_id, cost)) {
       return api_error('Insufficient tokens for video generation', 402)
     }
@@ -114,36 +117,34 @@ export async function POST(req: NextRequest) {
       throw new Error('Failed to create job')
     }
     
-    // 9. Deduct tokens - prioritize renewable tokens first, then permanent
-    const renewable_to_deduct = Math.min(cost, subscription.renewable_tokens)
-    const permanent_to_deduct = cost - renewable_to_deduct
+    // 9. Deduct tokens with admin check
+    const token_result = await deduct_tokens_with_admin_check(
+      supabase,
+      user.user_id,
+      cost,
+      subscription
+    )
 
-    const { error: deduct_error } = await supabase
-      .from('subscriptions')
-      .update({
-        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-      })
-      .eq('user_id', user.user_id)
-
-    if (deduct_error) {
-      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    if (!token_result.success) {
+      throw new Error(token_result.error || 'Failed to process tokens')
     }
 
-    // Log the usage
-    await supabase
-      .from('usage')
-      .insert({
-        user_id: user.user_id,
-        tokens_used: cost,
-        operation_type: 'video_generation',
-        description: `Video generation: ${validated.model}`,
-        metadata: {
-          model: validated.model,
-          duration: validated.duration,
-          aspect_ratio: validated.aspect_ratio
-        }
-      })
+    // Log the usage with admin tracking
+    await log_usage_with_admin_tracking(
+      supabase,
+      user.user_id,
+      cost,
+      'video_generation',
+      `Video generation: ${validated.model}`,
+      {
+        model: validated.model,
+        duration: validated.duration,
+        aspect_ratio: validated.aspect_ratio,
+        plan: subscription.plan_name,
+        job_id: job.id
+      },
+      token_result
+    )
     
     // 10. Trigger actual video generation
     try {
@@ -240,17 +241,34 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', job.id)
       
-      // Refund tokens on failure
-      const { error: refund_error } = await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens + renewable_to_deduct,
-          permanent_tokens: subscription.permanent_tokens + permanent_to_deduct
-        })
-        .eq('user_id', user.user_id)
-      
-      if (refund_error) {
-        console.error('Failed to refund tokens:', refund_error)
+      // Refund tokens on failure - only if not admin
+      if (!token_result.is_admin) {
+        const { error: refund_error } = await supabase
+          .from('subscriptions')
+          .update({
+            renewable_tokens: subscription.renewable_tokens,
+            permanent_tokens: subscription.permanent_tokens
+          })
+          .eq('user_id', user.user_id)
+        
+        if (refund_error) {
+          console.error('Failed to refund tokens:', refund_error)
+        }
+
+        // Log the refund with admin tracking
+        await log_usage_with_admin_tracking(
+          supabase,
+          user.user_id,
+          -cost, // negative for refund
+          'video_generation_refund',
+          'Video generation refund: generation failed',
+          {
+            model: validated.model,
+            plan: subscription.plan_name,
+            refund_reason: 'generation_failed'
+          },
+          token_result
+        )
       }
       
       throw generation_error

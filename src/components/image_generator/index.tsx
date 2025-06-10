@@ -24,6 +24,10 @@ interface ImageGeneratorProps {
 
 // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
 const cost_to_mp = (cost: number, plan: string) => {
+  // Admin users have 0 cost
+  if (plan === 'admin') {
+    return 0
+  }
   const base_mp_cost = cost / 0.001
   return calculate_final_cost(base_mp_cost, plan)
 }
@@ -31,6 +35,16 @@ const cost_to_mp = (cost: number, plan: string) => {
 // Get models based on user plan
 const get_available_models = (plan: string = 'free') => {
   const all_models = [...FREE_IMAGE_MODELS, ...PREMIUM_IMAGE_MODELS]
+  
+  // Admin users get access to all models
+  if (plan === 'admin') {
+    return all_models.map(model => ({
+      id: model.value,
+      name: model.name,
+      cost: 0  // Admin users have 0 cost
+    }))
+  }
+  
   return all_models
     .filter(model => model.plans.includes(plan))
     .map(model => ({
@@ -123,7 +137,7 @@ export function ImageGenerator({
   const can_generate = prompt_text.trim() && 
                       !is_loading && 
                       selected_model && 
-                      available_mp >= selected_model.cost
+                      (user_plan === 'admin' || available_mp >= selected_model.cost)
   
   return (
     <div className="max-w-7xl mx-auto p-4">
