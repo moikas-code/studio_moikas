@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug, Mic } from "lucide-react";
+import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug, Mic, Shield } from "lucide-react";
 import Link from "next/link";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { track } from "@vercel/analytics";
 import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
@@ -16,6 +16,26 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
   const [feedback_open, set_feedback_open] = useState(false);
   const [report_bug_open, set_report_bug_open] = useState(false);
   const [is_minimized, set_is_minimized] = useState(false);
+  const [is_admin, set_is_admin] = useState(false);
+  const { user } = useUser();
+
+  // Check if user is admin
+  useEffect(() => {
+    const check_admin_status = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await fetch('/api/auth/admin');
+        const data = await response.json();
+        set_is_admin(data.is_admin === true);
+      } catch (error) {
+        console.error('Failed to check admin status:', error);
+        set_is_admin(false);
+      }
+    };
+    
+    check_admin_status();
+  }, [user]);
 
   return (
     <>
@@ -217,6 +237,39 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
               {/* Add more tool links here as needed */}
             </ul>
           </nav>
+          
+          {/* Admin Section - Only visible to admin users */}
+          {is_admin && (
+            <>
+              <div className={`${is_minimized ? 'p-2' : 'p-6'} border-b border-base-300`}>
+                {!is_minimized && (
+                  <p className="text-sm font-bold tracking-tight text-error">
+                    Admin
+                  </p>
+                )}
+              </div>
+              <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Admin tools">
+                <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+                  <li>
+                    <Link
+                      href="/admin"
+                      className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2 text-error hover:text-error`}
+                      aria-label="Admin Dashboard"
+                      title={is_minimized ? "Admin" : undefined}
+                      onClick={() =>
+                        track("Sidebar Admin Clicked", {
+                          timestamp: new Date().toISOString(),
+                        })
+                      }
+                    >
+                      <Shield className="w-5 h-5 flex-shrink-0" />
+                      {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Dashboard</span>}
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
+            </>
+          )}
         </div>
         <div className={`${is_minimized ? 'p-2' : 'p-6'} flex justify-center border-b border-base-300`}>
           <SignedIn>

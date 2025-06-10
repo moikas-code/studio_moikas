@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
+/**
+ * @deprecated Use /api/auth/me instead
+ * This endpoint returns the current authenticated user's data
+ * Kept for backward compatibility
+ */
 export async function GET() {
   try {
     const { userId } = await auth();
@@ -27,6 +32,7 @@ export async function GET() {
         id,
         clerk_id,
         email,
+        role,
         created_at,
         subscriptions (
           plan,
@@ -38,10 +44,12 @@ export async function GET() {
       .single();
 
     return NextResponse.json({
-      clerk_user_id: userId,
-      user_exists: !!user,
-      user_data: user,
-      error: error?.message || null
+      data: {
+        clerk_user_id: userId,
+        user_exists: !!user,
+        user: user,
+        error: error?.message || null
+      }
     });
 
   } catch (error) {
