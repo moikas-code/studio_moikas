@@ -8,12 +8,32 @@ export const offset_schema = z.number().int().min(0).default(0)
 
 // Image generation schemas
 const embedding_schema = z.object({
-  path: z.string().url(),
+  path: z.string().refine((value) => {
+    // Check if it's a valid URL
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      // If not a URL, check if it's a valid Hugging Face ID (user/model format)
+      const hf_pattern = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/;
+      return hf_pattern.test(value);
+    }
+  }, "Must be a valid URL or Hugging Face model ID"),
   tokens: z.array(z.string()).optional()
 })
 
 const lora_schema = z.object({
-  path: z.string().url(),
+  path: z.string().refine((value) => {
+    // Check if it's a valid URL
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      // If not a URL, check if it's a valid Hugging Face ID (user/model format)
+      const hf_pattern = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/;
+      return hf_pattern.test(value);
+    }
+  }, "Must be a valid URL or Hugging Face model ID (e.g., ntc-ai/SDXL-LoRA-slider.anime)"),
   scale: z.number().min(0).max(2).optional().default(1) // Allow scale up to 2 for stronger effects
 })
 

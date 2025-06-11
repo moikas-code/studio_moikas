@@ -1619,7 +1619,9 @@ export default function Image_editor() {
               scale_y: 1,
             }
           });
-          save_to_history();
+          
+          // Save the updated state to history
+          set_canvas_state(prev => save_to_history(prev));
           
           // Show success message
           set_error_message(null);

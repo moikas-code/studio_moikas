@@ -88,14 +88,33 @@ export async function generate_flux_image(
       : { image_size }),
     // Only add embeddings if they are valid
     ...(options.embeddings !== undefined && options.embeddings.length > 0 && { 
-      embeddings: options.embeddings.filter(e => e && e.path) 
+      embeddings: options.embeddings.filter(e => e && e.path).map(e => {
+        let path = e.path;
+        // Convert Hugging Face IDs to the format fal.ai expects
+        const hf_pattern = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/;
+        if (hf_pattern.test(path) && !path.startsWith('http')) {
+          path = `hf:${path}`;
+        }
+        return {
+          path: path,
+          ...(e.tokens && { tokens: e.tokens })
+        };
+      })
     }),
     // Only add loras if they are valid
     ...(options.loras !== undefined && options.loras.length > 0 && { 
-      loras: options.loras.filter(l => l && l.path).map(l => ({
-        path: l.path,
-        scale: l.scale ?? 1
-      }))
+      loras: options.loras.filter(l => l && l.path).map(l => {
+        let path = l.path;
+        // Convert Hugging Face IDs to the format fal.ai expects
+        const hf_pattern = /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/;
+        if (hf_pattern.test(path) && !path.startsWith('http')) {
+          path = `hf:${path}`;
+        }
+        return {
+          path: path,
+          scale: l.scale ?? 1
+        };
+      })
     }),
     // Fast-SDXL specific parameters
     ...(options.enable_safety_checker !== undefined && { 
