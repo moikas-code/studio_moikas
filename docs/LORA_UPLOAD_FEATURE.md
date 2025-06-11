@@ -14,7 +14,7 @@ The image generator now supports three ways to add custom LoRAs and embeddings:
 - No need to find the direct download URL - fal.ai handles the resolution
 
 ### 2. File Upload
-- Users can upload .safetensors files up to 100MB
+- Users can upload .safetensors files up to 512MB
 - Files are uploaded to fal.ai's storage service
 - Upload progress is shown with a loading spinner
 - The uploaded file URL is automatically added to the LoRA list
@@ -63,7 +63,7 @@ https://huggingface.co/user/model/resolve/main/model.safetensors
 1. Click "Add Custom"
 2. Select "LoRA" type
 3. Click "Choose File"
-4. Select a .safetensors file (max 100MB)
+4. Select a .safetensors file (max 512MB)
 5. Wait for upload to complete
 
 ## Technical Notes
@@ -77,7 +77,7 @@ https://huggingface.co/user/model/resolve/main/model.safetensors
 
 ### Security Considerations
 - File type validation (only .safetensors allowed)
-- File size limit (100MB)
+- File size limit (512MB)
 - Authentication required for uploads
 - Files are stored on fal.ai's secure storage
 

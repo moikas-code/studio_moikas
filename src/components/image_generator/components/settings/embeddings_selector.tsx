@@ -132,10 +132,10 @@ export default function EmbeddingsSelector({
       return
     }
 
-    // Validate file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024 // 100MB
+    // Validate file size (max 512MB)
+    const maxSize = 512 * 1024 * 1024 // 512MB
     if (file.size > maxSize) {
-      toast.error('File size must be less than 100MB')
+      toast.error('File size must be less than 512MB')
       return
     }
 
@@ -441,7 +441,7 @@ export default function EmbeddingsSelector({
                   )}
                 </button>
                 <label className="label">
-                  <span className="label-text-alt">Max file size: 100MB</span>
+                  <span className="label-text-alt">Max file size: 512MB</span>
                 </label>
               </div>
             </div>
