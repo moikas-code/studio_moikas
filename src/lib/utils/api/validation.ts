@@ -38,22 +38,22 @@ const lora_schema = z.object({
 })
 
 export const image_generation_schema = z.object({
-  prompt: z.string().min(1).max(1000).transform(s => s.trim()),
+  prompt: z.string().min(1).max(100000).transform(s => s.trim()),
   model: z.string().min(1),
   aspect_ratio: z.string().optional(),
   width: z.number().int().min(64).max(14142).optional(),
   height: z.number().int().min(64).max(14142).optional(),
-  negative_prompt: z.string().max(1000).optional(),
+  negative_prompt: z.string().max(100000).optional(),
   num_inference_steps: z.number().int().min(1).max(50).optional(),
   guidance_scale: z.number().min(0).max(20).optional(),
   style_preset: z.string().optional(),
-  seed: z.number().int().optional(),
+  seed: z.number().int().optional().default(Math.floor(Math.random() * 2147483647)),
   enable_safety_checker: z.boolean().optional().default(true),
   embeddings: z.array(embedding_schema).optional(),
   loras: z.array(lora_schema).optional(),
   // Fast-SDXL specific
   num_images: z.number().int().min(1).max(8).optional().default(1),
-  expand_prompt: z.boolean().optional().default(false),
+  expand_prompt: z.boolean().optional().default(true),
   format: z.enum(['jpeg', 'png']).optional().default('jpeg')
 })
 

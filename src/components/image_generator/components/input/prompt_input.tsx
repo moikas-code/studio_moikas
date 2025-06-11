@@ -19,7 +19,7 @@ export function PromptInput({
   on_submit,
   is_loading,
   placeholder = "A futuristic city skyline at sunset...",
-  max_length = 1000,
+  max_length = 100000,
   auto_resize = true
 }: PromptInputProps) {
   const textarea_ref = useRef<HTMLTextAreaElement>(null)
