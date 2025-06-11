@@ -227,7 +227,7 @@ export default function AdminUsagePage() {
                       'badge-neutral'
                     }`}>
                       {item.is_admin_usage ? 'FREE (Admin)' : 
-                       item.counted_as_plan.toUpperCase()}
+                       (item.counted_as_plan || 'unknown').toUpperCase()}
                     </span>
                   </td>
                   <td>

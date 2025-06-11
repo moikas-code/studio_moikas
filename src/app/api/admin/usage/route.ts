@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { require_admin_access } from '@/lib/utils/api/admin';
 import { create_service_role_client } from '@/lib/supabase_server';
 
+interface UsageDataItem {
+  operation_type: string;
+  tokens_used: number;
+  created_at: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  user_email: string;
+  user_role: string;
+  is_admin_usage: boolean;
+  user_is_admin: boolean;
+  counted_as_plan: string;
+  effective_cost: number;
+}
+
 export async function GET(request: NextRequest) {
   // Check admin access
   const admin_error = await require_admin_access();
@@ -75,7 +89,7 @@ export async function GET(request: NextRequest) {
     const usersMap = new Map((usersData || []).map(user => [user.id, user]));
     
     // Transform and filter the data
-    let usage_data: any[] = [];
+    let usage_data: UsageDataItem[] = [];
     
     try {
       usage_data = usageData.map((item) => {
