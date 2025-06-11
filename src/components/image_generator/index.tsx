@@ -679,7 +679,14 @@ export function ImageGenerator({
                             prompt: generated_images.prompt,
                             timestamp: Date.now()
                           }
+                          console.log('[Image Generator] Storing image for transfer:', {
+                            hasBase64: !!image_data.base64,
+                            base64Length: image_data.base64.length,
+                            prompt: image_data.prompt,
+                            timestamp: image_data.timestamp
+                          })
                           localStorage.setItem('imageEditorTransfer', JSON.stringify(image_data))
+                          console.log('[Image Generator] Navigating to image editor...')
                           router.push('/tools/image-editor')
                         }}
                         className="p-2 bg-base-100/90 hover:bg-base-100 rounded-lg 

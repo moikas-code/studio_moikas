@@ -7,6 +7,7 @@ import React, {
   useCallback,
   useContext,
 } from "react";
+import { usePathname } from "next/navigation";
 import { MpContext } from "../context/mp_context";
 import {
   Upload,
@@ -37,6 +38,7 @@ import { Image_editor_toolbar } from "./image_editor/image_editor_toolbar";
 
 export default function Image_editor() {
   const { plan } = useContext(MpContext);
+  const pathname = usePathname();
   
   // Use custom hooks
   const {
@@ -1597,14 +1599,17 @@ export default function Image_editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state]);
 
-  // Check for transferred image from image generator on mount
-  useEffect(() => {
+  // Check for transferred image from image generator
+  const check_for_transferred_image = useCallback(() => {
+    console.log('[Image Editor] Checking for transferred image...');
     const transferred_data = localStorage.getItem('imageEditorTransfer');
     if (transferred_data) {
+      console.log('[Image Editor] Found transferred image data');
       try {
         const image_data = JSON.parse(transferred_data);
         // Check if transfer is recent (within 5 minutes)
         if (Date.now() - image_data.timestamp < 5 * 60 * 1000) {
+          console.log('[Image Editor] Transfer is recent, loading image...');
           // Load the image into the editor
           const base64_without_prefix = image_data.base64.split(',')[1] || image_data.base64;
           update_canvas_state({
@@ -1626,15 +1631,52 @@ export default function Image_editor() {
           // Show success message
           set_error_message(null);
           track('image_transferred_to_editor', { from: 'image_generator' });
+          console.log('[Image Editor] Image loaded successfully');
+        } else {
+          console.log('[Image Editor] Transfer data is too old, ignoring');
         }
         // Clean up after loading
         localStorage.removeItem('imageEditorTransfer');
       } catch (error) {
-        console.error('Failed to load transferred image:', error);
+        console.error('[Image Editor] Failed to load transferred image:', error);
       }
+    } else {
+      console.log('[Image Editor] No transferred image found');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount
+  }, [canvas_state.canvas_width, canvas_state.canvas_height, save_to_history, set_canvas_state, update_canvas_state]);
+
+  // Check on mount and when component becomes visible
+  useEffect(() => {
+    check_for_transferred_image();
+    
+    // Also check when page becomes visible (e.g., switching tabs back)
+    const handle_visibility_change = () => {
+      if (document.visibilityState === 'visible') {
+        check_for_transferred_image();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handle_visibility_change);
+    
+    // Check on focus as well (for navigation within the same tab)
+    const handle_focus = () => {
+      check_for_transferred_image();
+    };
+    
+    window.addEventListener('focus', handle_focus);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handle_visibility_change);
+      window.removeEventListener('focus', handle_focus);
+    };
+  }, [check_for_transferred_image]);
+  
+  // Also check when pathname changes (navigation to this page)
+  useEffect(() => {
+    if (pathname === '/tools/image-editor') {
+      check_for_transferred_image();
+    }
+  }, [pathname, check_for_transferred_image]);
 
   // Redraw canvas when state changes
   useEffect(() => {
