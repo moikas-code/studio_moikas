@@ -10,13 +10,14 @@ export async function POST(request: NextRequest) {
     // Check specific fields
     console.log('Checking loras array:')
     if (body.loras && Array.isArray(body.loras)) {
-      body.loras.forEach((lora: any, index: number) => {
+      body.loras.forEach((lora: unknown, index: number) => {
+        const loraObj = lora as Record<string, unknown>
         console.log(`LoRA ${index}:`, JSON.stringify(lora))
-        console.log(`  - Has path: ${!!lora.path}`)
-        console.log(`  - Path value: ${lora.path}`)
-        console.log(`  - Has scale: ${!!lora.scale}`)
-        console.log(`  - Scale value: ${lora.scale}`)
-        console.log(`  - All keys: ${Object.keys(lora).join(', ')}`)
+        console.log(`  - Has path: ${!!loraObj.path}`)
+        console.log(`  - Path value: ${loraObj.path}`)
+        console.log(`  - Has scale: ${!!loraObj.scale}`)
+        console.log(`  - Scale value: ${loraObj.scale}`)
+        console.log(`  - All keys: ${Object.keys(loraObj).join(', ')}`)
       })
     }
     
@@ -32,12 +33,17 @@ export async function POST(request: NextRequest) {
         validated_loras: validated.loras,
         raw_loras: body.loras
       })
-    } catch (zodError: any) {
+    } catch (zodError) {
       console.error('Zod validation error:', zodError)
+      const errorMessage = zodError instanceof Error ? zodError.message : 'Validation failed'
+      const zodErrorDetails = zodError && typeof zodError === 'object' && 'errors' in zodError 
+        ? (zodError as { errors: unknown }).errors 
+        : undefined
+      
       return NextResponse.json({
         success: false,
         message: 'Validation failed',
-        error: zodError.errors || zodError.message,
+        error: zodErrorDetails || errorMessage,
         raw_loras: body.loras
       }, { status: 400 })
     }

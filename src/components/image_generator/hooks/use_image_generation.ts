@@ -50,8 +50,8 @@ export function useImageGeneration() {
       
       // Remove undefined values
       Object.keys(cleaned_params).forEach(key => {
-        if (cleaned_params[key] === undefined) {
-          delete cleaned_params[key]
+        if (cleaned_params[key as keyof typeof cleaned_params] === undefined) {
+          delete cleaned_params[key as keyof typeof cleaned_params]
         }
       })
       
