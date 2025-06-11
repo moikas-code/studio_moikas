@@ -12,60 +12,97 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const operation_type = searchParams.get('operation_type');
-    const include_admin = searchParams.get('include_admin') === 'true';
+    const include_admin = searchParams.get('include_admin') !== 'false'; // Default to true
     const admin_only = searchParams.get('admin_only') === 'true';
     
     const supabase = create_service_role_client();
     
-    let query = supabase
+    // First, get usage data
+    let usageQuery = supabase
       .from('usage')
       .select(`
+        id,
+        user_id,
         operation_type,
         tokens_used,
         created_at,
         description,
-        metadata,
-        users!inner (
-          email,
-          role
-        )
+        metadata
       `)
       .order('created_at', { ascending: false })
       .limit(100);
 
     if (operation_type && operation_type !== 'all') {
-      query = query.eq('operation_type', operation_type);
+      usageQuery = usageQuery.eq('operation_type', operation_type);
     }
 
-    const { data, error } = await query;
+    const { data: usageData, error: usageError } = await usageQuery;
 
-    if (error) {
-      throw error;
+    if (usageError) {
+      console.error('Usage query error:', usageError);
+      throw usageError;
     }
-
-    // Transform and filter the data
-    let usage_data = data?.map((item: {
-      operation_type: string;
-      tokens_used: number;
-      created_at: string;
-      description: string;
-      metadata: Record<string, unknown>;
-      users: { email: string; role: string }[];
-    }) => {
-      const is_admin_usage = item.metadata?.is_admin_usage === true;
-      const user_is_admin = item.users?.[0]?.role === 'admin';
-      const counted_as_plan = item.metadata?.counted_as_plan || 'unknown';
+    
+    if (!usageData || usageData.length === 0) {
+      console.log('No usage data found');
+      return NextResponse.json({ 
+        usage: [],
+        stats: {
+          total_usage: 0,
+          total_revenue_usage: 0,
+          admin_usage: 0,
+          regular_usage: 0,
+          operation_breakdown: {}
+        }
+      });
+    }
+    
+    // Get unique user IDs
+    const userIds = [...new Set(usageData.map(item => item.user_id))].filter(Boolean);
+    
+    // Fetch user details separately
+    const { data: usersData, error: usersError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .in('id', userIds);
       
-      return {
-        ...item,
-        user_email: item.users?.[0]?.email || 'Unknown',
-        user_role: item.users?.[0]?.role || 'user',
-        is_admin_usage,
-        user_is_admin,
-        counted_as_plan,
-        effective_cost: is_admin_usage ? 0 : item.tokens_used // Admin usage doesn't count toward revenue
-      };
-    }) || [];
+    if (usersError) {
+      console.error('Users query error:', usersError);
+      // Continue without user data
+    }
+    
+    // Create a map of user data
+    const usersMap = new Map((usersData || []).map(user => [user.id, user]));
+    
+    // Transform and filter the data
+    let usage_data: any[] = [];
+    
+    try {
+      usage_data = usageData.map((item) => {
+        const user = usersMap.get(item.user_id) || { email: 'Unknown', role: 'user' };
+        const metadata = (item.metadata as Record<string, unknown>) || {};
+        const is_admin_usage = metadata.is_admin_usage === true;
+        const user_is_admin = user.role === 'admin';
+        const counted_as_plan = (metadata.counted_as_plan as string) || 'unknown';
+        
+        return {
+          operation_type: item.operation_type || 'unknown',
+          tokens_used: item.tokens_used || 0,
+          created_at: item.created_at || new Date().toISOString(),
+          description: item.description || '',
+          metadata: item.metadata || {},
+          user_email: user.email,
+          user_role: user.role,
+          is_admin_usage,
+          user_is_admin,
+          counted_as_plan,
+          effective_cost: is_admin_usage ? 0 : (item.tokens_used || 0) // Admin usage doesn't count toward revenue
+        };
+      });
+    } catch (mapError) {
+      console.error('Error mapping usage data:', mapError);
+      throw new Error('Failed to process usage data');
+    }
 
     // Apply filtering based on admin preferences
     if (admin_only) {
@@ -76,12 +113,13 @@ export async function GET(request: NextRequest) {
 
     // Calculate summary stats
     const stats = {
-      total_usage: usage_data.reduce((sum, item) => sum + item.tokens_used, 0),
-      total_revenue_usage: usage_data.reduce((sum, item) => sum + item.effective_cost, 0),
-      admin_usage: usage_data.filter(item => item.is_admin_usage).reduce((sum, item) => sum + item.tokens_used, 0),
-      regular_usage: usage_data.filter(item => !item.is_admin_usage).reduce((sum, item) => sum + item.tokens_used, 0),
+      total_usage: usage_data.reduce((sum, item) => sum + (item.tokens_used || 0), 0),
+      total_revenue_usage: usage_data.reduce((sum, item) => sum + (item.effective_cost || 0), 0),
+      admin_usage: usage_data.filter(item => item.is_admin_usage).reduce((sum, item) => sum + (item.tokens_used || 0), 0),
+      regular_usage: usage_data.filter(item => !item.is_admin_usage).reduce((sum, item) => sum + (item.tokens_used || 0), 0),
       operation_breakdown: usage_data.reduce((acc, item) => {
-        acc[item.operation_type] = (acc[item.operation_type] || 0) + item.tokens_used;
+        const op_type = item.operation_type || 'unknown';
+        acc[op_type] = (acc[op_type] || 0) + (item.tokens_used || 0);
         return acc;
       }, {} as Record<string, number>)
     };

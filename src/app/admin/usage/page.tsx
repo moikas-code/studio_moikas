@@ -204,13 +204,14 @@ export default function AdminUsagePage() {
                   </td>
                   <td>
                     <span className={`badge badge-sm ${
+                      !item.operation_type ? 'badge-ghost' :
                       item.operation_type === 'image_generation' ? 'badge-primary' :
                       item.operation_type === 'video_generation' ? 'badge-secondary' :
                       item.operation_type === 'audio_generation' ? 'badge-accent' :
                       item.operation_type === 'text_analysis' ? 'badge-info' :
                       'badge-warning'
                     }`}>
-                      {item.operation_type.replace('_', ' ')}
+                      {item.operation_type?.replace('_', ' ') || 'unknown'}
                     </span>
                   </td>
                   <td>
