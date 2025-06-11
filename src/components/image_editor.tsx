@@ -1597,6 +1597,43 @@ export default function Image_editor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvas_state]);
 
+  // Check for transferred image from image generator on mount
+  useEffect(() => {
+    const transferred_data = localStorage.getItem('imageEditorTransfer');
+    if (transferred_data) {
+      try {
+        const image_data = JSON.parse(transferred_data);
+        // Check if transfer is recent (within 5 minutes)
+        if (Date.now() - image_data.timestamp < 5 * 60 * 1000) {
+          // Load the image into the editor
+          const base64_without_prefix = image_data.base64.split(',')[1] || image_data.base64;
+          update_canvas_state({
+            image_base64: base64_without_prefix,
+            // Reset transform to fit the image
+            image_transform: {
+              x: 0,
+              y: 0,
+              width: canvas_state.canvas_width,
+              height: canvas_state.canvas_height,
+              scale_x: 1,
+              scale_y: 1,
+            }
+          });
+          save_to_history();
+          
+          // Show success message
+          set_error_message(null);
+          track('image_transferred_to_editor', { from: 'image_generator' });
+        }
+        // Clean up after loading
+        localStorage.removeItem('imageEditorTransfer');
+      } catch (error) {
+        console.error('Failed to load transferred image:', error);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   // Redraw canvas when state changes
   useEffect(() => {
     draw_canvas(canvas_state);

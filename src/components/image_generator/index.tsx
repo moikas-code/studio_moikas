@@ -634,7 +634,18 @@ export function ImageGenerator({
                         <Download className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => router.push('/tools/image-editor')}
+                        onClick={() => {
+                          // Store image data in localStorage for the editor
+                          const image_data = {
+                            base64: generated_image.url.startsWith('data:') 
+                              ? generated_image.url 
+                              : `data:image/png;base64,${generated_image.url}`,
+                            prompt: generated_image.prompt,
+                            timestamp: Date.now()
+                          }
+                          localStorage.setItem('imageEditorTransfer', JSON.stringify(image_data))
+                          router.push('/tools/image-editor')
+                        }}
                         className="p-2 bg-base-100/90 hover:bg-base-100 rounded-lg 
                                  backdrop-blur-sm transition-all"
                         title="Edit image"
