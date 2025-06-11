@@ -34,7 +34,7 @@ export const DEFAULT_SANA_SETTINGS = {
 }
 
 export const GENERATION_LIMITS = {
-  prompt_max_length: 1000,
+  prompt_max_length: 100000,
   preview_max_size: 1024 * 1024,
   max_seed: 2147483647
 }

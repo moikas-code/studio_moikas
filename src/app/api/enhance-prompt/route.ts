@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       const system_message = new SystemMessage(`You are a helpful assistant that enhances image generation prompts.
 Your goal is to take a simple prompt and make it more detailed and descriptive 
 while maintaining the original intent. Add artistic details, lighting, style, 
-and composition suggestions.`)
+and composition suggestions. Only return the enhanced prompt, no other text.`)
       
       const result = await invoke_xai_agent_with_tools({
         system_message,
