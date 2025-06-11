@@ -28,7 +28,7 @@ export const SANA_STYLE_OPTIONS = [
 
 export const DEFAULT_SANA_SETTINGS = {
   num_inference_steps: 28,
-  guidance_scale: 5,
+  guidance_scale: 7.5,
   style_name: 'none',
   seed: undefined
 }

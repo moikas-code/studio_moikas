@@ -51,7 +51,7 @@ export function ImageGenerator({
   const [negative_prompt, set_negative_prompt] = useState('')
   const [num_images, set_num_images] = useState(1)
   const [enable_safety_checker, set_enable_safety_checker] = useState(true)
-  const [expand_prompt, set_expand_prompt] = useState(false)
+  const [expand_prompt, set_expand_prompt] = useState(true)
   const [image_format, set_image_format] = useState<'jpeg' | 'png'>('jpeg')
   const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined)
   
