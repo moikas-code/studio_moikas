@@ -21,6 +21,9 @@ import SessionHistoryPanel from "./components/session_history_panel";
 export default function Workflow_chatbot_page() {
   const { refresh_mp, plan } = useContext(MpContext);
   
+  // Check if user has access to MEMU
+  const has_access = plan !== 'free';
+  
   const [messages, set_messages] = useState<message[]>([]);
   const [input, set_input] = useState("");
   const [loading, set_loading] = useState(false);
@@ -122,6 +125,43 @@ export default function Workflow_chatbot_page() {
     // Scroll to bottom when messages update
     messages_end_ref.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Show access restriction for free users
+  if (!has_access) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-base-200">
+        <div className="card w-96 bg-base-100 shadow-xl">
+          <div className="card-body text-center">
+            <div className="flex justify-center mb-4">
+              <svg className="w-16 h-16 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="card-title justify-center text-2xl">MEMU Pro Feature</h2>
+            <p className="text-base-content/70 mb-4">
+              MEMU Workflow Chat is exclusively available for Standard and Admin users. 
+              Upgrade your plan to unlock this powerful AI workflow tool.
+            </p>
+            <div className="space-y-2 text-left bg-base-200 p-4 rounded-lg mb-4">
+              <h3 className="font-semibold">MEMU Features:</h3>
+              <ul className="text-sm space-y-1 text-base-content/70">
+                <li>• Create custom AI workflows</li>
+                <li>• Chain multiple AI agents together</li>
+                <li>• Access pre-built templates</li>
+                <li>• Visual workflow editor</li>
+                <li>• Advanced multi-agent orchestration</li>
+              </ul>
+            </div>
+            <div className="card-actions justify-center">
+              <a href="/pricing" className="btn btn-primary">
+                Upgrade to Standard
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex">

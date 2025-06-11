@@ -6,8 +6,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages"
 export const dynamic = 'force-dynamic' // AI responses are always unique
 export const runtime = 'nodejs' // Required for AI operations
 import { 
-  get_service_role_client, 
-  execute_db_operation 
+  get_service_role_client
 } from "@/lib/utils/database/supabase"
 import { 
   require_auth, 
@@ -64,30 +63,36 @@ export async function POST(req: NextRequest) {
     const renewable_to_deduct = Math.min(ENHANCE_COST, subscription.renewable_tokens)
     const permanent_to_deduct = ENHANCE_COST - renewable_to_deduct
 
-    await execute_db_operation(async () => {
-      const { error: deduct_error } = await supabase
-        .from('subscriptions')
-        .update({
-          renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
-          permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
-        })
-        .eq('user_id', user.user_id)
+    // Update subscription tokens
+    const { error: deduct_error } = await supabase
+      .from('subscriptions')
+      .update({
+        renewable_tokens: subscription.renewable_tokens - renewable_to_deduct,
+        permanent_tokens: subscription.permanent_tokens - permanent_to_deduct
+      })
+      .eq('user_id', user.user_id)
 
-      if (deduct_error) throw deduct_error
+    if (deduct_error) {
+      throw new Error(`Failed to deduct tokens: ${deduct_error.message}`)
+    }
 
-      // Log the usage
-      await supabase
-        .from('usage')
-        .insert({
-          user_id: user.user_id,
-          tokens_used: ENHANCE_COST,
-          operation_type: 'text_analysis',
-          action: 'prompt_enhancement',
-          description: `Prompt enhancement`
-        })
+    // Log the usage
+    const { error: usage_error } = await supabase
+      .from('usage')
+      .insert({
+        user_id: user.user_id,
+        tokens_used: ENHANCE_COST,
+        operation_type: 'text_analysis',
+        description: `Prompt enhancement`,
+        metadata: {
+          feature: 'prompt_enhancement'
+        }
+      })
 
-      return { data: null, error: null }
-    })
+    if (usage_error) {
+      console.error('Failed to log usage:', usage_error)
+      // Continue anyway - usage logging is not critical
+    }
     
     try {
       // 7. Enhance prompt using AI
@@ -109,29 +114,30 @@ and composition suggestions.`)
         tokens_used: ENHANCE_COST
       })
       
-    } catch {
+    } catch (ai_error) {
       // Refund on AI failure - add back the same way we deducted
-      await execute_db_operation(async () => {
-        await supabase
-          .from('subscriptions')
-          .update({
-            renewable_tokens: subscription.renewable_tokens, // restore original values
-            permanent_tokens: subscription.permanent_tokens
-          })
-          .eq('user_id', user.user_id)
+      await supabase
+        .from('subscriptions')
+        .update({
+          renewable_tokens: subscription.renewable_tokens, // restore original values
+          permanent_tokens: subscription.permanent_tokens
+        })
+        .eq('user_id', user.user_id)
 
-        // Log the refund
-        await supabase
-          .from('usage')
-          .insert({
-            user_id: user.user_id,
-            tokens_used: -ENHANCE_COST, // negative for refund
-            description: `Prompt enhancement refund: enhancement failed`
-          })
-
-        return { data: null, error: null }
-      })
+      // Log the refund
+      await supabase
+        .from('usage')
+        .insert({
+          user_id: user.user_id,
+          tokens_used: -ENHANCE_COST, // negative for refund
+          operation_type: 'text_analysis',
+          description: `Prompt enhancement refund: enhancement failed`,
+          metadata: {
+            feature: 'prompt_enhancement_refund'
+          }
+        })
       
+      console.error('AI enhancement failed:', ai_error)
       throw new Error('Enhancement failed. Tokens refunded.')
     }
     

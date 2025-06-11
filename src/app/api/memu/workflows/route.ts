@@ -46,6 +46,20 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Check user subscription plan
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!subscription || subscription.plan === 'free') {
+      return NextResponse.json(
+        { error: "MEMU is only available for Standard and Admin users" },
+        { status: 403 }
+      );
+    }
+
     // Get user's workflows with node count
     const { data: workflows } = await supabase
       .from("workflows")
@@ -126,6 +140,20 @@ export async function POST(req: NextRequest) {
     if (user_error || !user) {
       console.error("User fetch error:", user_error?.message);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check user subscription plan
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("plan")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!subscription || subscription.plan === 'free') {
+      return NextResponse.json(
+        { error: "MEMU is only available for Standard and Admin users" },
+        { status: 403 }
+      );
     }
 
     // Check workflow creation limits

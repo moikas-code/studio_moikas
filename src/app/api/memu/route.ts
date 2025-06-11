@@ -60,6 +60,14 @@ export async function POST(req: NextRequest) {
     const subscription = await get_user_subscription(user.user_id)
     const is_free = subscription.plan_name === 'free'
     
+    // Check if user has access to MEMU (standard or admin only)
+    if (subscription.plan_name === 'free') {
+      return api_error(
+        'MEMU is only available for Standard and Admin users. Please upgrade your plan to access this feature.',
+        403
+      )
+    }
+    
     // 7. Apply rate limiting
     await enforce_rate_limit(
       user.user_id,
