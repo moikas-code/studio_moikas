@@ -48,7 +48,7 @@ export function ImageGenerator({
   } | null>(null)
   const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
   const [selected_loras, set_selected_loras] = useState<LoraWeight[]>([])
-  const [negative_prompt, set_negative_prompt] = useState('')
+  const [negative_prompt, set_negative_prompt] = useState('cartoon, painting, illustration, worst quality, low quality, normal quality')
   const [num_images, set_num_images] = useState(1)
   const [enable_safety_checker, set_enable_safety_checker] = useState(true)
   const [expand_prompt, set_expand_prompt] = useState(true)
