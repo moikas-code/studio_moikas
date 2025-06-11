@@ -3,10 +3,37 @@ import { fal } from '@/lib/fal_client'
 import { require_auth } from '@/lib/utils/api/auth'
 import { api_success, handle_api_error } from '@/lib/utils/api/response'
 
+// Configure the route to handle larger payloads
+export const runtime = 'nodejs'
+export const maxDuration = 60 // 60 seconds timeout for large uploads
+
+// Next.js 13+ API route config
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '512mb',
+    },
+  },
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
     await require_auth()
+    
+    // Check content length header first
+    const contentLength = request.headers.get('content-length')
+    if (contentLength) {
+      const sizeInBytes = parseInt(contentLength)
+      const maxSize = 512 * 1024 * 1024 // 512MB
+      
+      if (sizeInBytes > maxSize) {
+        return NextResponse.json(
+          { error: `File too large. Maximum size is 512MB, received ${Math.round(sizeInBytes / 1024 / 1024)}MB` },
+          { status: 413 }
+        )
+      }
+    }
     
     // Get the file from form data
     const formData = await request.formData()

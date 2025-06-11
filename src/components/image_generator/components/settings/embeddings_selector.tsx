@@ -122,6 +122,48 @@ export default function EmbeddingsSelector({
     toast.success(`Custom ${uploadType} added`)
   }
 
+  const uploadFileInChunks = async (file: File): Promise<string> => {
+    const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+    const uploadId = Math.random().toString(36).substring(2, 15)
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, file.size)
+      const chunk = file.slice(start, end)
+      
+      const formData = new FormData()
+      formData.append('chunk', chunk)
+      formData.append('chunkIndex', i.toString())
+      formData.append('totalChunks', totalChunks.toString())
+      formData.append('fileName', file.name)
+      formData.append('uploadId', uploadId)
+      
+      const response = await fetch('/api/embeddings/upload-chunk', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Chunk upload failed')
+      }
+      
+      const result = await response.json()
+      
+      // Update progress
+      const progress = Math.round(((i + 1) / totalChunks) * 100)
+      toast.loading(`Uploading... ${progress}%`, { id: 'upload-progress' })
+      
+      if (result.data.complete) {
+        toast.dismiss('upload-progress')
+        return result.data.url
+      }
+    }
+    
+    throw new Error('Upload incomplete')
+  }
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -143,23 +185,30 @@ export default function EmbeddingsSelector({
     const toastId = toast.loading('Uploading file...')
 
     try {
-      // Create form data
-      const formData = new FormData()
-      formData.append('file', file)
+      let url: string
       
-      // Upload file through our API
-      const response = await fetch('/api/embeddings/upload', {
-        method: 'POST',
-        body: formData
-      })
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Upload failed')
+      // Use chunked upload for files larger than 50MB
+      if (file.size > 50 * 1024 * 1024) {
+        url = await uploadFileInChunks(file)
+      } else {
+        // Regular upload for smaller files
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const response = await fetch('/api/embeddings/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Upload failed')
+        }
+        
+        const result = await response.json()
+        url = result.data.url
       }
       
-      const result = await response.json()
-      const url = result.data.url
       console.log('File uploaded to:', url)
 
       if (uploadType === 'embedding') {
