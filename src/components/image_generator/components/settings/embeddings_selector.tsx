@@ -365,16 +365,22 @@ export default function EmbeddingsSelector({
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="modal modal-open">
-          <div className="modal-box">
-            <h3 className="font-bold text-lg mb-4">Add Custom Embedding/LoRA</h3>
+          <div className="modal-box max-w-md">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              onClick={() => setShowUploadModal(false)}
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <h3 className="font-bold text-xl mb-6 text-base-content">Add Custom Embedding/LoRA</h3>
             
-            <div className="space-y-4">
-              <div className="form-control">
+            <div className="space-y-6">
+              <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text">Type</span>
+                  <span className="label-text font-medium">Type</span>
                 </label>
                 <select
-                  className="select select-bordered"
+                  className="select select-bordered w-full"
                   value={uploadType}
                   onChange={(e) => setUploadType(e.target.value as 'embedding' | 'lora')}
                 >
@@ -383,38 +389,38 @@ export default function EmbeddingsSelector({
                 </select>
               </div>
 
-              <div className="form-control">
+              <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text">URL or Hugging Face ID</span>
+                  <span className="label-text font-medium">URL or Hugging Face ID</span>
                 </label>
-                <div className="input-group">
-                  <span className="bg-base-300 px-3 flex items-center">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     {isValidHuggingFaceId(customUrl) ? (
-                      <Package className="w-4 h-4" />
+                      <Package className="w-5 h-5 text-base-content/60" />
                     ) : (
-                      <Link className="w-4 h-4" />
+                      <Link className="w-5 h-5 text-base-content/60" />
                     )}
-                  </span>
+                  </div>
                   <input
                     type="text"
-                    className="input input-bordered flex-1"
+                    className="input input-bordered w-full pl-10 pr-3"
                     placeholder="ntc-ai/SDXL-LoRA-slider.anime or https://..."
                     value={customUrl}
                     onChange={(e) => setCustomUrl(e.target.value)}
                   />
                 </div>
                 <label className="label">
-                  <span className="label-text-alt">
+                  <span className="label-text-alt text-base-content/70">
                     Enter a Hugging Face model ID (e.g., ntc-ai/SDXL-LoRA-slider.anime) or direct URL
                   </span>
                 </label>
               </div>
 
-              <div className="divider">OR</div>
+              <div className="divider text-base-content/50">OR</div>
 
-              <div className="form-control">
+              <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text">Upload .safetensors file</span>
+                  <span className="label-text font-medium">Upload .safetensors file</span>
                 </label>
                 <input
                   ref={fileInputRef}
@@ -424,29 +430,29 @@ export default function EmbeddingsSelector({
                   className="hidden"
                 />
                 <button 
-                  className="btn btn-outline gap-2"
+                  className="btn btn-outline btn-block gap-2"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                 >
                   {isUploading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                       Uploading...
                     </>
                   ) : (
                     <>
-                      <Upload className="w-4 h-4" />
+                      <Upload className="w-5 h-5" />
                       Choose File
                     </>
                   )}
                 </button>
                 <label className="label">
-                  <span className="label-text-alt">Max file size: 512MB</span>
+                  <span className="label-text-alt text-base-content/70">Max file size: 512MB</span>
                 </label>
               </div>
             </div>
 
-            <div className="modal-action">
+            <div className="modal-action mt-8">
               <button 
                 className="btn btn-ghost" 
                 onClick={() => setShowUploadModal(false)}
@@ -462,7 +468,7 @@ export default function EmbeddingsSelector({
               </button>
             </div>
           </div>
-          <div className="modal-backdrop" onClick={() => setShowUploadModal(false)} />
+          <div className="modal-backdrop bg-base-content/20 backdrop-blur-sm" onClick={() => setShowUploadModal(false)} />
         </div>
       )}
     </div>
