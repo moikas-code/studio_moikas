@@ -25,10 +25,17 @@ export function usePromptEnhancement() {
         throw new Error(error.error || 'Failed to enhance prompt')
       }
       
-      const data = await response.json()
+      const result = await response.json()
       set_enhancement_count(prev => prev + 1)
       
-      return data.enhanced_prompt
+      // Handle the wrapped response structure
+      const enhanced_prompt = result.data?.enhanced_prompt || result.enhanced_prompt
+      
+      if (!enhanced_prompt) {
+        throw new Error('No enhanced prompt received')
+      }
+      
+      return enhanced_prompt
     } catch (error) {
       console.error('Enhancement error:', error)
       toast.error(error instanceof Error ? error.message : 'Enhancement failed')
