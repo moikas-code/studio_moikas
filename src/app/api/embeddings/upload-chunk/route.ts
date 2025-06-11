@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < totalChunks; i++) {
         const chunkKey = `upload:${user.user_id}:${uploadId}:chunk:${i}`
         const chunkData = await redis.get(chunkKey)
-        if (chunkData) {
+        if (chunkData && typeof chunkData === 'string') {
           chunks.push(Buffer.from(chunkData, 'base64'))
           // Clean up chunk
           await redis.del(chunkKey)
