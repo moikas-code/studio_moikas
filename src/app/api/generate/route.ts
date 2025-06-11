@@ -106,7 +106,8 @@ export async function POST(req: NextRequest) {
       validated.model,
       prompt,
       validated.width || 1024,
-      validated.height || 1024
+      validated.height || 1024,
+      validated.seed
     )
     
     const redis = get_redis_client()
@@ -363,7 +364,8 @@ export async function POST(req: NextRequest) {
       }
       
       if (redis) {
-        await redis.setex(cache_key, 3600, cache_data)
+        // Cache for 5 minutes to prevent accidental duplicate requests
+        await redis.setex(cache_key, 300, cache_data)
       }
       
       // 13. Track success

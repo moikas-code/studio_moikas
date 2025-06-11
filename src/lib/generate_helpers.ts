@@ -106,11 +106,14 @@ export function generate_imggen_cache_key(
   model_id: string,
   prompt: string,
   width: number,
-  height: number
+  height: number,
+  seed?: number
 ): string {
+  // Include seed in the hash if provided, otherwise use 'no-seed' to differentiate
+  const seed_string = seed !== undefined ? seed.toString() : 'no-seed';
   const hash = crypto
     .createHash("sha256")
-    .update(`${prompt}:${width}:${height}`)
+    .update(`${prompt}:${width}:${height}:${seed_string}`)
     .digest("hex");
   return `imggen:${user_id}:${model_id}:${hash}`;
 }
