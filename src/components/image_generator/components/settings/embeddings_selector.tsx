@@ -61,10 +61,12 @@ export default function EmbeddingsSelector({
       if (exists) {
         onLorasChange(selectedLoras.filter(l => l.path !== embedding.url))
       } else {
-        onLorasChange([...selectedLoras, {
+        const new_lora = {
           path: embedding.url,
           scale: embedding.metadata?.recommended_weight || 1
-        }])
+        }
+        console.log('Adding LoRA:', new_lora)
+        onLorasChange([...selectedLoras, new_lora])
       }
     }
   }
@@ -81,10 +83,12 @@ export default function EmbeddingsSelector({
           tokens: ['<s0>', '<s1>']
         }])
       } else {
-        onLorasChange([...selectedLoras, {
+        const new_custom_lora = {
           path: customUrl,
           scale: 1
-        }])
+        }
+        console.log('Adding custom LoRA:', new_custom_lora)
+        onLorasChange([...selectedLoras, new_custom_lora])
       }
       
       setCustomUrl('')
@@ -160,7 +164,7 @@ export default function EmbeddingsSelector({
                         <input
                           type="range"
                           min="0"
-                          max="1"
+                          max="2"
                           step="0.1"
                           value={selectedLoras.find(l => l.path === embedding.url)?.scale || 1}
                           onChange={(e) => updateLoraScale(embedding.url, parseFloat(e.target.value))}

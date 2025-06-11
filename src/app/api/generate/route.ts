@@ -210,6 +210,8 @@ export async function POST(req: NextRequest) {
       }
       // Fast-SDXL specific parameters
       if (validated.model === 'fal-ai/fast-sdxl') {
+        console.log('[Fast-SDXL] Processing specific parameters')
+        
         if (validated.num_images !== undefined) {
           generation_options.num_images = validated.num_images
         }
@@ -222,14 +224,35 @@ export async function POST(req: NextRequest) {
         if (validated.format !== undefined) {
           generation_options.format = validated.format
         }
+        
+        // Log the parameters for debugging
+        console.log('[Fast-SDXL] Parameters:', {
+          num_images: validated.num_images,
+          enable_safety_checker: validated.enable_safety_checker,
+          expand_prompt: validated.expand_prompt,
+          format: validated.format
+        })
       }
       // Add embeddings and LoRAs for SDXL models
       if (validated.model.includes('sdxl')) {
         if (validated.embeddings && validated.embeddings.length > 0) {
-          generation_options.embeddings = validated.embeddings
+          // Filter out any invalid embeddings
+          const valid_embeddings = validated.embeddings.filter(e => e && e.path)
+          if (valid_embeddings.length > 0) {
+            generation_options.embeddings = valid_embeddings
+          }
         }
         if (validated.loras && validated.loras.length > 0) {
-          generation_options.loras = validated.loras
+          // Debug log the loras
+          console.log('[SDXL] Raw loras:', JSON.stringify(validated.loras, null, 2))
+          
+          // Filter out any invalid loras
+          const valid_loras = validated.loras.filter(l => l && l.path)
+          console.log('[SDXL] Valid loras after filter:', JSON.stringify(valid_loras, null, 2))
+          
+          if (valid_loras.length > 0) {
+            generation_options.loras = valid_loras
+          }
         }
       }
       

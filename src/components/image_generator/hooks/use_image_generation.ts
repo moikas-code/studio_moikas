@@ -39,10 +39,28 @@ export function useImageGeneration() {
     set_error_message(null)
     
     try {
+      // Clean up params before sending
+      const cleaned_params = {
+        ...params,
+        // Filter out invalid loras
+        loras: params.loras?.filter(l => l && l.path && typeof l.path === 'string') || undefined,
+        // Filter out invalid embeddings
+        embeddings: params.embeddings?.filter(e => e && e.path && typeof e.path === 'string') || undefined
+      }
+      
+      // Remove undefined values
+      Object.keys(cleaned_params).forEach(key => {
+        if (cleaned_params[key] === undefined) {
+          delete cleaned_params[key]
+        }
+      })
+      
+      console.log('[useImageGeneration] Cleaned params:', JSON.stringify(cleaned_params, null, 2))
+      
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
+        body: JSON.stringify(cleaned_params)
       })
       
       const response_data = await response.json()

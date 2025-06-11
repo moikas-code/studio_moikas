@@ -14,7 +14,7 @@ const embedding_schema = z.object({
 
 const lora_schema = z.object({
   path: z.string().url(),
-  scale: z.number().min(0).max(1).optional().default(1)
+  scale: z.number().min(0).max(2).optional().default(1) // Allow scale up to 2 for stronger effects
 })
 
 export const image_generation_schema = z.object({

@@ -165,6 +165,7 @@ export function ImageGenerator({
           params.embeddings = selected_embeddings
         }
         if (selected_loras.length > 0) {
+          console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
           params.loras = selected_loras
         }
       } else if (model_config.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
@@ -172,11 +173,13 @@ export function ImageGenerator({
           params.embeddings = selected_embeddings
         }
         if (selected_loras.length > 0) {
+          console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
           params.loras = selected_loras
         }
       }
     }
     
+    console.log('[Image Generator] Final params being sent:', JSON.stringify(params, null, 2))
     const result = await generate_image(params)
     
     if (result) {

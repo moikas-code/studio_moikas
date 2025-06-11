@@ -86,8 +86,17 @@ export async function generate_flux_image(
     ...(options.aspect_ratio !== undefined
       ? { aspect_ratio: options.aspect_ratio }
       : { image_size }),
-    ...(options.embeddings !== undefined && { embeddings: options.embeddings }),
-    ...(options.loras !== undefined && { loras: options.loras }),
+    // Only add embeddings if they are valid
+    ...(options.embeddings !== undefined && options.embeddings.length > 0 && { 
+      embeddings: options.embeddings.filter(e => e && e.path) 
+    }),
+    // Only add loras if they are valid
+    ...(options.loras !== undefined && options.loras.length > 0 && { 
+      loras: options.loras.filter(l => l && l.path).map(l => ({
+        path: l.path,
+        scale: l.scale ?? 1
+      }))
+    }),
     // Fast-SDXL specific parameters
     ...(options.enable_safety_checker !== undefined && { 
       enable_safety_checker: options.enable_safety_checker 
@@ -99,6 +108,9 @@ export async function generate_flux_image(
       format: options.format 
     }),
   };
+  console.log('[fal.ai] Sending request to model:', model_id);
+  console.log('[fal.ai] Input payload:', JSON.stringify(input, null, 2));
+  
   const result = await fal.subscribe(model_id, {
     input,
     logs: true,
