@@ -23,8 +23,12 @@ export interface GenerationParams {
 }
 
 export interface GenerationResult {
-  image_base64: string
+  image_base64: string // First image for backward compatibility
+  images?: string[] // All generated images
   mana_points_used: number
+  cost_per_image?: number
+  total_cost?: number
+  image_count?: number
   backend_cost?: number
 }
 
@@ -82,22 +86,28 @@ export function useImageGeneration() {
         mpUsed: data.mpUsed
       })
       
-      if (!data || !data.base64Image) {
-        console.error('No base64Image in response data:', data)
+      if (!data || (!data.base64Image && !data.images)) {
+        console.error('No images in response data:', data)
         throw new Error('Invalid response from server - missing image data')
       }
       
       track('image_generated', {
         model: params.model,
         width: params.width,
-        height: params.height
+        height: params.height,
+        num_images: data.imageCount || 1
       })
       
-      toast.success('Image generated successfully!')
+      const imageCount = data.imageCount || 1
+      toast.success(`${imageCount} image${imageCount > 1 ? 's' : ''} generated successfully!`)
       
       return {
         image_base64: data.base64Image,
+        images: data.images || [data.base64Image],
         mana_points_used: data.mpUsed || 0,
+        cost_per_image: data.costPerImage,
+        total_cost: data.totalCost || data.mpUsed,
+        image_count: data.imageCount || 1,
         backend_cost: data.backendCost
       }
     } catch (error) {

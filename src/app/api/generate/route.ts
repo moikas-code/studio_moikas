@@ -88,15 +88,19 @@ export async function POST(req: NextRequest) {
     
     // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
     const base_mp_cost = model_config.custom_cost / 0.001
-    const model_cost = subscription.plan === 'admin' 
+    const cost_per_image = subscription.plan === 'admin' 
       ? 0  // Admin users have 0 cost
       : calculate_final_cost(base_mp_cost, subscription.plan)
+    
+    // Calculate total cost for multiple images
+    const num_images = validated.num_images || 1
+    const total_cost = cost_per_image * num_images
     
     // Skip token check for admin users
     if (subscription.plan !== 'admin') {
       const total_tokens = subscription.renewable_tokens + subscription.permanent_tokens
-      if (total_tokens < model_cost) {
-        throw new InsufficientTokensError(model_cost, total_tokens)
+      if (total_tokens < total_cost) {
+        throw new InsufficientTokensError(total_cost, total_tokens)
       }
     }
     
@@ -144,7 +148,7 @@ export async function POST(req: NextRequest) {
     const token_result = await deduct_tokens_with_admin_check(
       supabase,
       user.user_id,
-      model_cost,
+      total_cost,
       subscription
     )
     
@@ -165,14 +169,16 @@ export async function POST(req: NextRequest) {
     await log_usage_with_admin_tracking(
       supabase,
       user.user_id,
-      model_cost,
+      total_cost,
       'image_generation',
-      `Image generation: ${validated.model}`,
+      `Image generation: ${validated.model} (${num_images} image${num_images > 1 ? 's' : ''})`,
       {
         model: validated.model,
         width: validated.width,
         height: validated.height,
-        plan: subscription.plan
+        plan: subscription.plan,
+        num_images: num_images,
+        cost_per_image: cost_per_image
       },
       token_result
     )
@@ -272,9 +278,9 @@ export async function POST(req: NextRequest) {
       })
       console.log('Full result:', JSON.stringify(result, null, 2))
       
-      // 11. Apply watermark for free users
+      // 11. Extract all generated images
       // Check different possible result structures
-      let final_image: string = ''
+      const final_images: string[] = []
       
       if (result && typeof result === 'object') {
         // Check for data wrapper (fal.ai client response)
@@ -282,23 +288,22 @@ export async function POST(req: NextRequest) {
           const data = result.data
           // Check for images array in data (standard fal.ai response)
           if ('images' in data && Array.isArray(data.images) && data.images.length > 0) {
-            const firstImage = data.images[0]
-            if (typeof firstImage === 'string') {
-              final_image = firstImage
-            } else if (firstImage && typeof firstImage === 'object' && 'url' in firstImage) {
-              final_image = firstImage.url
-              console.log('Extracted image URL:', final_image)
-            } else {
-              throw new Error('Invalid image format in data.images array')
+            // Collect ALL images, not just the first one
+            for (const image of data.images) {
+              if (typeof image === 'string') {
+                final_images.push(image)
+              } else if (image && typeof image === 'object' && 'url' in image) {
+                final_images.push(image.url)
+              }
             }
           }
           // Check for single image in data
           else if ('image' in data && typeof data.image === 'string') {
-            final_image = data.image
+            final_images.push(data.image)
           }
           // Check for URL in data
           else if ('url' in data && typeof data.url === 'string') {
-            final_image = data.url
+            final_images.push(data.url)
           }
           else {
             console.error('Unknown data structure:', JSON.stringify(data, null, 2))
@@ -307,13 +312,12 @@ export async function POST(req: NextRequest) {
         }
         // Fallback: Check for images array at top level
         else if ('images' in result && Array.isArray(result.images) && result.images.length > 0) {
-          const firstImage = result.images[0]
-          if (typeof firstImage === 'string') {
-            final_image = firstImage
-          } else if (firstImage && typeof firstImage === 'object' && 'url' in firstImage) {
-            final_image = firstImage.url
-          } else {
-            throw new Error('Invalid image format in images array')
+          for (const image of result.images) {
+            if (typeof image === 'string') {
+              final_images.push(image)
+            } else if (image && typeof image === 'object' && 'url' in image) {
+              final_images.push(image.url)
+            }
           }
         }
         // Other fallback options...
@@ -325,41 +329,56 @@ export async function POST(req: NextRequest) {
         throw new Error('Invalid result from image generation')
       }
       
-      if (!final_image) {
-        throw new Error('Failed to extract image URL from response')
+      if (final_images.length === 0) {
+        throw new Error('Failed to extract any image URLs from response')
       }
       
-      // Convert URL to base64 if needed
-      let base64_image: string
-      if (final_image.startsWith('data:image')) {
-        // Already base64
-        base64_image = final_image.split(',')[1]
-      } else if (final_image.startsWith('http')) {
-        // Fetch and convert to base64
-        try {
-          const image_response = await fetch(final_image)
-          const buffer = await image_response.arrayBuffer()
-          base64_image = Buffer.from(buffer).toString('base64')
-        } catch (e) {
-          console.error('Failed to fetch and convert image:', e)
-          throw new Error('Failed to process generated image')
+      // Process all images: convert to base64 and apply watermarks
+      const processed_images: string[] = []
+      
+      for (const image_url of final_images) {
+        let base64_image: string
+        
+        if (image_url.startsWith('data:image')) {
+          // Already base64
+          base64_image = image_url.split(',')[1]
+        } else if (image_url.startsWith('http')) {
+          // Fetch and convert to base64
+          try {
+            const image_response = await fetch(image_url)
+            const buffer = await image_response.arrayBuffer()
+            base64_image = Buffer.from(buffer).toString('base64')
+          } catch (e) {
+            console.error('Failed to fetch and convert image:', e)
+            continue // Skip this image but process others
+          }
+        } else {
+          // Assume it's already base64
+          base64_image = image_url
         }
-      } else {
-        // Assume it's already base64
-        base64_image = final_image
+        
+        // Apply watermark for free users (but not admins)
+        if (is_free_user && !token_result.is_admin) {
+          const watermarked = await add_overlay_to_image_node(`data:image/png;base64,${base64_image}`)
+          base64_image = watermarked.split(',')[1]
+        }
+        
+        processed_images.push(base64_image)
       }
       
-      // Apply watermark for free users (but not admins)
-      if (is_free_user && !token_result.is_admin) {
-        const watermarked = await add_overlay_to_image_node(`data:image/png;base64,${base64_image}`)
-        base64_image = watermarked.split(',')[1]
+      if (processed_images.length === 0) {
+        throw new Error('Failed to process any generated images')
       }
       
-      // 12. Cache result
+      // 12. Cache result - return all images
       const cache_data = {
-        base64Image: base64_image,
+        images: processed_images,
+        base64Image: processed_images[0], // Keep for backward compatibility
         model: validated.model,
-        mpUsed: model_cost,
+        mpUsed: total_cost, // Total MP used for all images
+        costPerImage: cost_per_image,
+        totalCost: total_cost,
+        imageCount: processed_images.length,
         timestamp: new Date().toISOString()
       }
       
@@ -372,7 +391,9 @@ export async function POST(req: NextRequest) {
       track('image_generation_success', {
         user_id: user.user_id,
         model: validated.model,
-        cost: model_cost
+        cost: total_cost,
+        num_images: processed_images.length,
+        cost_per_image: cost_per_image
       })
       
       console.log('Returning cache_data:', {
@@ -400,7 +421,7 @@ export async function POST(req: NextRequest) {
       await log_usage_with_admin_tracking(
         supabase,
         user.user_id,
-        -model_cost, // negative for refund
+        -total_cost, // negative for refund
         'image_generation_refund',
         'Image generation refund: generation failed',
         {

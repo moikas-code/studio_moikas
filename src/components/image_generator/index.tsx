@@ -7,7 +7,7 @@ import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
 import { useAspectRatio } from './hooks/use_aspect_ratio'
 import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster, toast } from 'react-hot-toast'
-import { Sparkles, Settings2, ChevronDown, Download, Copy, Edit2, Loader2 } from 'lucide-react'
+import { Sparkles, Settings2, ChevronDown, Download, Copy, Edit2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { EmbeddingInput, LoraWeight } from './types'
 import type { ModelConfig } from '@/types/models'
 import EmbeddingsSelector from './components/settings/embeddings_selector'
@@ -40,12 +40,15 @@ export function ImageGenerator({
   const [model_id, set_model_id] = useState('')
   const [show_settings, set_show_settings] = useState(false)
   const [show_model_dropdown, set_show_model_dropdown] = useState(false)
-  const [generated_image, set_generated_image] = useState<{
-    url: string
+  const [generated_images, set_generated_images] = useState<{
+    urls: string[]
     prompt: string
     model: string
     timestamp: number
+    total_cost: number
+    cost_per_image: number
   } | null>(null)
+  const [selected_image_index, set_selected_image_index] = useState(0)
   const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
   const [selected_loras, set_selected_loras] = useState<LoraWeight[]>([])
   const [negative_prompt, set_negative_prompt] = useState('cartoon, painting, illustration, worst quality, low quality, normal quality')
@@ -183,12 +186,15 @@ export function ImageGenerator({
     const result = await generate_image(params)
     
     if (result) {
-      set_generated_image({
-        url: result.image_base64,
+      set_generated_images({
+        urls: result.images || [result.image_base64],
         prompt: prompt_text,
         model: model_id,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        total_cost: result.total_cost || result.mana_points_used,
+        cost_per_image: result.cost_per_image || result.mana_points_used
       })
+      set_selected_image_index(0) // Reset to first image
       
       if (on_mp_update) {
         on_mp_update()
@@ -197,11 +203,12 @@ export function ImageGenerator({
   }
   
   const handle_copy_image = async () => {
-    if (!generated_image) return
+    if (!generated_images || generated_images.urls.length === 0) return
     
     try {
       // Convert base64 to blob
-      const base64_data = generated_image.url.split(',')[1] || generated_image.url
+      const current_image = generated_images.urls[selected_image_index]
+      const base64_data = current_image.split(',')[1] || current_image
       const binary_string = window.atob(base64_data)
       const bytes = new Uint8Array(binary_string.length)
       for (let i = 0; i < binary_string.length; i++) {
@@ -223,10 +230,11 @@ export function ImageGenerator({
   }
   
   const handle_download_image = () => {
-    if (!generated_image) return
+    if (!generated_images || generated_images.urls.length === 0) return
     
+    const current_image = generated_images.urls[selected_image_index]
     const link = document.createElement('a')
-    link.href = generated_image.url.startsWith('data:') ? generated_image.url : `data:image/png;base64,${generated_image.url}`
+    link.href = current_image.startsWith('data:') ? current_image : `data:image/png;base64,${current_image}`
     link.download = `generated-${Date.now()}.png`
     link.click()
     toast.success('Image downloaded!')
@@ -590,7 +598,9 @@ export function ImageGenerator({
                   <>
                     Generate
                     {selected_model && (
-                      <span className="opacity-80">({selected_model.cost} MP)</span>
+                      <span className="opacity-80">
+                        ({selected_model.cost * num_images} MP{num_images > 1 && ` for ${num_images} images`})
+                      </span>
                     )}
                   </>
                 )}
@@ -606,12 +616,37 @@ export function ImageGenerator({
             
             {/* Result Section */}
             <div className="bg-base-200/30 rounded-2xl p-4 sm:p-6 min-h-[400px] flex items-center justify-center">
-              {generated_image ? (
+              {generated_images ? (
                 <div className="w-full space-y-4">
+                  {/* Multiple images navigation */}
+                  {generated_images.urls.length > 1 && (
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => set_selected_image_index(Math.max(0, selected_image_index - 1))}
+                        disabled={selected_image_index === 0}
+                        className="btn btn-circle btn-sm btn-ghost"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <span className="text-sm text-base-content/60">
+                        Image {selected_image_index + 1} of {generated_images.urls.length}
+                      </span>
+                      <button
+                        onClick={() => set_selected_image_index(Math.min(generated_images.urls.length - 1, selected_image_index + 1))}
+                        disabled={selected_image_index === generated_images.urls.length - 1}
+                        className="btn btn-circle btn-sm btn-ghost"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="relative group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={generated_image.url.startsWith('data:') ? generated_image.url : `data:image/png;base64,${generated_image.url}`}
+                      src={generated_images.urls[selected_image_index].startsWith('data:') 
+                        ? generated_images.urls[selected_image_index] 
+                        : `data:image/png;base64,${generated_images.urls[selected_image_index]}`}
                       alt="Generated image"
                       className="w-full rounded-xl shadow-xl"
                     />
@@ -636,11 +671,12 @@ export function ImageGenerator({
                       <button
                         onClick={() => {
                           // Store image data in localStorage for the editor
+                          const current_image = generated_images.urls[selected_image_index]
                           const image_data = {
-                            base64: generated_image.url.startsWith('data:') 
-                              ? generated_image.url 
-                              : `data:image/png;base64,${generated_image.url}`,
-                            prompt: generated_image.prompt,
+                            base64: current_image.startsWith('data:') 
+                              ? current_image 
+                              : `data:image/png;base64,${current_image}`,
+                            prompt: generated_images.prompt,
                             timestamp: Date.now()
                           }
                           localStorage.setItem('imageEditorTransfer', JSON.stringify(image_data))
@@ -654,9 +690,22 @@ export function ImageGenerator({
                       </button>
                     </div>
                   </div>
-                  <div className="text-xs text-base-content/60">
-                    <p className="font-medium mb-1">Prompt:</p>
-                    <p className="text-base-content/80">{generated_image.prompt}</p>
+                  <div className="text-xs text-base-content/60 space-y-2">
+                    <div>
+                      <p className="font-medium mb-1">Prompt:</p>
+                      <p className="text-base-content/80">{generated_images.prompt}</p>
+                    </div>
+                    <div className="flex items-center gap-4 text-base-content/70">
+                      <span>Model: {generated_images.model}</span>
+                      <span>•</span>
+                      <span>Total Cost: {generated_images.total_cost} MP</span>
+                      {generated_images.urls.length > 1 && (
+                        <>
+                          <span>•</span>
+                          <span>{generated_images.cost_per_image} MP per image</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
