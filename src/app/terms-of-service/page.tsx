@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from "react";
-import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image, Video, Mic, Robot } from "lucide-react";
+import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image, Video, Mic, Bot } from "lucide-react";
 import Link from "next/link";
 
 export default function Terms_of_service_page() {
@@ -285,7 +285,7 @@ export default function Terms_of_service_page() {
           <div className="grid md:grid-cols-2 gap-4 text-base-content/80">
             <div className="space-y-2">
               <div className="flex items-start gap-2">
-                <Image className="w-4 h-4 text-primary mt-0.5" alt="" />
+                <Image className="w-4 h-4 text-primary mt-0.5" />
                 <span className="text-sm">You own the content you create</span>
               </div>
               <div className="flex items-start gap-2">
@@ -299,7 +299,7 @@ export default function Terms_of_service_page() {
             </div>
             <div className="space-y-2">
               <div className="flex items-start gap-2">
-                <Robot className="w-4 h-4 text-primary mt-0.5" />
+                <Bot className="w-4 h-4 text-primary mt-0.5" />
                 <span className="text-sm">AI outputs may vary in accuracy</span>
               </div>
               <div className="flex items-start gap-2">

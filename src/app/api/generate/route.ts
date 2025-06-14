@@ -300,7 +300,7 @@ export async function POST(req: NextRequest) {
         hasData: 'data' in result,
         dataKeys: result.data ? Object.keys(result.data) : 'no data',
         topLevelKeys: Object.keys(result),
-        timings: result.timings || 'no timings'
+        timings: 'timings' in result && typeof result === 'object' ? (result as { timings?: unknown }).timings : 'no timings'
       })
       console.log('Full result:', JSON.stringify(result, null, 2))
       
@@ -315,10 +315,14 @@ export async function POST(req: NextRequest) {
       }
       
       // Handle dynamic pricing adjustment if inference time is available
+      let actual_mp_cost: number | undefined
+      let actual_total_cost: number | undefined
+      let cost_per_second: number | undefined
+      
       if (is_dynamic_pricing && inference_time !== undefined && model_config.metadata?.cost_per_inference_second) {
-        const cost_per_second = model_config.metadata.cost_per_inference_second as number
-        const actual_mp_cost = Math.ceil(inference_time * cost_per_second)
-        const actual_total_cost = actual_mp_cost * num_images
+        cost_per_second = model_config.metadata.cost_per_inference_second as number
+        actual_mp_cost = Math.ceil(inference_time * cost_per_second)
+        actual_total_cost = actual_mp_cost * num_images
         
         console.log('[Dynamic Pricing] Calculating actual cost:', {
           inference_time,
@@ -371,8 +375,10 @@ export async function POST(req: NextRequest) {
           }
           
           // Update total cost for response
-          total_cost = actual_total_cost
-          cost_per_image = actual_mp_cost
+          if (actual_total_cost !== undefined && actual_mp_cost !== undefined) {
+            total_cost = actual_total_cost
+            cost_per_image = actual_mp_cost
+          }
           
           // Log the additional deduction
           await log_usage_with_admin_tracking(
@@ -410,8 +416,10 @@ export async function POST(req: NextRequest) {
             .eq('user_id', user.user_id)
           
           // Update total cost for response
-          total_cost = actual_total_cost
-          cost_per_image = actual_mp_cost
+          if (actual_total_cost !== undefined && actual_mp_cost !== undefined) {
+            total_cost = actual_total_cost
+            cost_per_image = actual_mp_cost
+          }
           
           // Log the refund
           await log_usage_with_admin_tracking(

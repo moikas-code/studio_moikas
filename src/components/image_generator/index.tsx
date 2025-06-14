@@ -461,7 +461,7 @@ export function ImageGenerator({
                     </div>
                     
                     {/* Model-specific settings */}
-                    {selected_model?.model_config?.supports_cfg && (
+                    {!!selected_model?.model_config?.supports_cfg && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                           Guidance Scale (CFG): {sana.guidance_scale}
@@ -479,7 +479,7 @@ export function ImageGenerator({
                     )}
                     
                     {/* Inference Steps */}
-                    {selected_model?.model_config?.supports_steps && (
+                    {!!selected_model?.model_config?.supports_steps && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                           Inference Steps: {sana.num_inference_steps}
@@ -570,8 +570,8 @@ export function ImageGenerator({
                     
                     {/* Custom Model Name for LoRA models */}
                     {selected_model?.model_config && 
-                     (selected_model.model_config.supports_loras || model_id === 'fal-ai/lora') && 
-                     selected_model.model_config.metadata?.allow_custom_model_name && (
+                     (!!selected_model.model_config.supports_loras || model_id === 'fal-ai/lora') && 
+                     !!selected_model.model_config.metadata?.allow_custom_model_name && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                           Model Name (HuggingFace/CivitAI)
