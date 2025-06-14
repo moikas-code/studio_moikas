@@ -53,7 +53,7 @@ export function ImageGenerator({
   const [selected_image_index, set_selected_image_index] = useState(0)
   const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
   const [selected_loras, set_selected_loras] = useState<LoraWeight[]>([])
-  const [negative_prompt, set_negative_prompt] = useState('cartoon, painting, illustration, worst quality, low quality, normal quality')
+  const [negative_prompt, set_negative_prompt] = useState('')
   const [num_images, set_num_images] = useState(1)
   const [enable_safety_checker, set_enable_safety_checker] = useState(true)
   const [expand_prompt, set_expand_prompt] = useState(true)
@@ -102,6 +102,16 @@ export function ImageGenerator({
             if (default_model.model_config?.metadata?.default_model_name) {
               set_custom_model_name(default_model.model_config.metadata.default_model_name as string)
             }
+            
+            // Update sana settings with model defaults
+            if (default_model.model_config) {
+              if (default_model.model_config.default_cfg) {
+                sana.update_guidance_scale(default_model.model_config.default_cfg)
+              }
+              if (default_model.model_config.default_steps) {
+                sana.update_inference_steps(default_model.model_config.default_steps)
+              }
+            }
           }
         }
       } catch (error) {
@@ -113,7 +123,7 @@ export function ImageGenerator({
     }
     
     fetch_models()
-  }, [user_plan])
+  }, [user_plan, sana])
   
   // Handle prompt enhancement
   const handle_enhance = async () => {
@@ -151,17 +161,20 @@ export function ImageGenerator({
       params.seed = sana.seed
     }
     
-    // Add model-specific params
+    // Add model-specific params - ONLY if the model supports them
     if (model_config) {
+      // Only add guidance_scale if the model explicitly supports it
       if (model_config.supports_cfg) {
         params.guidance_scale = sana.guidance_scale || model_config.default_cfg || 7.5
       }
+      
+      // Only add num_inference_steps if the model explicitly supports it
       if (model_config.supports_steps) {
         params.num_inference_steps = sana.num_inference_steps || model_config.default_steps || 25
       }
       
-      // SANA specific
-      if (model_id.includes('sana') && sana.style_name) {
+      // SANA specific style
+      if (model_id.includes('sana') && sana.style_name && sana.style_name !== 'none') {
         params.style_name = sana.style_name
       }
       
@@ -172,6 +185,10 @@ export function ImageGenerator({
         params.model_name = custom_model_name.trim()
         console.log('[Image Generator] Using custom model name:', params.model_name)
       }
+    } else {
+      // If no model config, don't send any advanced parameters
+      console.log('[Image Generator] No model config found, using minimal parameters')
+    }
       
       // Fast-SDXL specific parameters
       if (model_id === 'fal-ai/fast-sdxl') {
@@ -198,6 +215,7 @@ export function ImageGenerator({
       }
     }
     
+    console.log('[Image Generator] Model config:', model_config)
     console.log('[Image Generator] Final params being sent:', JSON.stringify(params, null, 2))
     const result = await generate_image(params)
     
@@ -350,6 +368,16 @@ export function ImageGenerator({
                           } else {
                             set_custom_model_name('')
                           }
+                          
+                          // Update sana settings with model defaults
+                          if (model.model_config) {
+                            if (model.model_config.default_cfg !== undefined) {
+                              sana.update_guidance_scale(model.model_config.default_cfg)
+                            }
+                            if (model.model_config.default_steps !== undefined) {
+                              sana.update_inference_steps(model.model_config.default_steps)
+                            }
+                          }
                         }}
                         className={`w-full px-4 py-3 text-left hover:bg-base-200/50 
                                   transition-all flex items-center justify-between
@@ -452,7 +480,7 @@ export function ImageGenerator({
                       <textarea
                         value={negative_prompt}
                         onChange={(e) => set_negative_prompt(e.target.value)}
-                        placeholder="Things to avoid in the image..."
+                        placeholder="Things to avoid in the image (optional)..."
                         className="w-full px-3 py-2 bg-base-200/50 rounded-lg
                                  placeholder:text-base-content/40
                                  focus:outline-none focus:ring-2 focus:ring-primary/20
