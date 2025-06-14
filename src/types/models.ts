@@ -109,6 +109,11 @@ export interface ModelConfig {
   
   // Default model flag
   is_default: boolean;
+  
+  // Billing configuration
+  billing_type: BillingType;
+  min_time_charge_seconds?: number;
+  max_time_charge_seconds?: number;
 }
 
 export interface ModelPreset {
@@ -243,6 +248,11 @@ export interface ModelFormData {
   tags?: string[];
   display_order?: number;
   is_default?: boolean;
+  
+  // Billing configuration
+  billing_type?: BillingType;
+  min_time_charge_seconds?: number;
+  max_time_charge_seconds?: number;
 }
 
 // Helper type for model parameters based on type
@@ -349,6 +359,19 @@ export const MODEL_TYPE_OPTIONS: { value: ModelType; label: string }[] = [
 export const SIZE_MODE_OPTIONS: { value: SizeMode; label: string }[] = [
   { value: 'aspect_ratio', label: 'Aspect Ratio' },
   { value: 'pixel', label: 'Pixel Size' }
+];
+
+export const BILLING_TYPE_OPTIONS: { value: BillingType; label: string; description: string }[] = [
+  { 
+    value: 'flat_rate', 
+    label: 'Flat Rate', 
+    description: 'Fixed cost per generation regardless of processing time' 
+  },
+  { 
+    value: 'time_based', 
+    label: 'Time-Based', 
+    description: 'Cost = Base MP × Processing seconds (e.g., 1 MP base × 3 seconds = 3 MP)' 
+  }
 ];
 
 export const DEFAULT_ASPECT_RATIOS = [

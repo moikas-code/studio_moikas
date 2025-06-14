@@ -63,6 +63,8 @@ export function ImageGeneratorWithJobs({
   const [image_format, set_image_format] = useState<'jpeg' | 'png'>('jpeg')
   const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined)
   const [custom_model_name, set_custom_model_name] = useState<string>('')
+  const [generation_start_time, set_generation_start_time] = useState<number | null>(null)
+  const [elapsed_seconds, set_elapsed_seconds] = useState<number>(0)
   
   // Hooks
   const job_generation = useJobBasedImageGeneration()
@@ -137,6 +139,9 @@ export function ImageGeneratorWithJobs({
   // Update generated images when job completes
   useEffect(() => {
     if (job_generation.current_job?.status === 'completed') {
+      // Stop the timer
+      set_generation_start_time(null)
+      
       // Extract job details from the current job's metadata or use current values
       const job_prompt = job_generation.current_job.prompt || prompt_text
       const job_model = job_generation.current_job.model || model_id
@@ -149,6 +154,14 @@ export function ImageGeneratorWithJobs({
         image_urls = [job_generation.current_job.image_url]
       }
       
+      // Calculate elapsed time from job timestamps if available
+      let elapsed_time: number | undefined
+      if (job_generation.current_job.created_at && job_generation.current_job.completed_at) {
+        const created = new Date(job_generation.current_job.created_at).getTime()
+        const completed = new Date(job_generation.current_job.completed_at).getTime()
+        elapsed_time = (completed - created) / 1000 // Convert to seconds
+      }
+      
       if (image_urls.length > 0) {
         set_generated_images({
           urls: image_urls,
@@ -156,7 +169,7 @@ export function ImageGeneratorWithJobs({
           model: job_model,
           timestamp: Date.now(),
           total_cost: job_generation.current_job.cost,
-          inference_time: job_generation.current_job.metadata?.inference_time
+          inference_time: job_generation.current_job.metadata?.inference_time || elapsed_time
         })
         set_current_image_index(0) // Reset to first image
         
@@ -164,8 +177,31 @@ export function ImageGeneratorWithJobs({
           on_mp_update()
         }
       }
+    } else if (job_generation.current_job?.status === 'failed') {
+      // Stop the timer on failure
+      set_generation_start_time(null)
     }
   }, [job_generation.current_job?.status, job_generation.current_job?.images, job_generation.current_job?.image_url])
+  
+  // Timer effect for tracking elapsed time
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    
+    if (generation_start_time) {
+      interval = setInterval(() => {
+        const elapsed = (Date.now() - generation_start_time) / 1000
+        set_elapsed_seconds(elapsed)
+      }, 100) // Update every 100ms for smooth display
+    } else {
+      set_elapsed_seconds(0)
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval)
+      }
+    }
+  }, [generation_start_time])
   
   // Handle prompt enhancement
   const handle_enhance = async () => {
@@ -253,6 +289,9 @@ export function ImageGeneratorWithJobs({
     
     // Clear previous result
     set_generated_images(null)
+    
+    // Start the timer
+    set_generation_start_time(Date.now())
     
     // Submit job
     const result = await job_generation.submit_job(params)
@@ -714,12 +753,26 @@ export function ImageGeneratorWithJobs({
                 {job_generation.current_job && job_generation.current_job.status === 'processing' ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Generating... {job_generation.current_job.progress}%
+                    <span className="flex items-center gap-2">
+                      Generating... {job_generation.current_job.progress}%
+                      {generation_start_time && (
+                        <span className="text-sm opacity-80">
+                          ({elapsed_seconds.toFixed(1)}s)
+                        </span>
+                      )}
+                    </span>
                   </>
                 ) : job_generation.current_job && job_generation.current_job.status === 'pending' ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Queued...
+                    <span className="flex items-center gap-2">
+                      Queued...
+                      {generation_start_time && (
+                        <span className="text-sm opacity-80">
+                          ({elapsed_seconds.toFixed(1)}s)
+                        </span>
+                      )}
+                    </span>
                   </>
                 ) : (
                   <>
@@ -828,7 +881,37 @@ export function ImageGeneratorWithJobs({
                   <p>Model: {generated_images.model}</p>
                   <p>Cost: {generated_images.total_cost} MP{generated_images.urls.length > 1 ? ` (${generated_images.urls.length} images)` : ''}</p>
                   {generated_images.inference_time && (
-                    <p>Inference time: {generated_images.inference_time.toFixed(2)}s</p>
+                    <p>Processing time: {generated_images.inference_time.toFixed(2)}s</p>
+                  )}
+                  {/* Show time-based billing details for time-based models or timing info for admins */}
+                  {(job_generation.current_job?.metadata?.time_based_billing || 
+                    (user_plan === 'admin' && generated_images.inference_time)) && (
+                    <div className="mt-2 p-2 bg-base-200/50 rounded-lg text-xs">
+                      {job_generation.current_job?.metadata?.time_based_billing ? (
+                        <>
+                          <p className="font-semibold mb-1">Time-based billing details:</p>
+                          <p>Actual time: {job_generation.current_job.metadata.actual_inference_seconds?.toFixed(2)}s</p>
+                          <p>Billable time: {job_generation.current_job.metadata.billable_seconds?.toFixed(2)}s</p>
+                          <p>Final cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
+                          {job_generation.current_job.metadata.cost_adjustment_mp !== 0 && (
+                            <p className={job_generation.current_job.metadata.cost_adjustment_mp > 0 ? 'text-warning' : 'text-success'}>
+                              Adjustment: {job_generation.current_job.metadata.cost_adjustment_mp > 0 ? '+' : ''}{job_generation.current_job.metadata.cost_adjustment_mp} MP
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold mb-1">Admin timing info:</p>
+                          <p>Generation time: {generated_images.inference_time?.toFixed(2)}s</p>
+                          {selected_model?.model_config?.billing_type === 'time_based' && (
+                            <>
+                              <p className="text-xs opacity-70 mt-1">If this were a paid user:</p>
+                              <p>Est. cost: {Math.ceil((selected_model.model_config.custom_cost / 0.001) * (generated_images.inference_time || 1))} MP</p>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

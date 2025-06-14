@@ -98,15 +98,32 @@ export async function POST(req: NextRequest) {
       throw new Error(`Invalid or inactive model: ${validated.model}`)
     }
     
-    // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
-    const base_mp_cost = model_config.custom_cost / 0.001
-    const cost_per_image = subscription.plan === 'admin' 
-      ? 0  // Admin users have 0 cost
-      : calculate_final_cost(base_mp_cost, subscription.plan)
-    
-    // Calculate total cost for multiple images
+    // Calculate cost based on billing type
+    let total_cost: number
+    let estimated_cost_note: string | undefined
     const num_images = validated.num_images || 1
-    const total_cost = cost_per_image * num_images
+    
+    if (model_config.billing_type === 'time_based') {
+      // For time-based billing, estimate cost based on average processing time
+      // Use min charge as the estimate since we don't know actual time yet
+      const estimated_seconds = model_config.min_time_charge_seconds || 1
+      const base_mp_cost = model_config.custom_cost / 0.001
+      const estimated_mp_per_image = base_mp_cost * estimated_seconds
+      
+      total_cost = subscription.plan === 'admin' 
+        ? 0  // Admin users have 0 cost
+        : calculate_final_cost(estimated_mp_per_image * num_images, subscription.plan)
+      
+      estimated_cost_note = `Estimated for ${estimated_seconds}s × ${num_images} image(s). Final cost based on actual time.`
+    } else {
+      // Flat rate billing
+      const base_mp_cost = model_config.custom_cost / 0.001
+      const cost_per_image = subscription.plan === 'admin' 
+        ? 0  // Admin users have 0 cost
+        : calculate_final_cost(base_mp_cost, subscription.plan)
+      
+      total_cost = cost_per_image * num_images
+    }
     
     // Skip token check for admin users
     if (subscription.plan !== 'admin') {
@@ -182,7 +199,9 @@ export async function POST(req: NextRequest) {
           model_name: validated.model_name,
           enable_safety_checker: validated.enable_safety_checker,
           expand_prompt: validated.expand_prompt,
-          format: validated.format
+          format: validated.format,
+          billing_type: model_config.billing_type,
+          estimated_cost_note: estimated_cost_note
         }
       })
       .select()
@@ -295,7 +314,7 @@ export async function POST(req: NextRequest) {
           logs: true,
           pollInterval: 5000,
           onQueueUpdate: (update) => {
-            console.log(`Image generation ${update.status}:`, update.progress || 0, '%')
+            console.log(`Image generation ${update.status}`)
           }
         })
         
@@ -401,7 +420,7 @@ export async function POST(req: NextRequest) {
         status: 'processing',
         model: validated.model,
         mpUsed: total_cost,
-        costPerImage: cost_per_image,
+        costPerImage: total_cost / num_images,
         totalCost: total_cost,
         imageCount: num_images,
         timestamp: new Date().toISOString()

@@ -227,17 +227,74 @@ export async function POST(req: NextRequest) {
             .eq('id', job.id)
         } else {
           // Update job with success
+          const update_data: Record<string, unknown> = {
+            status: 'completed',
+            video_url,
+            completed_at: new Date().toISOString(),
+            metadata: {
+              ...job.metadata,
+              inference_time: validated.metrics?.inference_time
+            }
+          }
+          
+          // Handle time-based billing if applicable
+          if (validated.metrics?.inference_time && job.model) {
+            // Fetch the model configuration to check billing type
+            const { data: model_config } = await supabase
+              .from('models')
+              .select('billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds')
+              .eq('model_id', job.model)
+              .single()
+            
+            if (model_config?.billing_type === 'time_based') {
+              // Calculate actual cost based on time
+              let billable_seconds = validated.metrics.inference_time
+              
+              // Apply minimum charge if configured
+              if (model_config.min_time_charge_seconds && billable_seconds < model_config.min_time_charge_seconds) {
+                billable_seconds = model_config.min_time_charge_seconds
+              }
+              
+              // Apply maximum charge cap if configured
+              if (model_config.max_time_charge_seconds && billable_seconds > model_config.max_time_charge_seconds) {
+                billable_seconds = model_config.max_time_charge_seconds
+              }
+              
+              // Calculate cost: Base MP × seconds
+              // Use custom_cost to get the dollar amount, then convert to MP
+              const base_mp_cost = model_config.custom_cost / 0.001
+              const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds)
+              
+              // Calculate the difference from the original estimated cost
+              const cost_difference = time_based_cost_mp - (job.cost || 0)
+              
+              // Update the job's metadata with billing details
+              update_data.metadata = {
+                ...update_data.metadata,
+                time_based_billing: true,
+                actual_inference_seconds: validated.metrics.inference_time,
+                billable_seconds: billable_seconds,
+                time_based_cost_mp: time_based_cost_mp,
+                original_estimated_cost_mp: job.cost,
+                cost_adjustment_mp: cost_difference
+              }
+              
+              // If there's a cost difference, adjust the user's tokens
+              if (cost_difference !== 0 && job.user_id) {
+                await supabase.rpc('deduct_tokens', {
+                  p_user_id: job.user_id,
+                  p_amount: cost_difference,
+                  p_description: cost_difference > 0 
+                    ? `Video generation time-based billing adjustment (+${billable_seconds.toFixed(1)}s)`
+                    : `Video generation time-based billing refund (${billable_seconds.toFixed(1)}s < estimated)`
+                })
+              }
+            }
+          }
+          
           await supabase
             .from('video_jobs')
-            .update({
-              status: 'completed',
-              video_url,
-              completed_at: new Date().toISOString(),
-              metadata: {
-                ...job.metadata,
-                inference_time: validated.metrics?.inference_time
-              }
-            })
+            .update(update_data)
             .eq('id', job.id)
         }
       } else {
@@ -381,17 +438,74 @@ export async function POST(req: NextRequest) {
             .eq('id', job.id)
         } else {
           // Update job with success
+          const update_data: Record<string, unknown> = {
+            status: 'completed',
+            image_url,
+            completed_at: new Date().toISOString(),
+            metadata: {
+              ...job.metadata,
+              inference_time: validated.metrics?.inference_time
+            }
+          }
+          
+          // Handle time-based billing if applicable
+          if (validated.metrics?.inference_time && job.model) {
+            // Fetch the model configuration to check billing type
+            const { data: model_config } = await supabase
+              .from('models')
+              .select('billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds')
+              .eq('model_id', job.model)
+              .single()
+            
+            if (model_config?.billing_type === 'time_based') {
+              // Calculate actual cost based on time
+              let billable_seconds = validated.metrics.inference_time
+              
+              // Apply minimum charge if configured
+              if (model_config.min_time_charge_seconds && billable_seconds < model_config.min_time_charge_seconds) {
+                billable_seconds = model_config.min_time_charge_seconds
+              }
+              
+              // Apply maximum charge cap if configured
+              if (model_config.max_time_charge_seconds && billable_seconds > model_config.max_time_charge_seconds) {
+                billable_seconds = model_config.max_time_charge_seconds
+              }
+              
+              // Calculate cost: Base MP × seconds
+              // Use custom_cost to get the dollar amount, then convert to MP
+              const base_mp_cost = model_config.custom_cost / 0.001
+              const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds)
+              
+              // Calculate the difference from the original estimated cost
+              const cost_difference = time_based_cost_mp - (job.cost || 0)
+              
+              // Update the job's metadata with billing details
+              update_data.metadata = {
+                ...update_data.metadata,
+                time_based_billing: true,
+                actual_inference_seconds: validated.metrics.inference_time,
+                billable_seconds: billable_seconds,
+                time_based_cost_mp: time_based_cost_mp,
+                original_estimated_cost_mp: job.cost,
+                cost_adjustment_mp: cost_difference
+              }
+              
+              // If there's a cost difference, adjust the user's tokens
+              if (cost_difference !== 0 && job.user_id) {
+                await supabase.rpc('deduct_tokens', {
+                  p_user_id: job.user_id,
+                  p_amount: cost_difference,
+                  p_description: cost_difference > 0 
+                    ? `Image generation time-based billing adjustment (+${billable_seconds.toFixed(1)}s)`
+                    : `Image generation time-based billing refund (${billable_seconds.toFixed(1)}s < estimated)`
+                })
+              }
+            }
+          }
+          
           await supabase
             .from('image_jobs')
-            .update({
-              status: 'completed',
-              image_url,
-              completed_at: new Date().toISOString(),
-              metadata: {
-                ...job.metadata,
-                inference_time: validated.metrics?.inference_time
-              }
-            })
+            .update(update_data)
             .eq('id', job.id)
         }
       }

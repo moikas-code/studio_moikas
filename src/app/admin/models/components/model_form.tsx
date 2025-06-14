@@ -14,6 +14,7 @@ import type {
 import {
   MODEL_TYPE_OPTIONS,
   SIZE_MODE_OPTIONS,
+  BILLING_TYPE_OPTIONS,
   DEFAULT_ASPECT_RATIOS,
   DEFAULT_DURATION_OPTIONS,
   SCHEDULER_OPTIONS,
@@ -65,7 +66,10 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     supports_tile_size: false,
     metadata: {},
     tags: [],
-    display_order: 0
+    display_order: 0,
+    billing_type: 'flat_rate',
+    min_time_charge_seconds: 1,
+    max_time_charge_seconds: undefined
   });
   
   // Custom pixel size input
@@ -138,7 +142,10 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         api_version: model.api_version || undefined,
         tags: model.tags,
         display_order: model.display_order,
-        is_default: model.is_default
+        is_default: model.is_default,
+        billing_type: model.billing_type || 'flat_rate',
+        min_time_charge_seconds: model.min_time_charge_seconds || 1,
+        max_time_charge_seconds: model.max_time_charge_seconds || undefined
       });
     }
   }, [model]);
@@ -240,6 +247,12 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
       if (!cleaned.max_tile_height || cleaned.max_tile_height === 0) {
         cleaned.max_tile_height = undefined;
       }
+    }
+    
+    // Clean time-based billing fields if not using time-based billing
+    if (!cleaned.billing_type || cleaned.billing_type !== 'time_based') {
+      cleaned.min_time_charge_seconds = undefined;
+      cleaned.max_time_charge_seconds = undefined;
     }
     
     return cleaned;
@@ -483,6 +496,100 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
               )}
             </label>
           </div>
+        </div>
+      </div>
+      
+      {/* Billing Configuration */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">Billing Configuration</h2>
+          
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Billing Type*</span>
+            </label>
+            <select
+              className="select select-bordered"
+              value={form_data.billing_type || 'flat_rate'}
+              onChange={(e) => set_form_data({ ...form_data, billing_type: e.target.value as 'flat_rate' | 'time_based' })}
+              required
+            >
+              {BILLING_TYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <label className="label">
+              <span className="label-text-alt">
+                {BILLING_TYPE_OPTIONS.find(opt => opt.value === (form_data.billing_type || 'flat_rate'))?.description}
+              </span>
+            </label>
+          </div>
+          
+          {/* Show time-based fields when time_based is selected */}
+          {form_data.billing_type === 'time_based' && (
+            <>
+              <div className="alert alert-info mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <h3 className="font-bold">Time-Based Billing</h3>
+                  <p className="text-sm">The base MP cost will be multiplied by the actual processing seconds</p>
+                  <p className="text-sm mt-1">Example: If base cost is 1 MP and processing takes 3 seconds = 3 MP charged</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Min Charge (seconds)</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-bordered"
+                    value={form_data.min_time_charge_seconds || 1}
+                    onChange={(e) => set_form_data({ ...form_data, min_time_charge_seconds: parseFloat(e.target.value) || 1 })}
+                    step="0.1"
+                    min="0.1"
+                    placeholder="1.0"
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Minimum seconds to charge (default: 1)</span>
+                  </label>
+                </div>
+                
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Max Charge (seconds)</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-bordered"
+                    value={form_data.max_time_charge_seconds || ''}
+                    onChange={(e) => set_form_data({ ...form_data, max_time_charge_seconds: parseFloat(e.target.value) || undefined })}
+                    step="1"
+                    placeholder="60"
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Maximum seconds to charge (optional cap)</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="alert mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <p className="text-sm"><strong>How it works:</strong></p>
+                  <ul className="text-sm mt-1 ml-4 list-disc">
+                    <li>Base MP cost (from above) × Actual seconds = Total MP charged</li>
+                    <li>If processing takes less than min charge, min charge applies</li>
+                    <li>If processing exceeds max charge, max charge applies</li>
+                    <li>Actual cost is calculated when the job completes via webhook</li>
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
       

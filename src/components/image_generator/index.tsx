@@ -821,13 +821,32 @@ export function ImageGenerator({
                           <span>{generated_images.cost_per_image} MP per image</span>
                         </>
                       )}
+                      {generated_images.inference_time && (
+                        <>
+                          <span>•</span>
+                          <span>Time: {generated_images.inference_time.toFixed(2)}s</span>
+                        </>
+                      )}
                       {generated_images.dynamic_pricing && generated_images.inference_time && (
                         <>
                           <span>•</span>
-                          <span className="text-primary/80">Dynamic pricing: {generated_images.inference_time.toFixed(2)}s</span>
+                          <span className="text-primary/80">Dynamic pricing applied</span>
                         </>
                       )}
                     </div>
+                    {/* Show additional timing info for admins */}
+                    {user_plan === 'admin' && generated_images.inference_time && (
+                      <div className="mt-2 p-2 bg-base-200/50 rounded-lg text-xs">
+                        <p className="font-semibold mb-1">Admin timing info:</p>
+                        <p>Generation time: {generated_images.inference_time.toFixed(2)}s</p>
+                        {selected_model?.model_config?.billing_type === 'time_based' && (
+                          <>
+                            <p className="text-xs opacity-70 mt-1">If this were a paid user:</p>
+                            <p>Est. cost: {Math.ceil((selected_model.model_config.custom_cost / 0.001) * generated_images.inference_time)} MP</p>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
