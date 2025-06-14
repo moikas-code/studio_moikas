@@ -307,8 +307,14 @@ export async function POST(req: NextRequest) {
         console.log('Image job completion webhook received:', {
           request_id: validated.request_id,
           output: validated.output,
-          output_type: typeof validated.output
+          output_type: typeof validated.output,
+          model: job.model || 'unknown'
         })
+        
+        // Log full webhook payload for LoRA models for debugging
+        if (job.model === 'fal-ai/lora') {
+          console.log('LoRA webhook full output:', JSON.stringify(validated, null, 2))
+        }
         
         // Check various possible locations for the image URL
         if (validated.output) {

@@ -86,17 +86,24 @@ export async function GET(req: NextRequest) {
       if (job.status === 'completed' && (!job.image_url || job.image_url === null)) {
         // Job is completed but we don't have the image URL, fetch it from fal
         try {
-          const { data: result_response } = await fal.queue.result(job.model, {
+          // For LoRA model, the result might be structured differently
+          const result = await fal.queue.result(job.model, {
             requestId: job.fal_request_id
-          }) as FalImageResultResponse
+          })
+          
+          // Handle both wrapped and unwrapped responses
+          const result_response: any = result.data ? result : { data: result }
 
           console.log('Fetching missing image for completed job:', JSON.stringify(result_response, null, 2))
 
           let extracted_images: string[] = []
 
           // Extract image URLs from various possible locations
-          if (result_response.images && Array.isArray(result_response.images) && result_response.images.length > 0) {
-            for (const img of result_response.images) {
+          // Check if data property exists and has images
+          const data = result_response.data || result_response
+          
+          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+            for (const img of data.images) {
               if (typeof img === 'string') {
                 extracted_images.push(img)
               } else if (img && typeof img === 'object') {
@@ -114,12 +121,13 @@ export async function GET(req: NextRequest) {
                 }
               }
             }
-          } else if (result_response.image && typeof result_response.image === 'string') {
-            extracted_images.push(result_response.image)
-          } else if (result_response.url && typeof result_response.url === 'string') {
-            extracted_images.push(result_response.url)
-          } else if (result_response.data && typeof result_response.data === 'string') {
-            extracted_images.push(result_response.data)
+          } else if (data.image && typeof data.image === 'string') {
+            extracted_images.push(data.image)
+          } else if (data.url && typeof data.url === 'string') {
+            extracted_images.push(data.url)
+          } else if (typeof data === 'string') {
+            // Sometimes the data itself might be the URL
+            extracted_images.push(data)
           }
 
           // Store single image as string, multiple as JSON array
@@ -140,8 +148,18 @@ export async function GET(req: NextRequest) {
 
             job.image_url = image_to_store
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('Failed to fetch image for completed job:', e)
+          
+          // Log more details for validation errors
+          if (e.status === 422) {
+            console.error('Validation error details:', {
+              model: job.model,
+              request_id: job.fal_request_id,
+              error_body: e.body,
+              error_message: e.message
+            })
+          }
         }
       }
 
@@ -257,17 +275,22 @@ export async function GET(req: NextRequest) {
 
           // Try to get the result
           try {
-            const { data: result_response } = await fal.queue.result(job.model, {
+            // Get the raw result first
+            const result = await fal.queue.result(job.model, {
               requestId: job.fal_request_id
-            }) as FalImageResultResponse
+            })
+            
+            // Handle different response structures
+            const result_response: any = result.data ? result : { data: result }
+            const data = result_response.data || result_response
 
             console.log('Fal result response:', JSON.stringify(result_response, null, 2))
 
             // Extract all image URLs from various possible locations
             let extracted_images: string[] = []
 
-            if (result_response.images && Array.isArray(result_response.images) && result_response.images.length > 0) {
-              for (const img of result_response.images) {
+            if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+              for (const img of data.images) {
                 if (typeof img === 'string') {
                   extracted_images.push(img)
                 } else if (img && typeof img === 'object') {
@@ -295,12 +318,13 @@ export async function GET(req: NextRequest) {
                   }
                 }
               }
-            } else if (result_response.image && typeof result_response.image === 'string') {
-              extracted_images.push(result_response.image)
-            } else if (result_response.url && typeof result_response.url === 'string') {
-              extracted_images.push(result_response.url)
-            } else if (result_response.data && typeof result_response.data === 'string') {
-              extracted_images.push(result_response.data)
+            } else if (data.image && typeof data.image === 'string') {
+              extracted_images.push(data.image)
+            } else if (data.url && typeof data.url === 'string') {
+              extracted_images.push(data.url)
+            } else if (typeof data === 'string') {
+              // Sometimes the data itself might be the URL
+              extracted_images.push(data)
             }
 
             // Store single image as string, multiple as JSON array

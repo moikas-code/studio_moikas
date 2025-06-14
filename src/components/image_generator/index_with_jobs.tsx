@@ -217,9 +217,14 @@ export function ImageGeneratorWithJobs({
         params.style_name = sana.style_name
       }
       
-      if ((model_config.supports_loras || model_id === 'fal-ai/lora') && 
-          model_config.metadata?.allow_custom_model_name && 
-          custom_model_name.trim()) {
+      // For fal-ai/lora, model_name is required
+      if (model_id === 'fal-ai/lora') {
+        params.model_name = custom_model_name.trim() || 
+                          model_config.metadata?.default_model_name || 
+                          'stabilityai/stable-diffusion-xl-base-1.0'
+      } else if (model_config.supports_loras && 
+                 model_config.metadata?.allow_custom_model_name && 
+                 custom_model_name.trim()) {
         params.model_name = custom_model_name.trim()
       }
     }
@@ -339,7 +344,7 @@ export function ImageGeneratorWithJobs({
   const selected_model = available_models.find(m => m.id === model_id)
   const can_generate = prompt_text.trim() && 
                       !job_generation.is_loading && 
-                      !job_generation.current_job &&
+                      (!job_generation.current_job || job_generation.current_job.status === 'completed' || job_generation.current_job.status === 'failed') &&
                       selected_model && 
                       (user_plan === 'admin' || available_mp >= selected_model.cost)
   
@@ -706,14 +711,19 @@ export function ImageGeneratorWithJobs({
                 disabled={!can_generate}
                 className="btn btn-primary w-full relative overflow-hidden group"
               >
-                {job_generation.current_job ? (
+                {job_generation.current_job && job_generation.current_job.status === 'processing' ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     Generating... {job_generation.current_job.progress}%
                   </>
+                ) : job_generation.current_job && job_generation.current_job.status === 'pending' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Queued...
+                  </>
                 ) : (
                   <>
-                    Generate
+                    {job_generation.current_job && job_generation.current_job.status === 'completed' ? 'Generate New Image' : 'Generate'}
                     {selected_model && (
                       <span className="ml-2 opacity-70">
                         ({selected_model.cost} MP)
