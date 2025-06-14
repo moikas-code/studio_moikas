@@ -37,6 +37,7 @@ export interface ModelConfig {
   // Generation parameters
   supports_cfg: boolean;
   default_cfg?: number;
+  min_cfg?: number;
   max_cfg?: number;
   
   supports_steps: boolean;
@@ -49,6 +50,51 @@ export interface ModelConfig {
   // Video specific
   duration_options: number[]; // seconds
   supports_audio_generation: boolean;
+  
+  // LoRA/SD specific features
+  supports_loras: boolean;
+  supports_embeddings: boolean;
+  supports_controlnet: boolean;
+  supports_ip_adapter: boolean;
+  
+  // Scheduler configuration
+  supported_schedulers: string[];
+  default_scheduler?: string;
+  
+  // Advanced parameters
+  supports_tile_size: boolean;
+  default_tile_width?: number;
+  default_tile_height?: number;
+  max_tile_width?: number;
+  max_tile_height?: number;
+  
+  // Prediction type
+  supported_prediction_types: string[];
+  default_prediction_type?: string;
+  
+  // Clip skip
+  supports_clip_skip: boolean;
+  default_clip_skip?: number;
+  max_clip_skip?: number;
+  
+  // Eta parameter
+  supports_eta: boolean;
+  default_eta?: number;
+  max_eta?: number;
+  
+  // Prompt features
+  supports_prompt_weighting: boolean;
+  
+  // Model variants
+  supported_variants: string[];
+  default_variant?: string;
+  
+  // Safety
+  has_safety_checker: boolean;
+  
+  // Custom sigmas/timesteps
+  supports_custom_sigmas: boolean;
+  supports_custom_timesteps: boolean;
   
   // Additional metadata
   metadata: Record<string, unknown>;
@@ -96,6 +142,48 @@ export interface ModelAuditLog {
   created_at: string;
 }
 
+// LoRA configuration types
+export interface LoraConfig {
+  id: string;
+  name: string;
+  path: string;
+  scale: number;
+  description?: string;
+  tags: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export interface EmbeddingConfig {
+  id: string;
+  name: string;
+  path: string;
+  tokens: string[];
+  description?: string;
+  tags: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export interface ControlNetConfig {
+  id: string;
+  name: string;
+  path: string;
+  config_url?: string;
+  variant?: string;
+  type: string;
+  description?: string;
+  conditioning_scale: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
 // Form types for creating/updating models
 export interface ModelFormData {
   model_id: string;
@@ -113,6 +201,7 @@ export interface ModelFormData {
   supports_both_size_modes?: boolean;
   supports_cfg?: boolean;
   default_cfg?: number;
+  min_cfg?: number;
   max_cfg?: number;
   supports_steps?: boolean;
   default_steps?: number;
@@ -120,6 +209,34 @@ export interface ModelFormData {
   max_images?: number;
   duration_options?: number[];
   supports_audio_generation?: boolean;
+  
+  // LoRA/SD specific
+  supports_loras?: boolean;
+  supports_embeddings?: boolean;
+  supports_controlnet?: boolean;
+  supports_ip_adapter?: boolean;
+  supported_schedulers?: string[];
+  default_scheduler?: string;
+  supports_tile_size?: boolean;
+  default_tile_width?: number;
+  default_tile_height?: number;
+  max_tile_width?: number;
+  max_tile_height?: number;
+  supported_prediction_types?: string[];
+  default_prediction_type?: string;
+  supports_clip_skip?: boolean;
+  default_clip_skip?: number;
+  max_clip_skip?: number;
+  supports_eta?: boolean;
+  default_eta?: number;
+  max_eta?: number;
+  supports_prompt_weighting?: boolean;
+  supported_variants?: string[];
+  default_variant?: string;
+  has_safety_checker?: boolean;
+  supports_custom_sigmas?: boolean;
+  supports_custom_timesteps?: boolean;
+  
   metadata?: Record<string, unknown>;
   api_endpoint?: string;
   api_version?: string;
@@ -155,6 +272,33 @@ export interface ModelParameters {
   // Style and quality
   style?: string;
   quality?: string;
+  
+  // LoRA/SD specific parameters
+  scheduler?: string;
+  loras?: Array<{ path: string; scale: number }>;
+  embeddings?: Array<{ path: string; tokens: string[] }>;
+  controlnets?: Array<{
+    path: string;
+    image_url: string;
+    conditioning_scale?: number;
+    start_percentage?: number;
+    end_percentage?: number;
+  }>;
+  ip_adapter?: {
+    image_url: string | string[];
+    path: string;
+    scale?: number;
+  };
+  clip_skip?: number;
+  eta?: number;
+  prediction_type?: string;
+  variant?: string;
+  enable_safety_checker?: boolean;
+  prompt_weighting?: boolean;
+  tile_width?: number;
+  tile_height?: number;
+  tile_stride_width?: number;
+  tile_stride_height?: number;
   
   // Additional parameters from metadata
   [key: string]: unknown;
@@ -229,6 +373,40 @@ export const DEFAULT_PIXEL_SIZES: PixelSize[] = [
 ];
 
 export const DEFAULT_DURATION_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+// LoRA/SD specific constants
+export const SCHEDULER_OPTIONS = [
+  'DPM++ 2M',
+  'DPM++ 2M Karras',
+  'DPM++ 2M SDE',
+  'DPM++ 2M SDE Karras',
+  'Euler',
+  'Euler A',
+  'Euler (trailing timesteps)',
+  'LCM',
+  'LCM (trailing timesteps)',
+  'DDIM',
+  'TCD'
+];
+
+export const PREDICTION_TYPE_OPTIONS = [
+  'epsilon',
+  'v_prediction'
+];
+
+export const CONTROLNET_TYPES = [
+  'canny',
+  'depth',
+  'pose',
+  'mlsd',
+  'normal',
+  'openpose',
+  'scribble',
+  'seg',
+  'shuffle',
+  'softedge',
+  'tile'
+];
 
 // Utility functions
 export function get_model_cost_in_mp(model: ModelConfig): number {

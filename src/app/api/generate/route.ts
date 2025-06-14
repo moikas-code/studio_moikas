@@ -143,12 +143,25 @@ export async function POST(req: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 2000))
     }
     
-    // 9. Deduct tokens with admin check
+    // 9. Store initial cost for potential dynamic pricing
+    let initial_total_cost = total_cost
+    let is_dynamic_pricing = false
+    
+    // Check if this model supports dynamic pricing based on inference time
+    if ((model_config.metadata?.enable_dynamic_pricing || validated.model === 'fal-ai/lora') && model_config.metadata?.cost_per_inference_second) {
+      is_dynamic_pricing = true
+      console.log('[Dynamic Pricing] Model supports dynamic pricing')
+      // For dynamic pricing models, we'll deduct a minimal amount first
+      // and adjust after we know the actual inference time
+      initial_total_cost = 1 * num_images // 1 MP per image as placeholder
+    }
+    
+    // Deduct tokens with admin check
     // Check if user is admin and handle token deduction accordingly
     const token_result = await deduct_tokens_with_admin_check(
       supabase,
       user.user_id,
-      total_cost,
+      initial_total_cost,
       subscription
     )
     
@@ -263,20 +276,161 @@ export async function POST(req: NextRequest) {
         }
       }
       
+      // Handle custom model_name for LoRA models
+      let effective_model_id = validated.model
+      if ((model_config.supports_loras || validated.model === 'fal-ai/lora') && validated.model_name) {
+        // For LoRA models, use the custom model_name if provided
+        effective_model_id = validated.model_name
+        console.log('[LoRA] Using custom model:', effective_model_id)
+      } else if (model_config.metadata?.default_model_name && validated.model === 'fal-ai/lora') {
+        // Use default model name if no custom one provided
+        effective_model_id = model_config.metadata.default_model_name as string
+        console.log('[LoRA] Using default model:', effective_model_id)
+      }
+      
       const result = await generate_flux_image(
         prompt,
         validated.width || 1024,
         validated.height || 1024,
-        validated.model,
+        effective_model_id,
         generation_options
       )
       
       console.log('Fal.ai result structure:', {
         hasData: 'data' in result,
         dataKeys: result.data ? Object.keys(result.data) : 'no data',
-        topLevelKeys: Object.keys(result)
+        topLevelKeys: Object.keys(result),
+        timings: result.timings || 'no timings'
       })
       console.log('Full result:', JSON.stringify(result, null, 2))
+      
+      // Extract inference time for dynamic pricing
+      let inference_time: number | undefined
+      if (result && typeof result === 'object' && 'timings' in result && typeof result.timings === 'object') {
+        const timings = result.timings as Record<string, unknown>
+        if ('inference' in timings && typeof timings.inference === 'number') {
+          inference_time = timings.inference
+          console.log('[Dynamic Pricing] Inference time:', inference_time, 'seconds')
+        }
+      }
+      
+      // Handle dynamic pricing adjustment if inference time is available
+      if (is_dynamic_pricing && inference_time !== undefined && model_config.metadata?.cost_per_inference_second) {
+        const cost_per_second = model_config.metadata.cost_per_inference_second as number
+        const actual_mp_cost = Math.ceil(inference_time * cost_per_second)
+        const actual_total_cost = actual_mp_cost * num_images
+        
+        console.log('[Dynamic Pricing] Calculating actual cost:', {
+          inference_time,
+          cost_per_second,
+          actual_mp_cost,
+          actual_total_cost,
+          initial_total_cost
+        })
+        
+        // Adjust tokens if actual cost is different from initial
+        if (actual_total_cost > initial_total_cost && subscription.plan !== 'admin') {
+          const additional_cost = actual_total_cost - initial_total_cost
+          
+          // Check if user has enough tokens for the additional cost
+          const updated_subscription = await get_user_subscription(user.user_id)
+          const total_available = updated_subscription.renewable_tokens + updated_subscription.permanent_tokens
+          
+          if (total_available < additional_cost) {
+            // Refund initial deduction and fail
+            await supabase
+              .from('subscriptions')
+              .update({
+                renewable_tokens: subscription.renewable_tokens,
+                permanent_tokens: subscription.permanent_tokens
+              })
+              .eq('user_id', user.user_id)
+            
+            throw new Error(`Insufficient tokens for actual generation cost. Need ${actual_total_cost} MP total, but only ${total_available + initial_total_cost} MP available`)
+          }
+          
+          // Deduct additional tokens
+          const additional_result = await deduct_tokens_with_admin_check(
+            supabase,
+            user.user_id,
+            additional_cost,
+            updated_subscription
+          )
+          
+          if (!additional_result.success) {
+            // Refund initial deduction
+            await supabase
+              .from('subscriptions')
+              .update({
+                renewable_tokens: subscription.renewable_tokens,
+                permanent_tokens: subscription.permanent_tokens
+              })
+              .eq('user_id', user.user_id)
+            
+            throw new Error('Failed to deduct additional tokens for dynamic pricing')
+          }
+          
+          // Update total cost for response
+          total_cost = actual_total_cost
+          cost_per_image = actual_mp_cost
+          
+          // Log the additional deduction
+          await log_usage_with_admin_tracking(
+            supabase,
+            user.user_id,
+            additional_cost,
+            'image_generation',
+            `Dynamic pricing adjustment for ${validated.model} (${inference_time.toFixed(2)}s inference)`,
+            {
+              model: validated.model,
+              inference_time,
+              cost_per_second,
+              additional_cost,
+              total_cost: actual_total_cost
+            },
+            additional_result
+          )
+        } else if (actual_total_cost < initial_total_cost && subscription.plan !== 'admin') {
+          // Refund the difference if actual cost is less
+          const refund_amount = initial_total_cost - actual_total_cost
+          
+          // Calculate how much was deducted from each token type
+          const renewable_deducted = Math.min(initial_total_cost, subscription.renewable_tokens)
+          
+          // Refund proportionally
+          const renewable_refund = Math.min(refund_amount, renewable_deducted)
+          const permanent_refund = refund_amount - renewable_refund
+          
+          await supabase
+            .from('subscriptions')
+            .update({
+              renewable_tokens: subscription.renewable_tokens + renewable_refund,
+              permanent_tokens: subscription.permanent_tokens + permanent_refund
+            })
+            .eq('user_id', user.user_id)
+          
+          // Update total cost for response
+          total_cost = actual_total_cost
+          cost_per_image = actual_mp_cost
+          
+          // Log the refund
+          await log_usage_with_admin_tracking(
+            supabase,
+            user.user_id,
+            -refund_amount,
+            'image_generation',
+            `Dynamic pricing refund for ${validated.model} (${inference_time.toFixed(2)}s inference)`,
+            {
+              model: validated.model,
+              inference_time,
+              cost_per_second,
+              refund_amount,
+              total_cost: actual_total_cost
+            },
+            token_result
+          )
+        }
+      }
       
       // 11. Extract all generated images
       // Check different possible result structures
@@ -379,7 +533,9 @@ export async function POST(req: NextRequest) {
         costPerImage: cost_per_image,
         totalCost: total_cost,
         imageCount: processed_images.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...(inference_time !== undefined && { inferenceTime: inference_time }),
+        ...(is_dynamic_pricing && { dynamicPricing: true })
       }
       
       if (redis) {

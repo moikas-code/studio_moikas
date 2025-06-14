@@ -21,7 +21,10 @@
     "supabase:migration:down": "supabase migration down",
     "tunnel:init": "docker pull cloudflare/cloudflared:latest",
     "tunnel:login": "docker run -it --rm cloudflare/cloudflared:latest tunnel login",
-    "tunnel:start": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://host.docker.internal:3000"
+    "tunnel:start": "docker run --rm -it --network host cloudflare/cloudflared:latest tunnel --url http://localhost:3000",
+    "tunnel:start:wsl": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://$(hostname -I | awk '{print $1}'):3000",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
+    "dev:tunnel": "bun run dev & bun run tunnel:start"
   },
   "dependencies": {
     "@ai-sdk/fal": "^0.1.12",

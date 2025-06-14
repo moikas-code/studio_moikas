@@ -47,6 +47,8 @@ export function ImageGenerator({
     timestamp: number
     total_cost: number
     cost_per_image: number
+    inference_time?: number
+    dynamic_pricing?: boolean
   } | null>(null)
   const [selected_image_index, set_selected_image_index] = useState(0)
   const [selected_embeddings, set_selected_embeddings] = useState<EmbeddingInput[]>([])
@@ -57,6 +59,7 @@ export function ImageGenerator({
   const [expand_prompt, set_expand_prompt] = useState(true)
   const [image_format, set_image_format] = useState<'jpeg' | 'png'>('jpeg')
   const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined)
+  const [custom_model_name, set_custom_model_name] = useState<string>('')
   
   // Hooks
   const { is_loading, error_message, generate_image } = useImageGeneration()
@@ -94,6 +97,11 @@ export function ImageGenerator({
           if (models.length > 0) {
             const default_model = models.find((m: typeof models[0]) => m.model_config?.is_default) || models[0]
             set_model_id(default_model.id)
+            
+            // Set default model name if available
+            if (default_model.model_config?.metadata?.default_model_name) {
+              set_custom_model_name(default_model.model_config.metadata.default_model_name as string)
+            }
           }
         }
       } catch (error) {
@@ -157,6 +165,14 @@ export function ImageGenerator({
         params.style_name = sana.style_name
       }
       
+      // Add custom model name for LoRA models
+      if ((model_config.supports_loras || model_id === 'fal-ai/lora') && 
+          model_config.metadata?.allow_custom_model_name && 
+          custom_model_name.trim()) {
+        params.model_name = custom_model_name.trim()
+        console.log('[Image Generator] Using custom model name:', params.model_name)
+      }
+      
       // Fast-SDXL specific parameters
       if (model_id === 'fal-ai/fast-sdxl') {
         params.num_images = num_images
@@ -192,7 +208,9 @@ export function ImageGenerator({
         model: model_id,
         timestamp: Date.now(),
         total_cost: result.total_cost || result.mana_points_used,
-        cost_per_image: result.cost_per_image || result.mana_points_used
+        cost_per_image: result.cost_per_image || result.mana_points_used,
+        inference_time: result.inference_time,
+        dynamic_pricing: result.dynamic_pricing
       })
       set_selected_image_index(0) // Reset to first image
       
@@ -325,6 +343,13 @@ export function ImageGenerator({
                         onClick={() => {
                           set_model_id(model.id)
                           set_show_model_dropdown(false)
+                          
+                          // Set default model name if available for LoRA models
+                          if (model.model_config?.metadata?.default_model_name) {
+                            set_custom_model_name(model.model_config.metadata.default_model_name as string)
+                          } else {
+                            set_custom_model_name('')
+                          }
                         }}
                         className={`w-full px-4 py-3 text-left hover:bg-base-200/50 
                                   transition-all flex items-center justify-between
@@ -543,6 +568,30 @@ export function ImageGenerator({
                       </>
                     )}
                     
+                    {/* Custom Model Name for LoRA models */}
+                    {selected_model?.model_config && 
+                     (selected_model.model_config.supports_loras || model_id === 'fal-ai/lora') && 
+                     selected_model.model_config.metadata?.allow_custom_model_name && (
+                      <div>
+                        <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                          Model Name (HuggingFace/CivitAI)
+                        </label>
+                        <input
+                          type="text"
+                          value={custom_model_name}
+                          onChange={(e) => set_custom_model_name(e.target.value)}
+                          placeholder={selected_model.model_config.metadata?.default_model_name as string || "e.g., stabilityai/stable-diffusion-xl-base-1.0"}
+                          className="w-full px-3 py-2 bg-base-200/50 rounded-lg
+                                   placeholder:text-base-content/40
+                                   focus:outline-none focus:ring-2 focus:ring-primary/20
+                                   text-sm"
+                        />
+                        <p className="text-xs text-base-content/40 mt-1">
+                          Enter any Stable Diffusion model from HuggingFace or CivitAI
+                        </p>
+                      </div>
+                    )}
+                    
                     {/* Seed */}
                     <div>
                       <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
@@ -710,6 +759,12 @@ export function ImageGenerator({
                         <>
                           <span>•</span>
                           <span>{generated_images.cost_per_image} MP per image</span>
+                        </>
+                      )}
+                      {generated_images.dynamic_pricing && generated_images.inference_time && (
+                        <>
+                          <span>•</span>
+                          <span className="text-primary/80">Dynamic pricing: {generated_images.inference_time.toFixed(2)}s</span>
                         </>
                       )}
                     </div>

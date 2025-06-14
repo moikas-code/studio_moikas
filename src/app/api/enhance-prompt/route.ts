@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     
     // 5. Apply rate limiting
     const subscription = await get_user_subscription(user.user_id)
-    const is_free = subscription.plan_name === 'free'
+    const is_free = subscription.plan === 'free'
     
     await enforce_rate_limit(
       user.user_id,

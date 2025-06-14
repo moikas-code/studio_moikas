@@ -6,6 +6,7 @@ import type { EmbeddingInput, LoraWeight } from '../types'
 export interface GenerationParams {
   prompt: string
   model: string
+  model_name?: string // Custom model name for LoRA models
   width: number
   height: number
   negative_prompt?: string
@@ -30,6 +31,8 @@ export interface GenerationResult {
   total_cost?: number
   image_count?: number
   backend_cost?: number
+  inference_time?: number // Time in seconds for dynamic pricing
+  dynamic_pricing?: boolean // Whether dynamic pricing was used
 }
 
 export function useImageGeneration() {
@@ -108,7 +111,9 @@ export function useImageGeneration() {
         cost_per_image: data.costPerImage,
         total_cost: data.totalCost || data.mpUsed,
         image_count: data.imageCount || 1,
-        backend_cost: data.backendCost
+        backend_cost: data.backendCost,
+        inference_time: data.inferenceTime,
+        dynamic_pricing: data.dynamicPricing
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Generation failed'
