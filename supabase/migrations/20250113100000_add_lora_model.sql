@@ -29,15 +29,15 @@ INSERT INTO models (
   'fal-ai/lora',
   'Any LoRA Model',
   'image',
-  0.002,
-  0.002,
+  0.001,
+  0.001,
   false,
   false,
   'aspect_ratio',
   '[]'::jsonb,
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4'],
   true,
-  false, -- LoRA models don't have standard cfg support
+  true, -- LoRA models don't have standard cfg support
   NULL,
   NULL,
   NULL,
@@ -52,7 +52,7 @@ INSERT INTO models (
     'default_model_name', 'stabilityai/stable-diffusion-xl-base-1.0',
     'supported_model_sources', ARRAY['HuggingFace', 'CivitAI', 'Custom URL'],
     'enable_dynamic_pricing', true,
-    'cost_per_inference_second', 2, -- 2 MP per second of inference
+    'cost_per_inference_second', 1, -- 1 MP per second of inference
     'description', 'Use any Stable Diffusion model from HuggingFace or CivitAI with dynamic pricing based on inference time'
   ),
   true,

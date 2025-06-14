@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // 2. Get job from database - check both video_jobs and audio_jobs
+    // 2. Get job from database - check video_jobs, audio_jobs, and image_jobs
     const supabase = get_service_role_client()
     
     // First try video_jobs
@@ -172,6 +172,19 @@ export async function POST(req: NextRequest) {
       
       job = audio_result.data;
       job_error = audio_result.error;
+    }
+    
+    // If not found in audio_jobs, try image_jobs
+    if (job_error || !job) {
+      job_type = 'image';
+      const image_result = await supabase
+        .from('image_jobs')
+        .select('*')
+        .eq('fal_request_id', validated.request_id)
+        .single()
+      
+      job = image_result.data;
+      job_error = image_result.error;
     }
     
     if (job_error || !job) {
@@ -287,12 +300,100 @@ export async function POST(req: NextRequest) {
             await update_parent_document_status(supabase, job.metadata.parent_job_id, job.user_id)
           }
         }
+      } else if (job_type === 'image') {
+        // Handle image job completion
+        let image_url: string | undefined
+        
+        console.log('Image job completion webhook received:', {
+          request_id: validated.request_id,
+          output: validated.output,
+          output_type: typeof validated.output
+        })
+        
+        // Check various possible locations for the image URL
+        if (validated.output) {
+          if (typeof validated.output === 'string') {
+            image_url = validated.output
+          } else {
+            const output = validated.output as Record<string, unknown>
+            if (typeof output.image_url === 'string') {
+              image_url = output.image_url
+            } else if (typeof output.url === 'string') {
+              image_url = output.url
+            } else if (typeof output.image === 'string') {
+              image_url = output.image
+            } else if (Array.isArray(output.images) && output.images.length > 0) {
+              // Handle array of images (take first one)
+              const first_image = output.images[0]
+              if (typeof first_image === 'string') {
+                image_url = first_image
+              } else if (first_image && typeof first_image === 'object') {
+                // Check for url field
+                if (first_image.url && typeof first_image.url === 'string' && first_image.url.trim() !== '') {
+                  image_url = first_image.url
+                } 
+                // Check if there's a data field with base64 image
+                else if (first_image.data && typeof first_image.data === 'string') {
+                  image_url = first_image.data
+                }
+                // Check if there's a base64 field
+                else if (first_image.base64 && typeof first_image.base64 === 'string') {
+                  image_url = `data:${first_image.content_type || 'image/png'};base64,${first_image.base64}`
+                }
+                // If url is empty but we have file_name, might need to construct URL
+                // For now, log the structure for debugging
+                else {
+                  console.error('Webhook - Image object has empty or missing URL:', first_image)
+                  console.error('Full output:', JSON.stringify(output, null, 2))
+                }
+              }
+            } else if (output.data && typeof output.data === 'string') {
+              // Check if there's a data field at the top level
+              image_url = output.data
+            }
+            
+            // Log all keys in output for debugging
+            console.log('Output keys:', Object.keys(output))
+          }
+        }
+        
+        if (!image_url) {
+          console.error('No image URL in webhook payload, will fetch from status endpoint')
+          // Don't mark as failed yet - just update status to completed
+          // The status endpoint will fetch the actual result
+          await supabase
+            .from('image_jobs')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              metadata: {
+                ...job.metadata,
+                inference_time: validated.metrics?.inference_time,
+                webhook_missing_url: true
+              }
+            })
+            .eq('id', job.id)
+        } else {
+          // Update job with success
+          await supabase
+            .from('image_jobs')
+            .update({
+              status: 'completed',
+              image_url,
+              completed_at: new Date().toISOString(),
+              metadata: {
+                ...job.metadata,
+                inference_time: validated.metrics?.inference_time
+              }
+            })
+            .eq('id', job.id)
+        }
       }
     }
     
     if (validated.status === 'failed' || validated.status === 'FAILED') {
       // Update job with failure
-      const table_name = job_type === 'video' ? 'video_jobs' : 'audio_jobs'
+      const table_name = job_type === 'video' ? 'video_jobs' : job_type === 'audio' ? 'audio_jobs' : 'image_jobs'
       await supabase
         .from(table_name)
         .update({
@@ -313,7 +414,7 @@ export async function POST(req: NextRequest) {
         await supabase.rpc('deduct_tokens', {
           p_user_id: job.user_id,
           p_amount: -job.cost, // negative for refund
-          p_description: `${job_type === 'video' ? 'Video' : 'Audio'} generation refund: ${validated.error || 'generation failed'}`
+          p_description: `${job_type === 'video' ? 'Video' : job_type === 'audio' ? 'Audio' : 'Image'} generation refund: ${validated.error || 'generation failed'}`
         })
       }
     }
@@ -325,7 +426,7 @@ export async function POST(req: NextRequest) {
       ) as { progress?: number } | undefined
       const progress = progress_log?.progress || 50
       
-      const table_name = job_type === 'video' ? 'video_jobs' : 'audio_jobs'
+      const table_name = job_type === 'video' ? 'video_jobs' : job_type === 'audio' ? 'audio_jobs' : 'image_jobs'
       await supabase
         .from(table_name)
         .update({

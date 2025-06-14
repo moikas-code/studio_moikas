@@ -61,7 +61,17 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const { clerk_user_id, email } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (json_error) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+    
+    const { clerk_user_id, email } = body;
     if (!clerk_user_id || !email) {
       return NextResponse.json({ error: "Missing clerk_user_id or email" }, { status: 400 });
     }
