@@ -102,6 +102,8 @@ export function ImageGenerator({
             if (default_model.model_config?.metadata?.default_model_name) {
               set_custom_model_name(default_model.model_config.metadata.default_model_name as string)
             }
+            
+            // Model defaults will be applied when sana is initialized
           }
         }
       } catch (error) {
@@ -115,21 +117,18 @@ export function ImageGenerator({
     fetch_models()
   }, [user_plan])
   
-  // Set initial sana settings when models are loaded and model_id is set
+  // Update sana settings when model changes
   useEffect(() => {
-    if (!models_loading && available_models.length > 0 && model_id) {
-      const selected_model = available_models.find(m => m.id === model_id)
-      if (selected_model?.model_config) {
-        if (selected_model.model_config.default_cfg !== undefined) {
-          sana.update_guidance_scale(selected_model.model_config.default_cfg)
-        }
-        if (selected_model.model_config.default_steps !== undefined) {
-          sana.update_inference_steps(selected_model.model_config.default_steps)
-        }
+    const selected_model = available_models.find(m => m.id === model_id)
+    if (selected_model?.model_config) {
+      if (selected_model.model_config.default_cfg !== undefined) {
+        sana.update_guidance_scale(selected_model.model_config.default_cfg)
+      }
+      if (selected_model.model_config.default_steps !== undefined) {
+        sana.update_inference_steps(selected_model.model_config.default_steps)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model_id, models_loading])
+  }, [model_id, available_models, sana])
   
   // Handle prompt enhancement
   const handle_enhance = async () => {
@@ -195,28 +194,29 @@ export function ImageGenerator({
       // If no model config, don't send any advanced parameters
       console.log('[Image Generator] No model config found, using minimal parameters')
     }
-    
-    // Fast-SDXL specific parameters
-    if (model_id === 'fal-ai/fast-sdxl') {
-      params.num_images = num_images
-      params.enable_safety_checker = enable_safety_checker
-      params.expand_prompt = expand_prompt
-      params.format = image_format
       
-      if (selected_embeddings.length > 0) {
-        params.embeddings = selected_embeddings
-      }
-      if (selected_loras.length > 0) {
-        console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
-        params.loras = selected_loras
-      }
-    } else if (model_config?.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
-      if (selected_embeddings.length > 0) {
-        params.embeddings = selected_embeddings
-      }
-      if (selected_loras.length > 0) {
-        console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
-        params.loras = selected_loras
+      // Fast-SDXL specific parameters
+      if (model_id === 'fal-ai/fast-sdxl') {
+        params.num_images = num_images
+        params.enable_safety_checker = enable_safety_checker
+        params.expand_prompt = expand_prompt
+        params.format = image_format
+        
+        if (selected_embeddings.length > 0) {
+          params.embeddings = selected_embeddings
+        }
+        if (selected_loras.length > 0) {
+          console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
+          params.loras = selected_loras
+        }
+      } else if (model_config.metadata?.supports_embeddings && (selected_embeddings.length > 0 || selected_loras.length > 0)) {
+        if (selected_embeddings.length > 0) {
+          params.embeddings = selected_embeddings
+        }
+        if (selected_loras.length > 0) {
+          console.log('[Image Generator] Selected LoRAs:', JSON.stringify(selected_loras, null, 2))
+          params.loras = selected_loras
+        }
       }
     }
     
@@ -236,11 +236,6 @@ export function ImageGenerator({
         dynamic_pricing: result.dynamic_pricing
       })
       set_selected_image_index(0) // Reset to first image
-      
-      // Generate a new seed for the next generation
-      const new_seed = Math.floor(Math.random() * 2147483647) // Max 32-bit integer
-      set_custom_seed(new_seed)
-      console.log('[Image Generator] Generated new seed for next generation:', new_seed)
       
       if (on_mp_update) {
         on_mp_update()
@@ -379,15 +374,6 @@ export function ImageGenerator({
                             set_custom_model_name('')
                           }
                           
-                          // Update sana settings with model defaults
-                          if (model.model_config) {
-                            if (model.model_config.default_cfg !== undefined) {
-                              sana.update_guidance_scale(model.model_config.default_cfg)
-                            }
-                            if (model.model_config.default_steps !== undefined) {
-                              sana.update_inference_steps(model.model_config.default_steps)
-                            }
-                          }
                         }}
                         className={`w-full px-4 py-3 text-left hover:bg-base-200/50 
                                   transition-all flex items-center justify-between
@@ -612,24 +598,20 @@ export function ImageGenerator({
                      !!selected_model.model_config.metadata?.allow_custom_model_name && (
                       <div>
                         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                          {model_id === 'fal-ai/lora' ? 'Base Model' : 'Model Name'} (HuggingFace)
+                          Model Name (HuggingFace/CivitAI)
                         </label>
                         <input
                           type="text"
                           value={custom_model_name}
                           onChange={(e) => set_custom_model_name(e.target.value)}
-                          placeholder={model_id === 'fal-ai/lora' 
-                            ? "e.g., stabilityai/stable-diffusion-xl-base-1.0" 
-                            : selected_model.model_config.metadata?.default_model_name as string || "e.g., stabilityai/stable-diffusion-xl-base-1.0"}
+                          placeholder={selected_model.model_config.metadata?.default_model_name as string || "e.g., stabilityai/stable-diffusion-xl-base-1.0"}
                           className="w-full px-3 py-2 bg-base-200/50 rounded-lg
                                    placeholder:text-base-content/40
                                    focus:outline-none focus:ring-2 focus:ring-primary/20
                                    text-sm"
                         />
                         <p className="text-xs text-base-content/40 mt-1">
-                          {model_id === 'fal-ai/lora' 
-                            ? "Specify the base SD/SDXL model from HuggingFace to use"
-                            : "Enter any Stable Diffusion model from HuggingFace or CivitAI"}
+                          Enter any Stable Diffusion model from HuggingFace or CivitAI
                         </p>
                       </div>
                     )}
@@ -639,34 +621,16 @@ export function ImageGenerator({
                       <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                         Seed (Optional)
                       </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={custom_seed || ''}
-                          onChange={(e) => set_custom_seed(e.target.value ? Number(e.target.value) : undefined)}
-                          placeholder="Random"
-                          className="w-full px-3 py-2 bg-base-200/50 rounded-lg
-                                   placeholder:text-base-content/40
-                                   focus:outline-none focus:ring-2 focus:ring-primary/20
-                                   text-sm pr-10"
-                        />
-                        {custom_seed !== undefined && (
-                          <button
-                            type="button"
-                            onClick={() => set_custom_seed(undefined)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 
-                                     hover:text-base-content/60 transition-colors"
-                            title="Clear seed"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-base-content/40 mt-1">
-                        Auto-generates a new seed after each generation for variety
-                      </p>
+                      <input
+                        type="number"
+                        value={custom_seed || ''}
+                        onChange={(e) => set_custom_seed(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Random"
+                        className="w-full px-3 py-2 bg-base-200/50 rounded-lg
+                                 placeholder:text-base-content/40
+                                 focus:outline-none focus:ring-2 focus:ring-primary/20
+                                 text-sm"
+                      />
                     </div>
                     
                     {/* Embeddings for SDXL */}

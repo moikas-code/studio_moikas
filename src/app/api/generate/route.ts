@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { generate_flux_image } from "@/lib/fal_client"
+import { generate_flux_image, generate_sd_lora_image } from "@/lib/fal_client"
 import { track } from "@vercel/analytics/server"
 
 // Next.js route configuration
@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
         enable_safety_checker?: boolean;
         expand_prompt?: boolean;
         format?: 'jpeg' | 'png';
+        model_name?: string;
       } = {}
       
       // Add optional params
@@ -278,23 +279,63 @@ export async function POST(req: NextRequest) {
       
       // Handle custom model_name for LoRA models
       let effective_model_id = validated.model
-      if ((model_config.supports_loras || validated.model === 'fal-ai/lora') && validated.model_name) {
-        // For LoRA models, use the custom model_name if provided
+      const is_lora_model = model_config.supports_loras || validated.model === 'fal-ai/lora'
+      const is_any_lora = validated.model === 'fal-ai/lora'
+      
+      // For the "Any LoRA" model, we need to handle it differently
+      if (is_any_lora) {
+        // For Any LoRA, we always use the fal-ai/lora endpoint
+        effective_model_id = 'fal-ai/lora'
+        
+        // The custom model name will be passed as a parameter to the API
+        if (validated.model_name) {
+          // Add model_name to generation options for the SD handler
+          generation_options.model_name = validated.model_name
+          console.log('[Any LoRA] Using fal-ai/lora endpoint with custom model:', validated.model_name)
+        } else {
+          // Use default model from metadata
+          const default_model = model_config.metadata?.default_model_name as string || 'stabilityai/stable-diffusion-xl-base-1.0'
+          generation_options.model_name = default_model
+          console.log('[Any LoRA] Using fal-ai/lora endpoint with default model:', default_model)
+        }
+      } else if (is_lora_model && validated.model_name) {
+        // For other LoRA-supporting models, use the custom model_name if provided
         effective_model_id = validated.model_name
         console.log('[LoRA] Using custom model:', effective_model_id)
-      } else if (model_config.metadata?.default_model_name && validated.model === 'fal-ai/lora') {
-        // Use default model name if no custom one provided
-        effective_model_id = model_config.metadata.default_model_name as string
-        console.log('[LoRA] Using default model:', effective_model_id)
       }
       
-      const result = await generate_flux_image(
-        prompt,
-        validated.width || 1024,
-        validated.height || 1024,
+      // Use appropriate handler based on model type
+      // Note: fal-ai/fast-sdxl uses the flux handler, not the SD handler
+      // fal-ai/lora endpoint uses the SD handler
+      const use_sd_handler = effective_model_id === 'fal-ai/lora' ||
+                             (is_lora_model && effective_model_id !== 'fal-ai/fast-sdxl') || 
+                             (validated.model.includes('stable-diffusion') && !validated.model.includes('fast-sdxl'))
+      
+      console.log('[Handler Selection]', {
+        original_model: validated.model,
         effective_model_id,
-        generation_options
-      )
+        is_lora_model,
+        is_any_lora,
+        use_sd_handler,
+        has_loras: !!generation_options.loras && generation_options.loras.length > 0,
+        has_model_name: !!generation_options.model_name
+      })
+      
+      const result = use_sd_handler
+        ? await generate_sd_lora_image(
+            prompt,
+            validated.width || 1024,
+            validated.height || 1024,
+            effective_model_id,
+            generation_options
+          )
+        : await generate_flux_image(
+            prompt,
+            validated.width || 1024,
+            validated.height || 1024,
+            effective_model_id,
+            generation_options
+          )
       
       console.log('Fal.ai result structure:', {
         hasData: 'data' in result,
