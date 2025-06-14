@@ -88,13 +88,13 @@ export async function POST(req: NextRequest) {
     
     // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
     const base_mp_cost = model_config.custom_cost / 0.001
-    const cost_per_image = subscription.plan === 'admin' 
+    let cost_per_image = subscription.plan === 'admin' 
       ? 0  // Admin users have 0 cost
       : calculate_final_cost(base_mp_cost, subscription.plan)
     
     // Calculate total cost for multiple images
     const num_images = validated.num_images || 1
-    const total_cost = cost_per_image * num_images
+    let total_cost = cost_per_image * num_images
     
     // Skip token check for admin users
     if (subscription.plan !== 'admin') {
