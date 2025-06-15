@@ -68,7 +68,7 @@ export default function Navbar() {
                   title="Your available Mana Points"
                   aria-live="polite"
                 >
-                  MP: {mp_tokens}
+                  MP: {mp_tokens ?? 0}
                 </span>
               </div>
             )}

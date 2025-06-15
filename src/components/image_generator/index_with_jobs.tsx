@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@clerk/nextjs'
 import { useJobBasedImageGeneration } from './hooks/use_job_based_image_generation'
 import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
 import { useAspectRatio } from './hooks/use_aspect_ratio'
@@ -29,6 +30,7 @@ export function ImageGeneratorWithJobs({
 }: ImageGeneratorProps) {
   const router = useRouter()
   const textarea_ref = useRef<HTMLTextAreaElement>(null)
+  const { isLoaded: auth_loaded, isSignedIn } = useAuth()
   
   // State for models from database
   const [available_models, set_available_models] = useState<{
@@ -82,6 +84,9 @@ export function ImageGeneratorWithJobs({
   
   // Fetch available models from database
   useEffect(() => {
+    // Wait for auth to be loaded
+    if (!auth_loaded) return
+    
     const fetch_models = async () => {
       try {
         set_models_loading(true)
@@ -108,6 +113,8 @@ export function ImageGeneratorWithJobs({
               set_custom_model_name(default_model.model_config.metadata.default_model_name as string)
             }
           }
+        } else {
+          console.error('Invalid models response:', data)
         }
       } catch (error) {
         console.error('Failed to fetch models:', error)
@@ -118,7 +125,7 @@ export function ImageGeneratorWithJobs({
     }
     
     fetch_models()
-  }, [user_plan])
+  }, [user_plan, auth_loaded])
   
   // Set initial sana settings when models are loaded and model_id is set
   useEffect(() => {
@@ -385,15 +392,32 @@ export function ImageGeneratorWithJobs({
                       !job_generation.is_loading && 
                       (!job_generation.current_job || job_generation.current_job.status === 'completed' || job_generation.current_job.status === 'failed') &&
                       selected_model && 
-                      (user_plan === 'admin' || available_mp >= selected_model.cost)
+                      (user_plan === 'admin' || (available_mp >= selected_model.cost))
   
   // Loading state
-  if (models_loading) {
+  if (!auth_loaded || models_loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-base-100">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-base-content/60">Loading models...</p>
+          <p className="text-base-content/60">{!auth_loaded ? 'Authenticating...' : 'Loading models...'}</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Not signed in
+  if (!isSignedIn) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-base-100">
+        <div className="text-center">
+          <p className="text-base-content/60 mb-4">Please sign in to use the image generator</p>
+          <button 
+            onClick={() => router.push('/sign-in')}
+            className="btn btn-primary"
+          >
+            Sign In
+          </button>
         </div>
       </div>
     )
@@ -434,7 +458,14 @@ export function ImageGeneratorWithJobs({
                           <>
                             <span className="font-medium">{selected_model.name}</span>
                             <span className="text-xs text-base-content/60">
-                              {selected_model.cost} MP
+                              {selected_model.model_config?.billing_type === 'time_based' ? (
+                                <>
+                                  {selected_model.model_config.custom_cost / 0.001} MP/second
+                                  {user_plan === 'free' && ' (×1.5)'}
+                                </>
+                              ) : (
+                                `${selected_model.cost} MP`
+                              )}
                             </span>
                           </>
                         ) : (
@@ -462,7 +493,14 @@ export function ImageGeneratorWithJobs({
                           >
                             <span className="font-medium">{model.name}</span>
                             <span className="text-sm text-base-content/60">
-                              {model.cost} MP
+                              {model.model_config?.billing_type === 'time_based' ? (
+                                <>
+                                  {model.model_config.custom_cost / 0.001} MP/s
+                                  {user_plan === 'free' && ' (×1.5)'}
+                                </>
+                              ) : (
+                                `${model.cost} MP`
+                              )}
                             </span>
                           </button>
                         ))}
@@ -620,7 +658,7 @@ export function ImageGeneratorWithJobs({
                             </label>
                             <select
                               value={sana.style_name || 'none'}
-                              onChange={(e) => sana.update_style_name(e.target.value)}
+                              onChange={(e) => sana.update_style(e.target.value)}
                               className="select select-bordered select-sm w-full"
                             >
                               <option value="none">None</option>
@@ -714,12 +752,11 @@ export function ImageGeneratorWithJobs({
                       selected_model?.id === 'fal-ai/fast-sdxl') && (
                       <div>
                         <EmbeddingsSelector
-                          selected_embeddings={selected_embeddings}
-                          on_embeddings_change={set_selected_embeddings}
-                          selected_loras={selected_loras}
-                          on_loras_change={set_selected_loras}
-                          model_supports_embeddings={true}
-                          model_supports_loras={selected_model.model_config?.supports_loras || selected_model.id === 'fal-ai/fast-sdxl'}
+                          modelId={model_id}
+                          selectedEmbeddings={selected_embeddings}
+                          onEmbeddingsChange={set_selected_embeddings}
+                          selectedLoras={selected_loras}
+                          onLorasChange={set_selected_loras}
                         />
                       </div>
                     )}
@@ -779,7 +816,13 @@ export function ImageGeneratorWithJobs({
                     {job_generation.current_job && job_generation.current_job.status === 'completed' ? 'Generate New Image' : 'Generate'}
                     {selected_model && (
                       <span className="ml-2 opacity-70">
-                        ({selected_model.cost} MP)
+                        {selected_model.model_config?.billing_type === 'time_based' ? (
+                          <>
+                            (~{selected_model.cost} MP est.)
+                          </>
+                        ) : (
+                          `(${selected_model.cost} MP)`
+                        )}
                       </span>
                     )}
                   </>
@@ -892,7 +935,11 @@ export function ImageGeneratorWithJobs({
                           <p className="font-semibold mb-1">Time-based billing details:</p>
                           <p>Actual time: {job_generation.current_job.metadata.actual_inference_seconds?.toFixed(2)}s</p>
                           <p>Billable time: {job_generation.current_job.metadata.billable_seconds?.toFixed(2)}s</p>
-                          <p>Final cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
+                          <p>Rate: {job_generation.current_job.metadata.base_mp_per_second} MP/second</p>
+                          <p>Base cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
+                          {job_generation.current_job.metadata.final_cost_mp !== job_generation.current_job.metadata.time_based_cost_mp && (
+                            <p>Final cost: {job_generation.current_job.metadata.final_cost_mp} MP (plan upcharge)</p>
+                          )}
                           {job_generation.current_job.metadata.cost_adjustment_mp !== 0 && (
                             <p className={job_generation.current_job.metadata.cost_adjustment_mp > 0 ? 'text-warning' : 'text-success'}>
                               Adjustment: {job_generation.current_job.metadata.cost_adjustment_mp > 0 ? '+' : ''}{job_generation.current_job.metadata.cost_adjustment_mp} MP

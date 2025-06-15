@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useContext } from "react";
 import { useUser } from "@clerk/nextjs";
-
-import { useSupabaseClient } from "@/lib/supabase_client";
 import { MpContext } from "@/context/mp_context";
 
 /**
@@ -14,112 +12,29 @@ import { MpContext } from "@/context/mp_context";
 
 export default function User_sync() {
   const { user, isLoaded } = useUser();
-  const { plan } = useContext(MpContext);
-
-  const supabase = useSupabaseClient();
-
+  const { refresh_mp } = useContext(MpContext);
   const [stripeCleanupError, setStripeCleanupError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoaded || !user || !supabase) return;
+    if (!isLoaded || !user) return;
 
     const sync_user = async () => {
-      const clerk_user_id = user.id;
-      const email = user.emailAddresses?.[0]?.emailAddress || null;
-      if (!clerk_user_id || !email) return;
-
-      // Use free plan as default if plan is not set
-      const current_plan = plan || "free";
-
-      // Check if user exists in Supabase
-      const { data: existing_user, error: user_error } = await supabase
-        .from("users")
-        .select("id")
-        .eq("clerk_id", clerk_user_id)
-        .single();
-
-      if (user_error && user_error.code !== "PGRST116") {
-        // Ignore 'No rows found' error, handle others
-        console.error("Supabase user fetch error:", user_error.message);
-        return;
-      }
-
-      let user_id = existing_user?.id;
-      // If user does not exist, upsert
-      if (!user_id) {
-        const renewable_tokens = current_plan === "standard" ? 20480 : current_plan === "free" ? 125 : 0;
-        const permanent_tokens = current_plan === "free" ? 100 : 0;
-        const { data: upserted_user, error: upsert_error } = await supabase
-          .from("users")
-          .upsert({ clerk_id: clerk_user_id, email }, { onConflict: "clerk_id" })
-          .select()
-          .single();
-        if (upsert_error) {
-          console.error("Supabase user upsert error:", upsert_error.message);
-          return;
+      try {
+        // Call the sync-user API endpoint
+        const response = await fetch("/api/auth/sync-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        
+        if (!response.ok) {
+          const data = await response.json();
+          console.error("User sync error:", data.error);
+        } else {
+          // Refresh MP tokens after successful sync
+          await refresh_mp();
         }
-        user_id = upserted_user.id;
-        // Insert subscription for new user
-        const { error: insert_error } = await supabase
-          .from("subscriptions")
-          .insert({
-            user_id,
-            plan: current_plan,
-            renewable_tokens,
-            permanent_tokens,
-            renewed_at: new Date().toISOString(),
-          });
-        if (insert_error) {
-          console.error("Supabase subscription insert error:", insert_error.message);
-        }
-      } else {
-        // Check if subscription exists
-        const { data: subscription, error: sub_error } = await supabase
-          .from("subscriptions")
-          .select("id, plan, renewable_tokens, permanent_tokens")
-          .eq("user_id", user_id)
-          .single();
-
-        if (sub_error && sub_error.code !== "PGRST116") {
-          // Ignore 'No rows found' error, handle others
-          console.error("Supabase subscription fetch error:", sub_error.message);
-          return;
-        }
-
-        // If subscription does not exist, create it
-        if (!subscription) {
-          const renewable_tokens = current_plan === "standard" ? 20480 : current_plan === "free" ? 125 : 0;
-          const permanent_tokens = current_plan === "free" ? 100 : 0;
-          const { error: insert_error } = await supabase
-            .from("subscriptions")
-            .insert({
-              user_id,
-              plan: current_plan,
-              renewable_tokens,
-              permanent_tokens,
-              renewed_at: new Date().toISOString(),
-            });
-          if (insert_error) {
-            console.error("Supabase subscription insert error:", insert_error.message);
-          }
-        } else if (subscription.plan !== current_plan) {
-          // If plan changed, update subscription
-          const update_fields: { plan: string; renewable_tokens?: number; permanent_tokens?: number; renewed_at?: string } = { plan: current_plan };
-          if (current_plan === "standard") {
-            update_fields.renewable_tokens = 20480;
-            update_fields.renewed_at = new Date().toISOString();
-          } else if (current_plan === "free") {
-            update_fields.renewable_tokens = 125;
-            update_fields.renewed_at = new Date().toISOString();
-          }
-          const { error: update_error } = await supabase
-            .from("subscriptions")
-            .update(update_fields)
-            .eq("user_id", user_id);
-          if (update_error) {
-            console.error("Supabase subscription update error:", update_error.message);
-          }
-        }
+      } catch (error) {
+        console.error("Failed to sync user:", error);
       }
     };
 
@@ -149,8 +64,8 @@ export default function User_sync() {
           console.error("Stripe cleanup fetch error:", err);
         });
     }
-    // Only run when user or supabase client changes
-  }, [user, isLoaded, supabase, plan]);
+    // Only run when user changes
+  }, [user, isLoaded]);
 
   return (
     <>

@@ -33,6 +33,10 @@ interface FalStatusResponse {
     message: string
     timestamp?: string
   }>
+  metrics?: {
+    inference_time?: number
+    [key: string]: unknown
+  }
 }
 
 interface FalImageResultResponse {
@@ -234,7 +238,7 @@ export async function GET(req: NextRequest) {
         images: Array.isArray(images_to_return) ? images_to_return : [images_to_return], // Always return array
         error: job.error,
         progress: job.progress,
-        cost: job.cost,
+        cost: job.metadata?.final_cost_mp || job.metadata?.time_based_cost_mp || job.cost,
         created_at: job.created_at,
         completed_at: job.completed_at,
         prompt: job.prompt,
@@ -272,6 +276,83 @@ export async function GET(req: NextRequest) {
         } else if (status_response.status === 'COMPLETED') {
           current_status = 'completed'
           progress = 100
+          
+          // Handle time-based billing if we have inference time from metrics
+          if (status_response.metrics?.inference_time && job.model && job.metadata?.billing_type === 'time_based') {
+            const supabase = get_service_role_client()
+            
+            // Fetch the model configuration
+            const { data: model_config } = await supabase
+              .from('models')
+              .select('billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds')
+              .eq('model_id', job.model)
+              .single()
+            
+            if (model_config?.billing_type === 'time_based') {
+              // Calculate actual cost based on time
+              let billable_seconds = status_response.metrics.inference_time
+              
+              // Apply minimum charge if configured
+              if (model_config.min_time_charge_seconds && billable_seconds < model_config.min_time_charge_seconds) {
+                billable_seconds = model_config.min_time_charge_seconds
+              }
+              
+              // Apply maximum charge cap if configured
+              if (model_config.max_time_charge_seconds && billable_seconds > model_config.max_time_charge_seconds) {
+                billable_seconds = model_config.max_time_charge_seconds
+              }
+              
+              // Calculate cost: Base MP × seconds
+              const base_mp_cost = model_config.custom_cost / 0.001 // Convert from dollars to MP
+              const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds)
+              
+              // Apply plan upcharge
+              const { data: subscription } = await supabase
+                .from('subscriptions')
+                .select('plan')
+                .eq('user_id', job.user_id)
+                .single()
+              
+              let final_cost = time_based_cost_mp
+              if (subscription?.plan === 'free') {
+                final_cost = Math.ceil(time_based_cost_mp * 1.5) // 50% upcharge for free users
+              }
+              
+              // Calculate the difference from the original estimated cost
+              const cost_difference = final_cost - (job.cost || 0)
+              
+              // If there's a cost difference and user is not admin, adjust tokens
+              if (cost_difference !== 0 && job.user_id && subscription?.plan !== 'admin') {
+                const { error: token_error } = await supabase.rpc('deduct_tokens', {
+                  p_user_id: job.user_id,
+                  p_amount: cost_difference,
+                  p_description: cost_difference > 0 
+                    ? `Image generation time adjustment: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
+                    : `Image generation time refund: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
+                })
+                
+                if (token_error) {
+                  console.error('Failed to adjust tokens:', token_error)
+                }
+              }
+              
+              // Store billing details in metadata and update cost
+              job.metadata = {
+                ...job.metadata,
+                time_based_billing: true,
+                actual_inference_seconds: status_response.metrics.inference_time,
+                billable_seconds: billable_seconds,
+                base_mp_per_second: base_mp_cost,
+                time_based_cost_mp: time_based_cost_mp,
+                final_cost_mp: final_cost,
+                original_estimated_cost_mp: job.cost,
+                cost_adjustment_mp: cost_difference
+              }
+              
+              // Update the job cost to the final calculated cost
+              job.cost = final_cost
+            }
+          }
 
           // Try to get the result
           try {
@@ -282,6 +363,7 @@ export async function GET(req: NextRequest) {
             
             // Handle different response structures
             const result_response: any = result.data ? result : { data: result }
+            console.log('result_response', result_response)
             const data = result_response.data || result_response
 
             console.log('Fal result response:', JSON.stringify(result_response, null, 2))
@@ -392,11 +474,18 @@ export async function GET(req: NextRequest) {
           update_data.error = error_message
         }
 
+        // Update cost if it changed due to time-based billing
+        if (job.metadata?.final_cost_mp && job.metadata.final_cost_mp !== job.cost) {
+          update_data.cost = job.metadata.final_cost_mp
+        }
+
         if (job.metadata) {
           update_data.metadata = {
             ...job.metadata,
             watermark_applied: image_url && job.metadata.is_free_user && job.metadata.plan !== 'admin',
-            num_images_generated: image_url && image_url.startsWith('[') ? JSON.parse(image_url).length : 1
+            num_images_generated: image_url && image_url.startsWith('[') ? JSON.parse(image_url).length : 1,
+            // Store the accurate inference time from fal.ai metrics
+            ...(status_response.metrics?.inference_time ? { inference_time: status_response.metrics.inference_time } : {})
           }
         }
 
@@ -486,29 +575,32 @@ export async function GET(req: NextRequest) {
 
     // 6. Return job status
     // Parse image_url if it's a JSON array
-    let images_to_return = image_url
-    if (image_url && image_url.startsWith('[')) {
+    let images_to_return = image_url || job.image_url
+    if (images_to_return && images_to_return.startsWith('[')) {
       try {
-        images_to_return = JSON.parse(image_url)
+        images_to_return = JSON.parse(images_to_return)
       } catch (e) {
         // Keep as is if parsing fails
       }
     }
 
+    // Ensure we have the latest metadata from memory if it was updated
+    const final_metadata = job.metadata || {}
+
     return api_success({
       job_id: job.job_id,
       status: current_status,
-      image_url: image_url, // Keep original for backward compatibility
+      image_url: image_url || job.image_url, // Keep original for backward compatibility
       images: Array.isArray(images_to_return) ? images_to_return : (images_to_return ? [images_to_return] : []), // Always return array
-      error: error_message,
+      error: error_message || job.error,
       progress: progress,
-      cost: job.cost,
+      cost: final_metadata.final_cost_mp || final_metadata.time_based_cost_mp || job.cost,
       created_at: job.created_at,
-      completed_at: job.completed_at || job.completed_at,
+      completed_at: job.completed_at || (current_status === 'completed' ? new Date().toISOString() : null),
       prompt: job.prompt,
       model: job.model,
-      metadata: job.metadata,
-      num_images: job.metadata?.num_images_generated || job.num_images || 1
+      metadata: final_metadata,
+      num_images: final_metadata.num_images_generated || job.num_images || 1
     })
 
   } catch (error) {

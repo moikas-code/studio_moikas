@@ -476,8 +476,20 @@ export async function POST(req: NextRequest) {
               const base_mp_cost = model_config.custom_cost / 0.001
               const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds)
               
+              // Apply plan upcharge
+              const { data: subscription } = await supabase
+                .from('subscriptions')
+                .select('plan')
+                .eq('user_id', job.user_id)
+                .single()
+              
+              let final_cost = time_based_cost_mp
+              if (subscription?.plan === 'free') {
+                final_cost = Math.ceil(time_based_cost_mp * 1.5) // 50% upcharge for free users
+              }
+              
               // Calculate the difference from the original estimated cost
-              const cost_difference = time_based_cost_mp - (job.cost || 0)
+              const cost_difference = final_cost - (job.cost || 0)
               
               // Update the job's metadata with billing details
               update_data.metadata = {
@@ -485,19 +497,21 @@ export async function POST(req: NextRequest) {
                 time_based_billing: true,
                 actual_inference_seconds: validated.metrics.inference_time,
                 billable_seconds: billable_seconds,
+                base_mp_per_second: base_mp_cost,
                 time_based_cost_mp: time_based_cost_mp,
+                final_cost_mp: final_cost,
                 original_estimated_cost_mp: job.cost,
                 cost_adjustment_mp: cost_difference
               }
               
-              // If there's a cost difference, adjust the user's tokens
-              if (cost_difference !== 0 && job.user_id) {
+              // If there's a cost difference and user is not admin, adjust tokens
+              if (cost_difference !== 0 && job.user_id && subscription?.plan !== 'admin') {
                 await supabase.rpc('deduct_tokens', {
                   p_user_id: job.user_id,
                   p_amount: cost_difference,
                   p_description: cost_difference > 0 
-                    ? `Image generation time-based billing adjustment (+${billable_seconds.toFixed(1)}s)`
-                    : `Image generation time-based billing refund (${billable_seconds.toFixed(1)}s < estimated)`
+                    ? `Image generation time adjustment: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
+                    : `Image generation time refund: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
                 })
               }
             }

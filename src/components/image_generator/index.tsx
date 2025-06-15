@@ -290,7 +290,7 @@ export function ImageGenerator({
   const can_generate = prompt_text.trim() && 
                       !is_loading && 
                       selected_model && 
-                      (user_plan === 'admin' || available_mp >= selected_model.cost)
+                      (user_plan === 'admin' || (available_mp !== null && available_mp >= selected_model.cost))
   
   // Loading state
   if (models_loading) {
@@ -354,7 +354,14 @@ export function ImageGenerator({
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{selected_model?.name || 'Select model'}</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {selected_model?.cost || 0} MP
+                      {selected_model?.model_config?.billing_type === 'time_based' ? (
+                        <>
+                          {selected_model.model_config.custom_cost / 0.001} MP/s
+                          {user_plan === 'free' && ' (×1.5)'}
+                        </>
+                      ) : (
+                        `${selected_model?.cost || 0} MP`
+                      )}
                     </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-base-content/40 group-hover:text-base-content/60 
@@ -394,7 +401,16 @@ export function ImageGenerator({
                                   ${model.id === model_id ? 'bg-primary/10' : ''}`}
                       >
                         <span className="text-sm sm:text-base">{model.name}</span>
-                        <span className="text-xs text-base-content/60">{model.cost} MP</span>
+                        <span className="text-xs text-base-content/60">
+                          {model.model_config?.billing_type === 'time_based' ? (
+                            <>
+                              {model.model_config.custom_cost / 0.001} MP/s
+                              {user_plan === 'free' && ' (×1.5)'}
+                            </>
+                          ) : (
+                            `${model.cost} MP`
+                          )}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -708,7 +724,11 @@ export function ImageGenerator({
                     Generate
                     {selected_model && (
                       <span className="opacity-80">
-                        ({selected_model.cost * num_images} MP{num_images > 1 && ` for ${num_images} images`})
+                        {selected_model.model_config?.billing_type === 'time_based' ? (
+                          `(~${selected_model.cost * num_images} MP est.${num_images > 1 ? ` for ${num_images} images` : ''})`
+                        ) : (
+                          `(${selected_model.cost * num_images} MP${num_images > 1 ? ` for ${num_images} images` : ''})`
+                        )}
                       </span>
                     )}
                   </>

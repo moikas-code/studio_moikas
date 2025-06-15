@@ -109,7 +109,7 @@ export function JobHistoryPanel({
                   className="w-full h-32 object-cover rounded"
                 />
               </div>
-              <div className="flex space-x-2">
+              <div className="flex justify-between items-center">
                 <button
                   onClick={() => download_image(current_job.image_url!, current_job.job_id)}
                   className="btn btn-sm btn-primary"
@@ -117,6 +117,11 @@ export function JobHistoryPanel({
                   <Download className="w-4 h-4 mr-1" />
                   Download
                 </button>
+                {current_job.metadata?.inference_time && (
+                  <span className="text-xs text-base-content/60">
+                    Generated in {current_job.metadata.inference_time.toFixed(1)}s
+                  </span>
+                )}
               </div>
             </>
           )}
@@ -175,6 +180,9 @@ export function JobHistoryPanel({
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs text-base-content/60">
                   {job.cost} MP • {job.model}
+                  {job.metadata?.inference_time && (
+                    <> • {job.metadata.inference_time.toFixed(1)}s</>
+                  )}
                 </span>
                 {job.status === 'completed' && (
                   <Eye className="w-4 h-4 text-base-content/60" />
