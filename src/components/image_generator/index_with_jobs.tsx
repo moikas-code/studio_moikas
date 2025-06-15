@@ -926,47 +926,32 @@ export function ImageGeneratorWithJobs({
                   {generated_images.inference_time && (
                     <p>Processing time: {generated_images.inference_time.toFixed(2)}s</p>
                   )}
-                  {/* Show time-based billing details for time-based models or timing info for admins */}
-                  {(job_generation.current_job?.metadata?.time_based_billing || 
-                    (user_plan === 'admin' && generated_images.inference_time)) && (
+                  {/* Show billing details */}
+                  {(user_plan === 'free' || user_plan === 'standard') && (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-xs hover:text-primary transition-colors">
-                        {job_generation.current_job?.metadata?.time_based_billing ? 'Time-based billing details' : 'Timing information'}
+                        Billing details
                       </summary>
-                      <div className="mt-1 p-2 bg-base-200/50 rounded-lg text-xs">
+                      <div className="mt-1 p-2 bg-base-200/50 rounded-lg text-xs space-y-1">
                         {job_generation.current_job?.metadata?.time_based_billing ? (
                           <>
-                            <p>Actual time: {job_generation.current_job.metadata.actual_inference_seconds?.toFixed(2)}s</p>
-                            <p>Billable time: {job_generation.current_job.metadata.billable_seconds?.toFixed(2)}s</p>
-                            <p>Rate: {job_generation.current_job.metadata.base_mp_per_second} MP/second</p>
-                            <p>Base cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
-                            {job_generation.current_job.metadata.final_cost_mp !== job_generation.current_job.metadata.time_based_cost_mp && (
-                              <p>Final cost: {job_generation.current_job.metadata.final_cost_mp} MP (plan upcharge)</p>
-                            )}
-                            {job_generation.current_job.metadata.cost_adjustment_mp !== 0 && (
-                              <div className="mt-2 pt-2 border-t border-base-300">
-                                <p className={`font-semibold ${job_generation.current_job.metadata.cost_adjustment_mp > 0 ? 'text-warning' : 'text-success'}`}>
-                                  Adjustment: {job_generation.current_job.metadata.cost_adjustment_mp > 0 ? '+' : ''}{job_generation.current_job.metadata.cost_adjustment_mp} MP
-                                </p>
-                                <p className="text-xs opacity-70 mt-1">
-                                  {job_generation.current_job.metadata.cost_adjustment_mp > 0 
-                                    ? 'Additional tokens deducted (actual time exceeded estimate)'
-                                    : 'Tokens refunded (actual time less than estimate)'}
-                                </p>
-                              </div>
-                            )}
+                            <p>Generation time: {job_generation.current_job.metadata.billable_seconds?.toFixed(1)}s</p>
+                            <p>Base rate: {job_generation.current_job.metadata.base_mp_per_second} MP/second</p>
                           </>
                         ) : (
                           <>
-                            <p className="font-semibold mb-1">Admin timing info:</p>
-                            <p>Generation time: {generated_images.inference_time?.toFixed(2)}s</p>
-                            {selected_model?.model_config?.billing_type === 'time_based' && (
-                              <>
-                                <p className="text-xs opacity-70 mt-1">If this were a paid user:</p>
-                                <p>Est. cost: {Math.ceil((selected_model.model_config.custom_cost / 0.001) * (generated_images.inference_time || 1))} MP</p>
-                              </>
+                            {/* For flat rate, calculate and show base price */}
+                            <p>Base price: {Math.round(generated_images.total_cost / (user_plan === 'free' ? 4 : 1.5))} MP</p>
+                            {generated_images.urls.length > 1 && (
+                              <p>Quantity: {generated_images.urls.length} images</p>
                             )}
                           </>
+                        )}
+                        {user_plan === 'free' && (
+                          <p className="text-warning">Free plan: 4× base price</p>
+                        )}
+                        {user_plan === 'standard' && (
+                          <p className="text-info">Standard plan: 1.5× base price</p>
                         )}
                       </div>
                     </details>
