@@ -929,36 +929,47 @@ export function ImageGeneratorWithJobs({
                   {/* Show time-based billing details for time-based models or timing info for admins */}
                   {(job_generation.current_job?.metadata?.time_based_billing || 
                     (user_plan === 'admin' && generated_images.inference_time)) && (
-                    <div className="mt-2 p-2 bg-base-200/50 rounded-lg text-xs">
-                      {job_generation.current_job?.metadata?.time_based_billing ? (
-                        <>
-                          <p className="font-semibold mb-1">Time-based billing details:</p>
-                          <p>Actual time: {job_generation.current_job.metadata.actual_inference_seconds?.toFixed(2)}s</p>
-                          <p>Billable time: {job_generation.current_job.metadata.billable_seconds?.toFixed(2)}s</p>
-                          <p>Rate: {job_generation.current_job.metadata.base_mp_per_second} MP/second</p>
-                          <p>Base cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
-                          {job_generation.current_job.metadata.final_cost_mp !== job_generation.current_job.metadata.time_based_cost_mp && (
-                            <p>Final cost: {job_generation.current_job.metadata.final_cost_mp} MP (plan upcharge)</p>
-                          )}
-                          {job_generation.current_job.metadata.cost_adjustment_mp !== 0 && (
-                            <p className={job_generation.current_job.metadata.cost_adjustment_mp > 0 ? 'text-warning' : 'text-success'}>
-                              Adjustment: {job_generation.current_job.metadata.cost_adjustment_mp > 0 ? '+' : ''}{job_generation.current_job.metadata.cost_adjustment_mp} MP
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <p className="font-semibold mb-1">Admin timing info:</p>
-                          <p>Generation time: {generated_images.inference_time?.toFixed(2)}s</p>
-                          {selected_model?.model_config?.billing_type === 'time_based' && (
-                            <>
-                              <p className="text-xs opacity-70 mt-1">If this were a paid user:</p>
-                              <p>Est. cost: {Math.ceil((selected_model.model_config.custom_cost / 0.001) * (generated_images.inference_time || 1))} MP</p>
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs hover:text-primary transition-colors">
+                        {job_generation.current_job?.metadata?.time_based_billing ? 'Time-based billing details' : 'Timing information'}
+                      </summary>
+                      <div className="mt-1 p-2 bg-base-200/50 rounded-lg text-xs">
+                        {job_generation.current_job?.metadata?.time_based_billing ? (
+                          <>
+                            <p>Actual time: {job_generation.current_job.metadata.actual_inference_seconds?.toFixed(2)}s</p>
+                            <p>Billable time: {job_generation.current_job.metadata.billable_seconds?.toFixed(2)}s</p>
+                            <p>Rate: {job_generation.current_job.metadata.base_mp_per_second} MP/second</p>
+                            <p>Base cost: {job_generation.current_job.metadata.time_based_cost_mp} MP</p>
+                            {job_generation.current_job.metadata.final_cost_mp !== job_generation.current_job.metadata.time_based_cost_mp && (
+                              <p>Final cost: {job_generation.current_job.metadata.final_cost_mp} MP (plan upcharge)</p>
+                            )}
+                            {job_generation.current_job.metadata.cost_adjustment_mp !== 0 && (
+                              <div className="mt-2 pt-2 border-t border-base-300">
+                                <p className={`font-semibold ${job_generation.current_job.metadata.cost_adjustment_mp > 0 ? 'text-warning' : 'text-success'}`}>
+                                  Adjustment: {job_generation.current_job.metadata.cost_adjustment_mp > 0 ? '+' : ''}{job_generation.current_job.metadata.cost_adjustment_mp} MP
+                                </p>
+                                <p className="text-xs opacity-70 mt-1">
+                                  {job_generation.current_job.metadata.cost_adjustment_mp > 0 
+                                    ? 'Additional tokens deducted (actual time exceeded estimate)'
+                                    : 'Tokens refunded (actual time less than estimate)'}
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-semibold mb-1">Admin timing info:</p>
+                            <p>Generation time: {generated_images.inference_time?.toFixed(2)}s</p>
+                            {selected_model?.model_config?.billing_type === 'time_based' && (
+                              <>
+                                <p className="text-xs opacity-70 mt-1">If this were a paid user:</p>
+                                <p>Est. cost: {Math.ceil((selected_model.model_config.custom_cost / 0.001) * (generated_images.inference_time || 1))} MP</p>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </div>
               </div>
