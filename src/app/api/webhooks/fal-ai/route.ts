@@ -504,23 +504,41 @@ export async function POST(req: NextRequest) {
                 cost_adjustment_mp: cost_difference
               }
               
-              // If there's a cost difference and user is not admin, adjust tokens
-              if (cost_difference !== 0 && job.user_id && subscription?.plan !== 'admin') {
-                await supabase.rpc('deduct_tokens', {
-                  p_user_id: job.user_id,
-                  p_amount: cost_difference,
-                  p_description: cost_difference > 0 
-                    ? `Image generation time adjustment: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
-                    : `Image generation time refund: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
-                })
-              }
+              // Store the cost difference for tracking purposes only
+              // Actual token deduction happens after the update
             }
           }
+          
+          // Mark tokens as deducted in the update
+          update_data.tokens_deducted = true
           
           await supabase
             .from('image_jobs')
             .update(update_data)
             .eq('id', job.id)
+          
+          // Deduct tokens for successful completion (skip for admin users and if already deducted)
+          if (!job.tokens_deducted) {
+            const { data: subscription } = await supabase
+              .from('subscriptions')
+              .select('plan')
+              .eq('user_id', job.user_id)
+              .single()
+            
+            if (subscription?.plan !== 'admin' && job.user_id) {
+              const final_cost = update_data.metadata?.final_cost_mp || update_data.metadata?.time_based_cost_mp || job.cost
+              
+              const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
+                p_user_id: job.user_id,
+                p_amount: final_cost,
+                p_description: `Image generation completed: ${job.model} (${job.num_images} image${job.num_images > 1 ? 's' : ''})`
+              })
+              
+              if (deduct_error) {
+                console.error('Failed to deduct tokens on completion:', deduct_error)
+              }
+            }
+          }
         }
       }
     }
@@ -542,15 +560,7 @@ export async function POST(req: NextRequest) {
         await update_parent_document_status(supabase, job.metadata.parent_job_id, job.user_id)
       }
       
-      // Refund tokens
-      if (job.user_id && job.cost) {
-        // Use deduct_tokens for refund
-        await supabase.rpc('deduct_tokens', {
-          p_user_id: job.user_id,
-          p_amount: -job.cost, // negative for refund
-          p_description: `${job_type === 'video' ? 'Video' : job_type === 'audio' ? 'Audio' : 'Image'} generation refund: ${validated.error || 'generation failed'}`
-        })
-      }
+      // No need to refund tokens since we only deduct on successful completion
     }
     
     if (validated.status === 'processing' || validated.status === 'IN_PROGRESS') {

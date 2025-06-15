@@ -321,20 +321,8 @@ export async function GET(req: NextRequest) {
               // Calculate the difference from the original estimated cost
               const cost_difference = final_cost - (job.cost || 0)
               
-              // If there's a cost difference and user is not admin, adjust tokens
-              if (cost_difference !== 0 && job.user_id && subscription?.plan !== 'admin') {
-                const { error: token_error } = await supabase.rpc('deduct_tokens', {
-                  p_user_id: job.user_id,
-                  p_amount: cost_difference,
-                  p_description: cost_difference > 0 
-                    ? `Image generation time adjustment: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
-                    : `Image generation time refund: ${billable_seconds.toFixed(1)}s @ ${base_mp_cost} MP/s`
-                })
-                
-                if (token_error) {
-                  console.error('Failed to adjust tokens:', token_error)
-                }
-              }
+              // Store billing details but don't adjust tokens yet
+              // Tokens will be deducted when we update the job status to completed
               
               // Store billing details in metadata and update cost
               job.metadata = {
@@ -489,6 +477,11 @@ export async function GET(req: NextRequest) {
           }
         }
 
+        // Mark tokens as deducted if job is completing
+        if (current_status === 'completed' && job.status !== 'completed') {
+          update_data.tokens_deducted = true
+        }
+
         const { error: update_error } = await supabase
           .from('image_jobs')
           .update(update_data)
@@ -498,6 +491,29 @@ export async function GET(req: NextRequest) {
           console.error('Failed to update job in database:', update_error)
         } else {
           console.log(`Updated job ${job_id} in database with status: ${current_status}`)
+          
+          // If job just completed and tokens haven't been deducted yet, deduct them now
+          if (current_status === 'completed' && job.status !== 'completed' && !job.tokens_deducted) {
+            const { data: subscription } = await supabase
+              .from('subscriptions')
+              .select('plan')
+              .eq('user_id', job.user_id)
+              .single()
+            
+            if (subscription?.plan !== 'admin') {
+              const final_cost = job.metadata?.final_cost_mp || job.metadata?.time_based_cost_mp || job.cost
+              
+              const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
+                p_user_id: job.user_id,
+                p_amount: final_cost,
+                p_description: `Image generation completed: ${job.model} (${job.num_images} image${job.num_images > 1 ? 's' : ''})`
+              })
+              
+              if (deduct_error) {
+                console.error('Failed to deduct tokens on status check completion:', deduct_error)
+              }
+            }
+          }
         }
       } catch (fal_error) {
         console.error('Failed to check fal.ai status:', fal_error)
@@ -555,7 +571,7 @@ export async function GET(req: NextRequest) {
         // update the job status to completed
         current_status = 'completed'
         progress = 100
-        // update the job in the database
+        // update the job in the database and mark tokens as deducted
         const { error: update_error } = await supabase
           .from('image_jobs')
           .update({
@@ -563,7 +579,8 @@ export async function GET(req: NextRequest) {
             progress: 100,
             image_url: image_url,
             completed_at: new Date().toISOString(),
-            error: null // Clear any previous error
+            error: null, // Clear any previous error
+            tokens_deducted: true
           })
           .eq('id', job.id)
 

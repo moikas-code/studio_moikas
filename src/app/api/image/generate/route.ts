@@ -215,26 +215,7 @@ export async function POST(req: NextRequest) {
     
     console.log('Successfully created image job:', job.id)
     
-    // 10. Deduct tokens (skip for admin users)
-    if (subscription.plan !== 'admin') {
-      const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
-        p_user_id: user.user_id,
-        p_amount: total_cost,
-        p_description: `Image generation: ${validated.model} (${num_images} image${num_images > 1 ? 's' : ''})`
-      })
-      
-      if (deduct_error) {
-        // Delete the job if token deduction fails
-        await supabase
-          .from('image_jobs')
-          .delete()
-          .eq('id', job.id)
-        
-        throw new Error('Failed to deduct tokens')
-      }
-    }
-    
-    // 11. Submit to fal.ai with webhook
+    // 10. Submit to fal.ai with webhook (tokens will be deducted on completion)
     try {
       const base_url = get_base_url()
       const webhook_url = base_url ? `${base_url}/api/webhooks/fal-ai` : null
@@ -382,15 +363,29 @@ export async function POST(req: NextRequest) {
           }
         }
         
-        // Update job as completed
+        // Update job as completed and mark tokens as deducted
         await supabase
           .from('image_jobs')
           .update({
             status: 'completed',
             image_url,
-            completed_at: new Date().toISOString()
+            completed_at: new Date().toISOString(),
+            tokens_deducted: true
           })
           .eq('id', job.id)
+        
+        // Deduct tokens for successful completion (skip for admin users)
+        if (subscription.plan !== 'admin') {
+          const { error: deduct_error } = await supabase.rpc('deduct_tokens', {
+            p_user_id: user.user_id,
+            p_amount: total_cost,
+            p_description: `Image generation: ${validated.model} (${num_images} image${num_images > 1 ? 's' : ''})`
+          })
+          
+          if (deduct_error) {
+            console.error('Failed to deduct tokens on sync completion:', deduct_error)
+          }
+        }
         
         // Return success
         return api_success({
@@ -457,14 +452,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', job.id)
       
-      // Refund tokens (skip for admin users)
-      if (subscription.plan !== 'admin') {
-        await supabase.rpc('deduct_tokens', {
-          p_user_id: user.user_id,
-          p_amount: -total_cost, // negative for refund
-          p_description: `Image generation refund: submission failed`
-        })
-      }
+      // No need to refund tokens since we haven't deducted them yet
       
       console.error('Failed to submit to fal.ai:', fal_error)
       throw new Error('Failed to submit image generation job')
