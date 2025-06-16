@@ -40,23 +40,67 @@ export async function POST(req: NextRequest) {
       return api_error("User not found", 404);
     }
 
-    // Verify user age
-    const { data: is_verified, error: verify_error } = await supabase.rpc("verify_user_age", {
-      user_id: user_data.id,
-      birth_date: validated.birth_date,
-      region: validated.region || null,
-    });
+    // Check if user meets age requirement
+    const birth_date_obj = new Date(validated.birth_date);
+    const today = new Date();
+    let age = today.getFullYear() - birth_date_obj.getFullYear();
+    const month_diff = today.getMonth() - birth_date_obj.getMonth();
 
-    if (verify_error) {
-      throw verify_error;
+    if (month_diff < 0 || (month_diff === 0 && today.getDate() < birth_date_obj.getDate())) {
+      age--;
     }
 
-    if (!is_verified) {
-      // User is underage - account has been deleted
-      return api_error(
-        "You must be at least 13 years old (16 in the EU) to use Studio Moikas",
-        403
-      );
+    // Determine minimum age based on region
+    const EU_COUNTRIES = [
+      "AT",
+      "BE",
+      "BG",
+      "HR",
+      "CY",
+      "CZ",
+      "DK",
+      "EE",
+      "FI",
+      "FR",
+      "DE",
+      "GR",
+      "HU",
+      "IE",
+      "IT",
+      "LV",
+      "LT",
+      "LU",
+      "MT",
+      "NL",
+      "PL",
+      "PT",
+      "RO",
+      "SK",
+      "SI",
+      "ES",
+      "SE",
+    ];
+    const min_age = validated.region && EU_COUNTRIES.includes(validated.region) ? 16 : 13;
+
+    if (age < min_age) {
+      // User is underage - delete the account
+      await supabase.from("users").delete().eq("id", user_data.id);
+
+      return api_error(`You must be at least ${min_age} years old to use Studio Moikas`, 403);
+    }
+
+    // Update user record with verified age
+    const { error: update_error } = await supabase
+      .from("users")
+      .update({
+        birth_date: validated.birth_date,
+        age_verified_at: new Date().toISOString(),
+        region: validated.region || null,
+      })
+      .eq("id", user_data.id);
+
+    if (update_error) {
+      throw update_error;
     }
 
     // Update Clerk metadata to mark user as age verified
