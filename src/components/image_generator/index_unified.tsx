@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
+import { useImageGeneration, type GenerationParams } from './hooks/use_image_generation'
 import { useJobBasedImageGeneration } from './hooks/use_job_based_image_generation'
 import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
 import { useAspectRatio } from './hooks/use_aspect_ratio'
@@ -11,10 +12,8 @@ import { Toaster, toast } from 'react-hot-toast'
 import { Sparkles, Settings2, ChevronDown, Download, Copy, Loader2, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import type { EmbeddingInput, LoraWeight } from './types'
 import type { ModelConfig } from '@/types/models'
-import type { GenerationParams } from './hooks/use_image_generation'
 import EmbeddingsSelector from './components/settings/embeddings_selector'
 import { JobHistoryPanel } from './components/display/job_history_panel'
-
 
 interface ImageGeneratorProps {
   available_mp: number
@@ -23,10 +22,11 @@ interface ImageGeneratorProps {
   use_job_system?: boolean // Toggle between immediate and job-based generation
 }
 
-export function ImageGeneratorWithJobs({
+export function ImageGenerator({
   available_mp,
   on_mp_update,
-  user_plan = 'free'
+  user_plan = 'free',
+  use_job_system = true // Default to job-based system
 }: ImageGeneratorProps) {
   const router = useRouter()
   const textarea_ref = useRef<HTMLTextAreaElement>(null)
@@ -68,11 +68,29 @@ export function ImageGeneratorWithJobs({
   const [generation_start_time, set_generation_start_time] = useState<number | null>(null)
   const [elapsed_seconds, set_elapsed_seconds] = useState<number>(0)
 
-  // Hooks
+  // Hooks - conditionally use based on use_job_system
+  const immediate_generation = useImageGeneration()
   const job_generation = useJobBasedImageGeneration()
   const { is_enhancing, enhance_prompt } = usePromptEnhancement()
   const aspect_ratio = useAspectRatio()
   const sana = useSanaSettings()
+
+  // Helper to get current generation state
+  const generation_state = useMemo(() => {
+    if (use_job_system) {
+      return {
+        is_loading: job_generation.is_loading,
+        error_message: job_generation.error_message,
+        current_job: job_generation.current_job
+      }
+    } else {
+      return {
+        is_loading: immediate_generation.is_loading,
+        error_message: immediate_generation.error_message,
+        current_job: null
+      }
+    }
+  }, [use_job_system, job_generation, immediate_generation])
 
   // Auto-resize textarea
   useEffect(() => {
@@ -143,8 +161,10 @@ export function ImageGeneratorWithJobs({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model_id, models_loading])
 
-  // Update generated images when job completes
+  // Update generated images when job completes (job-based mode only)
   useEffect(() => {
+    if (!use_job_system) return
+
     if (job_generation.current_job?.status === 'completed') {
       // Stop the timer
       set_generation_start_time(null)
@@ -303,8 +323,34 @@ export function ImageGeneratorWithJobs({
     // Start the timer
     set_generation_start_time(Date.now())
 
-    // Submit job
-    const result = await job_generation.submit_job(params)
+    let result
+    if (use_job_system) {
+      // Submit job
+      result = await job_generation.submit_job(params)
+    } else {
+      // Direct generation
+      result = await immediate_generation.generate_image(params)
+      
+      // Stop timer
+      set_generation_start_time(null)
+
+      if (result) {
+        // For immediate generation, update the images state
+        set_generated_images({
+          urls: result.images || [result.image_url],
+          prompt: prompt_text,
+          model: model_id,
+          timestamp: Date.now(),
+          total_cost: result.total_cost,
+          inference_time: result.inference_time
+        })
+        set_current_image_index(0)
+
+        if (on_mp_update) {
+          on_mp_update()
+        }
+      }
+    }
 
     if (result) {
       // Generate a new seed for the next generation
@@ -392,12 +438,12 @@ export function ImageGeneratorWithJobs({
 
   const selected_model = model_id ? available_models.find(m => m.id === model_id) : null
   const can_generate = useMemo(() => {
-    //console.log('can_generate', prompt_text.trim(), job_generation.is_loading, available_mp)
     return prompt_text.trim() &&
-      !job_generation.is_loading && (!job_generation.current_job || job_generation.current_job.status === 'completed' || job_generation.current_job.status === 'failed') &&
+      !generation_state.is_loading && 
+      (!generation_state.current_job || generation_state.current_job.status === 'completed' || generation_state.current_job.status === 'failed') &&
       selected_model &&
       (user_plan === 'admin' || (available_mp >= selected_model.cost))
-  }, [prompt_text, job_generation.is_loading, job_generation.current_job, selected_model, available_mp, user_plan])
+  }, [prompt_text, generation_state, selected_model, available_mp, user_plan])
 
   // Loading state
   if (!auth_loaded || models_loading) {
@@ -507,13 +553,15 @@ export function ImageGeneratorWithJobs({
                   </div>
                 </div>
 
-                <button
-                  onClick={() => set_show_job_history(!show_job_history)}
-                  className={`btn btn-ghost btn-sm ${show_job_history ? 'btn-active' : ''}`}
-                  title="Job History"
-                >
-                  <Clock className="w-4 h-4" />
-                </button>
+                {use_job_system && (
+                  <button
+                    onClick={() => set_show_job_history(!show_job_history)}
+                    className={`btn btn-ghost btn-sm ${show_job_history ? 'btn-active' : ''}`}
+                    title="Job History"
+                  >
+                    <Clock className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               {/* Prompt Input */}
@@ -539,7 +587,7 @@ export function ImageGeneratorWithJobs({
                              focus:outline-none focus:ring-2 focus:ring-primary/20
                              min-h-[120px] max-h-[300px]
                              text-sm sm:text-base"
-                    disabled={job_generation.is_loading}
+                    disabled={generation_state.is_loading}
                   />
                   <button
                     onClick={handle_enhance}
@@ -788,11 +836,11 @@ export function ImageGeneratorWithJobs({
                 disabled={!can_generate}
                 className="btn btn-primary w-full relative overflow-hidden group"
               >
-                {job_generation.current_job && job_generation.current_job.status === 'processing' ? (
+                {generation_state.current_job && generation_state.current_job.status === 'processing' ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     <span className="flex items-center gap-2">
-                      Generating... {job_generation.current_job.progress}%
+                      Generating... {generation_state.current_job.progress}%
                       {generation_start_time && (
                         <span className="text-sm opacity-80">
                           ({elapsed_seconds.toFixed(1)}s)
@@ -800,7 +848,7 @@ export function ImageGeneratorWithJobs({
                       )}
                     </span>
                   </>
-                ) : job_generation.current_job && job_generation.current_job.status === 'pending' ? (
+                ) : generation_state.current_job && generation_state.current_job.status === 'pending' ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     <span className="flex items-center gap-2">
@@ -812,17 +860,20 @@ export function ImageGeneratorWithJobs({
                       )}
                     </span>
                   </>
-                ) : (
+                ) : generation_state.is_loading ? (
                   <>
-                    {job_generation.current_job && job_generation.current_job.status === 'completed' ? 'Generate New Image' : 'Generate'}
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <span>Generating...</span>
                   </>
+                ) : (
+                  <span>Generate</span>
                 )}
               </button>
 
               {/* Error Message */}
-              {job_generation.error_message && (
+              {generation_state.error_message && (
                 <div className="alert alert-error">
-                  <span>{job_generation.error_message}</span>
+                  <span>{generation_state.error_message}</span>
                 </div>
               )}
             </div>
@@ -916,7 +967,7 @@ export function ImageGeneratorWithJobs({
                     <p>Processing time: {generated_images.inference_time.toFixed(2)}s</p>
                   )}
                   {/* Show billing details */}
-                  {(user_plan === 'free' || user_plan === 'standard') && (
+                  {(user_plan === 'free' || user_plan === 'standard') && use_job_system && job_generation.current_job && (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-xs hover:text-primary transition-colors">
                         Billing details
@@ -955,7 +1006,7 @@ export function ImageGeneratorWithJobs({
       </div>
 
       {/* Job History Sidebar */}
-      {show_job_history && (
+      {use_job_system && show_job_history && (
         <div className="w-full lg:w-96 p-4 bg-base-200/20 border-l border-base-300">
           <JobHistoryPanel
             jobs={job_generation.job_history}

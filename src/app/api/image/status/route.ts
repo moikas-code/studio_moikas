@@ -85,168 +85,168 @@ export async function GET(req: NextRequest) {
     }
     // console.log('job', job)
     // 4. If job is already completed or failed, return it
-    if (job.status === 'completed' || job.status === 'failed') {
-      // For completed jobs, process the image if needed
-      if (job.status === 'completed' && (!job.image_url || job.image_url === null)) {
-        // Job is completed but we don't have the image URL, fetch it from fal
-        try {
-          // For LoRA model, the result might be structured differently
-          const result = await fal.queue.result(job.model, {
-            requestId: job.fal_request_id
-          })
+    // if (job.status === 'completed' || job.status === 'failed') {
+    //   // For completed jobs, process the image if needed
+    //   if (job.status === 'completed' && (!job.image_url || job.image_url === null)) {
+    //     // Job is completed but we don't have the image URL, fetch it from fal
+    //     try {
+    //       // For LoRA model, the result might be structured differently
+    //       const result = await fal.queue.result(job.model, {
+    //         requestId: job.fal_request_id
+    //       })
           
-          // Handle both wrapped and unwrapped responses
-          const result_response = result.data ? result : { data: result }
+    //       // Handle both wrapped and unwrapped responses
+    //       const result_response = result.data ? result : { data: result }
 
-          console.log('Fetching missing image for completed job:', JSON.stringify(result_response, null, 2))
+    //       console.log('Fetching missing image for completed job:', JSON.stringify(result_response, null, 2))
 
-          const extracted_images: string[] = []
+    //       const extracted_images: string[] = []
 
-          // Extract image URLs from various possible locations
-          // Check if data property exists and has images
-          const data = result_response.data || result_response
+    //       // Extract image URLs from various possible locations
+    //       // Check if data property exists and has images
+    //       const data = result_response.data || result_response
           
-          if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-            for (const img of data.images) {
-              if (typeof img === 'string') {
-                extracted_images.push(img)
-              } else if (img && typeof img === 'object') {
-                // Check for url field
-                if ('url' in img && img.url && typeof img.url === 'string' && img.url.trim() !== '') {
-                  extracted_images.push(img.url)
-                }
-                // Check if there's a data field with base64 image
-                else if ('data' in img && img.data) {
-                  extracted_images.push(img.data)
-                }
-                // Check if there's a base64 field
-                else if ('base64' in img && img.base64) {
-                  extracted_images.push(`data:${img.content_type || 'image/png'};base64,${img.base64}`)
-                }
-              }
-            }
-          } else if (data.image && typeof data.image === 'string') {
-            extracted_images.push(data.image)
-          } else if (data.url && typeof data.url === 'string') {
-            extracted_images.push(data.url)
-          } else if (typeof data === 'string') {
-            // Sometimes the data itself might be the URL
-            extracted_images.push(data)
-          }
+    //       if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+    //         for (const img of data.images) {
+    //           if (typeof img === 'string') {
+    //             extracted_images.push(img)
+    //           } else if (img && typeof img === 'object') {
+    //             // Check for url field
+    //             if ('url' in img && img.url && typeof img.url === 'string' && img.url.trim() !== '') {
+    //               extracted_images.push(img.url)
+    //             }
+    //             // Check if there's a data field with base64 image
+    //             else if ('data' in img && img.data) {
+    //               extracted_images.push(img.data)
+    //             }
+    //             // Check if there's a base64 field
+    //             else if ('base64' in img && img.base64) {
+    //               extracted_images.push(`data:${img.content_type || 'image/png'};base64,${img.base64}`)
+    //             }
+    //           }
+    //         }
+    //       } else if (data.image && typeof data.image === 'string') {
+    //         extracted_images.push(data.image)
+    //       } else if (data.url && typeof data.url === 'string') {
+    //         extracted_images.push(data.url)
+    //       } else if (typeof data === 'string') {
+    //         // Sometimes the data itself might be the URL
+    //         extracted_images.push(data)
+    //       }
 
-          // Store single image as string, multiple as JSON array
-          const image_to_store = extracted_images.length === 1 ? extracted_images[0] : JSON.stringify(extracted_images)
+    //       // Store single image as string, multiple as JSON array
+    //       const image_to_store = extracted_images.length === 1 ? extracted_images[0] : JSON.stringify(extracted_images)
 
-          if (extracted_images.length > 0) {
-            // Update the job with the image URL(s)
-            await supabase
-              .from('image_jobs')
-              .update({
-                image_url: image_to_store,
-                metadata: {
-                  ...job.metadata,
-                  num_images_generated: extracted_images.length
-                }
-              })
-              .eq('id', job.id)
+    //       if (extracted_images.length > 0) {
+    //         // Update the job with the image URL(s)
+    //         await supabase
+    //           .from('image_jobs')
+    //           .update({
+    //             image_url: image_to_store,
+    //             metadata: {
+    //               ...job.metadata,
+    //               num_images_generated: extracted_images.length
+    //             }
+    //           })
+    //           .eq('id', job.id)
 
-            job.image_url = image_to_store
-          }
-        } catch (e) {
-          console.error('Failed to fetch image for completed job:', e)
+    //         job.image_url = image_to_store
+    //       }
+    //     } catch (e) {
+    //       console.error('Failed to fetch image for completed job:', e)
           
-          // Log more details for validation errors
-          if (e instanceof Error && 'status' in e && e.status === 422) {
-            console.error('Validation error details:', {
-              model: job.model,
-              request_id: job.fal_request_id,
-              error_body: 'body' in e ? e.body : undefined,
-              error_message: e.message
-            })
-          }
-        }
-      }
+    //       // Log more details for validation errors
+    //       if (e instanceof Error && 'status' in e && e.status === 422) {
+    //         console.error('Validation error details:', {
+    //           model: job.model,
+    //           request_id: job.fal_request_id,
+    //           error_body: 'body' in e ? e.body : undefined,
+    //           error_message: e.message
+    //         })
+    //       }
+    //     }
+    //   }
 
-      // Apply watermark if needed (commented out for now)
-      // const is_free_user = job.metadata?.is_free_user || false
-      // const is_admin = job.metadata?.plan === 'admin'
+    //   // Apply watermark if needed (commented out for now)
+    //   // const is_free_user = job.metadata?.is_free_user || false
+    //   // const is_admin = job.metadata?.plan === 'admin'
 
-      // let processed_image_url = job.image_url
+    //   // let processed_image_url = job.image_url
 
-      // // Apply watermark for free users (but not admins)
-      // if (is_free_user && !is_admin && !job.metadata?.watermark_applied) {
-      //   try {
-      //     // Fetch and convert to base64
-      //     let base64_image: string
+    //   // // Apply watermark for free users (but not admins)
+    //   // if (is_free_user && !is_admin && !job.metadata?.watermark_applied) {
+    //   //   try {
+    //   //     // Fetch and convert to base64
+    //   //     let base64_image: string
 
-      //     if (job.image_url.startsWith('data:image')) {
-      //       base64_image = job.image_url
-      //     } else {
-      //       const image_response = await fetch(job.image_url)
-      //       const buffer = await image_response.arrayBuffer()
-      //       base64_image = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`
-      //     }
+    //   //     if (job.image_url.startsWith('data:image')) {
+    //   //       base64_image = job.image_url
+    //   //     } else {
+    //   //       const image_response = await fetch(job.image_url)
+    //   //       const buffer = await image_response.arrayBuffer()
+    //   //       base64_image = `data:image/png;base64,${Buffer.from(buffer).toString('base64')}`
+    //   //     }
 
-      //     // Apply watermark
-      //     const watermarked = await add_overlay_to_image_node(base64_image)
-      //     processed_image_url = watermarked
+    //   //     // Apply watermark
+    //   //     const watermarked = await add_overlay_to_image_node(base64_image)
+    //   //     processed_image_url = watermarked
 
-      //     // Update job to mark watermark as applied
-      //     await supabase
-      //       .from('image_jobs')
-      //       .update({
-      //         metadata: {
-      //           ...job.metadata,
-      //           watermark_applied: true
-      //         }
-      //       })
-      //       .eq('id', job.id)
-      //   } catch (e) {
-      //     console.error('Failed to apply watermark:', e)
-      //     // Continue with original URL
-      //   }
-      // }
+    //   //     // Update job to mark watermark as applied
+    //   //     await supabase
+    //   //       .from('image_jobs')
+    //   //       .update({
+    //   //         metadata: {
+    //   //           ...job.metadata,
+    //   //           watermark_applied: true
+    //   //         }
+    //   //       })
+    //   //       .eq('id', job.id)
+    //   //   } catch (e) {
+    //   //     console.error('Failed to apply watermark:', e)
+    //   //     // Continue with original URL
+    //   //   }
+    //   // }
 
-      // return api_success({
-      //   job_id: job.job_id,
-      //   status: job.status,
-      //   image_url: processed_image_url,
-      //   error: job.error,
-      //   progress: job.progress,
-      //   cost: job.cost,
-      //   created_at: job.created_at,
-      //   completed_at: job.completed_at,
-      //   prompt: job.prompt,
-      //   model: job.model,
-      //   metadata: job.metadata
-      // })
+    //   // return api_success({
+    //   //   job_id: job.job_id,
+    //   //   status: job.status,
+    //   //   image_url: processed_image_url,
+    //   //   error: job.error,
+    //   //   progress: job.progress,
+    //   //   cost: job.cost,
+    //   //   created_at: job.created_at,
+    //   //   completed_at: job.completed_at,
+    //   //   prompt: job.prompt,
+    //   //   model: job.model,
+    //   //   metadata: job.metadata
+    //   // })
 
-      // Parse image_url if it's a JSON array
-      let images_to_return = job.image_url
-      if (job.image_url && job.image_url.startsWith('[')) {
-        try {
-          images_to_return = JSON.parse(job.image_url)
-        } catch {
-          // Keep as is if parsing fails
-        }
-      }
+    //   // Parse image_url if it's a JSON array
+    //   let images_to_return = job.image_url
+    //   if (job.image_url && job.image_url.startsWith('[')) {
+    //     try {
+    //       images_to_return = JSON.parse(job.image_url)
+    //     } catch {
+    //       // Keep as is if parsing fails
+    //     }
+    //   }
 
-      return api_success({
-        job_id: job.job_id,
-        status: job.status,
-        image_url: job.image_url, // Keep original for backward compatibility
-        images: Array.isArray(images_to_return) ? images_to_return : [images_to_return], // Always return array
-        error: job.error,
-        progress: job.progress,
-        cost: job.metadata?.final_cost_mp || job.metadata?.time_based_cost_mp || job.cost,
-        created_at: job.created_at,
-        completed_at: job.completed_at,
-        prompt: job.prompt,
-        model: job.model,
-        metadata: job.metadata,
-        num_images: job.metadata?.num_images_generated || job.num_images || 1
-      })
-    }
+    //   return api_success({
+    //     job_id: job.job_id,
+    //     status: job.status,
+    //     image_url: job.image_url, // Keep original for backward compatibility
+    //     images: Array.isArray(images_to_return) ? images_to_return : [images_to_return], // Always return array
+    //     error: job.error,
+    //     progress: job.progress,
+    //     cost: job.metadata?.final_cost_mp || job.metadata?.time_based_cost_mp || job.cost,
+    //     created_at: job.created_at,
+    //     completed_at: job.completed_at,
+    //     prompt: job.prompt,
+    //     model: job.model,
+    //     metadata: job.metadata,
+    //     num_images: job.metadata?.num_images_generated || job.num_images || 1
+    //   })
+    // }
 
     // 5. If job has fal_request_id and is not completed, check fal.ai status
     let current_status = job.status
@@ -304,7 +304,7 @@ export async function GET(req: NextRequest) {
               
               // Calculate cost: Base MP × seconds
               const base_mp_cost = model_config.custom_cost / 0.001 // Convert from dollars to MP
-              const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds)
+              const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds) 
               
               // Apply plan upcharge
               const { data: subscription } = await supabase
@@ -315,9 +315,12 @@ export async function GET(req: NextRequest) {
               
               let final_cost = time_based_cost_mp
               if (subscription?.plan === 'free') {
-                final_cost = Math.ceil(time_based_cost_mp * 1.5) // 50% upcharge for free users
+                final_cost = Math.ceil(time_based_cost_mp * 4) // 300% upcharge for free users
               }
-              
+              if (subscription?.plan === 'standard') {
+                final_cost = Math.ceil(time_based_cost_mp * 1.5) // 50% upcharge for standard users
+              }
+              console.log('final_cost', final_cost)
               // Calculate the difference from the original estimated cost
               const cost_difference = final_cost - (job.cost || 0)
               

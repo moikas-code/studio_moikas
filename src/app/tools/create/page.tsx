@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useContext } from "react";
-import { ImageGeneratorWithJobs } from "../../../components/image_generator/index_with_jobs";
+import { ImageGenerator } from "../../../components/image_generator";
 import { MpContext } from "../../../context/mp_context";
 
 /**
@@ -13,7 +13,7 @@ export default function Create_page() {
   const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
   
   return (
-    <ImageGeneratorWithJobs 
+    <ImageGenerator 
       available_mp={mp_tokens || 0}
       on_mp_update={refresh_mp}
       user_plan={plan || 'free'}
