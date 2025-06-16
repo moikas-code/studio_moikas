@@ -10,9 +10,9 @@ import {
   handle_api_error 
 } from "@/lib/utils/api/response"
 import { 
-  validate_request,
-  z
+  validate_request
 } from "@/lib/utils/api/validation"
+import { z } from 'zod'
 
 const review_schema = z.object({
   notes: z.string().min(1).max(1000)
