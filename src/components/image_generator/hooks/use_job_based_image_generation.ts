@@ -116,7 +116,11 @@ export function useJobBasedImageGeneration() {
                 toast.error(error_message);
               }
 
-              track("image_job_failed", { job_id, error: job.error, is_moderation_error });
+              track("image_job_failed", {
+                job_id,
+                error: job.error || "Unknown error",
+                is_moderation_error,
+              });
             }
           }
         }
