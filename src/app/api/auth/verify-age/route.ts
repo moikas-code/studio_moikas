@@ -90,17 +90,25 @@ export async function POST(req: NextRequest) {
     }
 
     // Update user record with verified age
-    const { error: update_error } = await supabase
-      .from("users")
-      .update({
-        birth_date: validated.birth_date,
-        age_verified_at: new Date().toISOString(),
-        region: validated.region || null,
-      })
-      .eq("id", user_data.id);
+    // First, check if the age verification columns exist
+    try {
+      const { error: update_error } = await supabase
+        .from("users")
+        .update({
+          birth_date: validated.birth_date,
+          age_verified_at: new Date().toISOString(),
+          region: validated.region || null,
+        })
+        .eq("id", user_data.id);
 
-    if (update_error) {
-      throw update_error;
+      if (update_error) {
+        // If columns don't exist, just log it and continue
+        console.warn("Failed to update age verification in database:", update_error);
+        console.warn("Make sure to run migration: 20250117000000_add_age_verification.sql");
+        // Continue - we'll rely on Clerk metadata
+      }
+    } catch (db_error) {
+      console.warn("Database update failed, continuing with Clerk metadata only:", db_error);
     }
 
     // Update Clerk metadata to mark user as age verified

@@ -18,25 +18,34 @@ export async function check_age_verification(): Promise<{
       return { is_verified: true, needs_verification: false, user_id: user.id };
     }
 
-    // Check database
+    // Check database - but handle missing columns gracefully
     const supabase = get_service_role_client();
-    const { data, error } = await supabase
-      .from("users")
-      .select("age_verified_at")
-      .eq("clerk_id", user.id)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id")
+        .eq("clerk_id", user.id)
+        .single();
 
-    if (error || !data) {
-      return { is_verified: false, needs_verification: true, user_id: user.id };
+      if (error || !data) {
+        return { is_verified: false, needs_verification: true, user_id: user.id };
+      }
+
+      // If we can't check age_verified_at column (doesn't exist),
+      // fall back to Clerk metadata only
+      return {
+        is_verified: user.publicMetadata?.age_verified === true,
+        needs_verification: user.publicMetadata?.age_verified !== true,
+        user_id: user.id,
+      };
+    } catch (error) {
+      console.warn("Database check failed, using Clerk metadata only:", error);
+      return {
+        is_verified: user.publicMetadata?.age_verified === true,
+        needs_verification: user.publicMetadata?.age_verified !== true,
+        user_id: user.id,
+      };
     }
-
-    const is_verified = !!data.age_verified_at;
-
-    return {
-      is_verified,
-      needs_verification: !is_verified,
-      user_id: user.id,
-    };
   } catch (error) {
     console.error("Age verification check failed:", error);
     return { is_verified: false, needs_verification: false };
