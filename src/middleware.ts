@@ -7,15 +7,16 @@ const is_protected_route = createRouteMatcher(["/tools(.*)"]);
 const is_age_verification_route = createRouteMatcher(["/tools/age-verification"]);
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
-  const { userId, sessionClaims } = await auth();
-
   // Check if this is a protected route
   if (is_protected_route(req)) {
     // First, ensure user is authenticated
-    await auth.protect();
+    const { userId } = await auth.protect();
 
     // Skip age verification check for the age verification page itself
     if (!is_age_verification_route(req) && userId) {
+      // Get fresh auth data after protect() call
+      const { sessionClaims } = await auth();
+
       // Check if user has verified their age
       const age_verified = sessionClaims?.publicMetadata?.age_verified as boolean | undefined;
 
