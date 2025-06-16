@@ -59,7 +59,7 @@ export default function PrivacyContactPage() {
           <CheckCircle className="w-16 h-16 text-success mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-4">Message Sent</h2>
           <p className="text-base-content/70 mb-6">
-            Thank you for contacting us. We'll respond to your privacy inquiry within 24-48 hours.
+            Thank you for contacting us. We&apos;ll respond to your privacy inquiry within 24-48 hours.
           </p>
           <Link href="/" className="btn btn-primary">
             Return to Home

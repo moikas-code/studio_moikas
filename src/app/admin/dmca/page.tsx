@@ -50,7 +50,7 @@ export default function AdminDMCAPage() {
     set_error("")
 
     try {
-      const body: any = {
+      const body: Record<string, unknown> = {
         action,
         admin_notes
       }
