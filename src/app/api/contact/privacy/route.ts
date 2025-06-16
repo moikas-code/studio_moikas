@@ -59,9 +59,8 @@ export async function POST(req: NextRequest) {
       // If table doesn't exist, create it
       if (error.code === "42P01") {
         // Create the table
-        await supabase
-          .rpc("exec_sql", {
-            sql: `
+        await supabase.rpc("exec_sql", {
+          sql: `
             CREATE TABLE IF NOT EXISTS public.contact_requests (
               id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
               type TEXT NOT NULL,
@@ -80,10 +79,7 @@ export async function POST(req: NextRequest) {
             CREATE INDEX idx_contact_requests_status ON public.contact_requests(status);
             CREATE INDEX idx_contact_requests_created_at ON public.contact_requests(created_at);
           `,
-          })
-          .catch(() => {
-            // If exec_sql doesn't exist, we'll just log to system_logs
-          });
+        });
 
         // Try again
         await supabase.from("contact_requests").insert({
