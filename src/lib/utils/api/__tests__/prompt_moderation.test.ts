@@ -19,7 +19,7 @@ mock.module('../../database/redis', () => ({
 
 // Mock fetch for API calls
 const mockFetch = mock()
-global.fetch = mockFetch as any
+global.fetch = mockFetch as unknown as typeof fetch
 
 describe('Prompt Moderation', () => {
   beforeEach(() => {

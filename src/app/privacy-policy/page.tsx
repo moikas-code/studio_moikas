@@ -30,7 +30,9 @@ export default function Privacy_policy_page() {
             "AI-generated content you create (images, videos, audio, text)",
             "Prompts and parameters used for generation",
             "Tool usage patterns and preferences",
-            "Mana Points (MP) consumption and transaction history"
+            "Mana Points (MP) consumption and transaction history",
+            "Moderation logs including prompts checked and safety decisions",
+            "False positive reports you submit"
           ]
         },
         {
@@ -55,7 +57,10 @@ export default function Privacy_policy_page() {
             "Process your AI generation requests",
             "Manage your account and subscription",
             "Track and display your Mana Points balance",
-            "Store your creation history and preferences"
+            "Store your creation history and preferences",
+            "Screen prompts for safety and legal compliance",
+            "Maintain moderation logs for platform safety",
+            "Review false positive reports to improve moderation"
           ]
         },
         {
@@ -86,10 +91,12 @@ export default function Privacy_policy_page() {
         {
           subtitle: "Security Measures",
           items: [
-            "End-to-end encryption for sensitive data",
+            "HTTPS/TLS encryption for all data in transit",
             "Secure authentication through Clerk",
+            "Database encryption at rest via Supabase",
+            "Row-level security policies for data access control",
             "Regular security audits and updates",
-            "Row-level security in our database (Supabase)"
+            "Input sanitization to prevent injection attacks"
           ]
         },
         {
@@ -115,6 +122,7 @@ export default function Privacy_policy_page() {
             "Stripe: Payment processing (PCI compliant)",
             "Supabase: Database and file storage",
             "fal.ai: AI model hosting and processing",
+            "xAI (Grok): Content moderation and safety screening",
             "Vercel: Hosting and anonymous analytics",
             "Upstash Redis: Caching and rate limiting"
           ]
@@ -141,7 +149,9 @@ export default function Privacy_policy_page() {
             "Access all data we have about you",
             "Export your creations and account data",
             "Delete your account and associated data",
-            "Opt-out of non-essential communications"
+            "Opt-out of non-essential communications",
+            "Report false positives in content moderation",
+            "Request review of moderation decisions"
           ]
         },
         {
@@ -151,6 +161,51 @@ export default function Privacy_policy_page() {
             "We only store your content to provide our services",
             "You can delete your generated content at any time",
             "We don't use your content to train AI models without permission"
+          ]
+        }
+      ]
+    },
+    {
+      id: "data-retention",
+      icon: Database,
+      title: "Data Retention",
+      content: [
+        {
+          subtitle: "Content Storage",
+          items: [
+            "Generated content is stored until you delete it",
+            "Prompts are automatically deleted after 7 days",
+            "Deleted content is permanently removed within 30 days",
+            "Temporary processing files are deleted immediately after use",
+            "Cached content expires after 1 hour automatically"
+          ]
+        },
+        {
+          subtitle: "Account Data",
+          items: [
+            "Account information is retained while your account is active",
+            "Billing records are maintained by Stripe per their data retention policy",
+            "Usage logs retained for 90 days for debugging and support",
+            "Account deletion removes all personal data within 30 days"
+          ]
+        },
+        {
+          subtitle: "Moderation Data",
+          items: [
+            "Moderation logs are retained for 90 days for safety compliance",
+            "False positive reports are kept until resolved by admin review",
+            "Aggregated statistics may be kept longer for improving the system",
+            "You can request deletion of your moderation logs with your account"
+          ]
+        },
+        {
+          subtitle: "Legal Retention",
+          items: [
+            "Moderation logs retained for 90 days for legal compliance",
+            "Billing transactions handled by Stripe with their retention policies",
+            "Data may be retained longer if required by law or legal process",
+            "Content flagged for legal issues may be preserved for investigation",
+            "We comply with valid legal preservation requests"
           ]
         }
       ]
@@ -271,28 +326,140 @@ export default function Privacy_policy_page() {
           })}
         </div>
 
+        {/* Additional Privacy Sections */}
+        <div className="space-y-4 mt-8">
+          {/* Children's Privacy */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Users className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">Children's Privacy</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <p>Studio Moikas is not intended for children under 13 (or 16 in the EU).</p>
+                <ul className="space-y-2 mt-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We do not knowingly collect data from children</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Parents can contact us to remove any data collected from their children</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We will terminate accounts found to belong to underage users</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* International Data Transfers */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Shield className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">International Data Transfers</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <p>Your data may be processed in different countries:</p>
+                <ul className="space-y-2 mt-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Our servers are primarily located in the United States</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We use standard contractual clauses for EU data transfers</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>All data transfers comply with applicable privacy laws</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Your data is encrypted during transfer and at rest</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Changes to Privacy Policy */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">Changes to This Policy</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We may update this policy to reflect changes in our practices or laws</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Material changes will be notified via email or in-app notification</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Continued use after changes constitutes acceptance</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>You can always review the latest version on our website</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Contact Section */}
         <div className="mt-12 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-8 text-center">
           <Mail className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-3">Questions About Privacy?</h2>
+          <h2 className="text-2xl font-bold mb-3">Privacy Contact Information</h2>
           <p className="text-base-content/70 mb-6">
             We&apos;re here to help clarify any concerns about your data and privacy.
           </p>
           <div className="space-y-3">
-            <p>
-              Contact our founder on X:{" "}
-              <a 
-                href="https://x.com/moikapy_" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-primary hover:underline font-medium"
-              >
-                @moikapy_
-              </a>
-            </p>
-            <p className="text-sm text-base-content/60">
-              Response time: Usually within 24-48 hours
-            </p>
+            <div>
+              <p className="font-semibold">Privacy Inquiries:</p>
+              <p>
+                Email: <a href="mailto:privacy@studiomoikas.com" className="text-primary hover:underline">privacy@studiomoikas.com</a>
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold">Data Requests (GDPR/CCPA):</p>
+              <p>
+                Email: <a href="mailto:privacy@studiomoikas.com" className="text-primary hover:underline">privacy@studiomoikas.com</a>
+              </p>
+            </div>
+            <div className="pt-4 border-t border-base-content/20">
+              <p className="text-sm">
+                General support: Contact{" "}
+                <a 
+                  href="https://x.com/moikapy_" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary hover:underline"
+                >
+                  @moikapy_
+                </a>{" "}
+                on X
+              </p>
+              <p className="text-sm text-base-content/60 mt-2">
+                Response time: Usually within 24-48 hours
+              </p>
+            </div>
           </div>
         </div>
 
