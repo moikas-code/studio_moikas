@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface AdminStats {
   user_stats: {
@@ -50,16 +50,28 @@ export default function AdminDashboard() {
 
   const fetch_admin_stats = async () => {
     try {
-      const response = await fetch('/api/admin/analytics');
-      
+      const response = await fetch("/api/admin/analytics");
+
       if (!response.ok) {
-        throw new Error('Failed to fetch admin stats');
+        throw new Error("Failed to fetch admin stats");
       }
-      
+
       const data = await response.json();
+
+      // Debug logging for missing data
+      if (!data.usage_stats) {
+        console.error("Missing usage_stats in admin analytics response:", data);
+      }
+      if (!data.user_stats) {
+        console.error("Missing user_stats in admin analytics response:", data);
+      }
+      if (!data.revenue_stats) {
+        console.error("Missing revenue_stats in admin analytics response:", data);
+      }
+
       setStats(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
@@ -76,59 +88,94 @@ export default function AdminDashboard() {
   if (error || !stats) {
     return (
       <div className="alert alert-error">
-        <span>{error || 'Failed to load admin dashboard'}</span>
+        <span>{error || "Failed to load admin dashboard"}</span>
       </div>
     );
   }
 
   // Format date for display
   const format_date = (date_string: string) => {
-    return new Date(date_string).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
+    return new Date(date_string).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
     });
   };
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      
+
       {/* User Stats */}
       <div className="stats shadow w-full">
         <div className="stat">
           <div className="stat-figure text-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="inline-block w-8 h-8 stroke-current"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+              />
             </svg>
           </div>
           <div className="stat-title">Total Users</div>
-          <div className="stat-value">{stats.user_stats.total_users.toLocaleString()}</div>
+          <div className="stat-value">{stats.user_stats?.total_users?.toLocaleString() || "0"}</div>
           <div className="stat-desc">
-            {stats.user_stats.new_users_last_week} new this week
+            {stats.user_stats?.new_users_last_week || 0} new this week
           </div>
         </div>
-        
+
         <div className="stat">
           <div className="stat-figure text-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="inline-block w-8 h-8 stroke-current"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
           <div className="stat-title">Paid Users</div>
-          <div className="stat-value">{stats.user_stats.paid_users.toLocaleString()}</div>
+          <div className="stat-value">{stats.user_stats?.paid_users?.toLocaleString() || "0"}</div>
           <div className="stat-desc">
-            {((stats.user_stats.paid_users / stats.user_stats.total_users) * 100).toFixed(1)}% conversion
+            {stats.user_stats?.total_users && stats.user_stats?.paid_users
+              ? ((stats.user_stats.paid_users / stats.user_stats.total_users) * 100).toFixed(1)
+              : "0"}
+            % conversion
           </div>
         </div>
-        
+
         <div className="stat">
           <div className="stat-figure text-accent">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="inline-block w-8 h-8 stroke-current">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              className="inline-block w-8 h-8 stroke-current"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+              />
             </svg>
           </div>
           <div className="stat-title">Active Users</div>
-          <div className="stat-value">{stats.usage_stats.active_users.toLocaleString()}</div>
+          <div className="stat-value">
+            {stats.usage_stats?.active_users?.toLocaleString() || "0"}
+          </div>
           <div className="stat-desc">Last 30 days</div>
         </div>
       </div>
@@ -140,49 +187,49 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {stats.usage_stats.image_generations.toLocaleString()}
+                {stats.usage_stats?.image_generations?.toLocaleString() || "0"}
               </div>
               <div className="text-sm opacity-70">Images</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-secondary">
-                {stats.usage_stats.video_generations.toLocaleString()}
+                {stats.usage_stats?.video_generations?.toLocaleString() || "0"}
               </div>
               <div className="text-sm opacity-70">Videos</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-accent">
-                {stats.usage_stats.audio_generations.toLocaleString()}
+                {stats.usage_stats?.audio_generations?.toLocaleString() || "0"}
               </div>
               <div className="text-sm opacity-70">Audio</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-info">
-                {stats.usage_stats.text_analyses.toLocaleString()}
+                {stats.usage_stats?.text_analyses?.toLocaleString() || "0"}
               </div>
               <div className="text-sm opacity-70">Text Analysis</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-warning">
-                {stats.usage_stats.memu_chats.toLocaleString()}
+                {stats.usage_stats?.memu_chats?.toLocaleString() || "0"}
               </div>
               <div className="text-sm opacity-70">MEMU Chats</div>
             </div>
           </div>
-          
+
           <div className="divider"></div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm opacity-70">Total Operations</div>
               <div className="text-xl font-bold">
-                {stats.usage_stats.total_operations.toLocaleString()}
+                {stats.usage_stats?.total_operations?.toLocaleString() || "0"}
               </div>
             </div>
             <div>
               <div className="text-sm opacity-70">Tokens Consumed</div>
               <div className="text-xl font-bold">
-                {(stats.usage_stats.total_tokens_used / 1000000).toFixed(2)}M
+                {((stats.usage_stats?.total_tokens_used || 0) / 1000000).toFixed(2)}M
               </div>
             </div>
           </div>
@@ -197,29 +244,25 @@ export default function AdminDashboard() {
             <div className="stat">
               <div className="stat-title">Total Revenue</div>
               <div className="stat-value text-success">
-                ${stats.revenue_stats.total_revenue?.toFixed(2) || '0.00'}
+                ${stats.revenue_stats.total_revenue?.toFixed(2) || "0.00"}
               </div>
-              <div className="stat-desc">
-                {stats.revenue_stats.total_purchases} purchases
-              </div>
+              <div className="stat-desc">{stats.revenue_stats.total_purchases} purchases</div>
             </div>
-            
+
             <div className="stat">
               <div className="stat-title">Average Transaction</div>
               <div className="stat-value text-primary">
-                ${stats.revenue_stats.avg_transaction_value?.toFixed(2) || '0.00'}
+                ${stats.revenue_stats.avg_transaction_value?.toFixed(2) || "0.00"}
               </div>
               <div className="stat-desc">Per purchase</div>
             </div>
-            
+
             <div className="stat">
               <div className="stat-title">Refunds</div>
               <div className="stat-value text-error">
-                ${stats.revenue_stats.total_refunds?.toFixed(2) || '0.00'}
+                ${stats.revenue_stats.total_refunds?.toFixed(2) || "0.00"}
               </div>
-              <div className="stat-desc">
-                {stats.revenue_stats.refund_count} refunds
-              </div>
+              <div className="stat-desc">{stats.revenue_stats.refund_count} refunds</div>
             </div>
           </div>
         </div>
@@ -243,7 +286,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {stats.daily_trends.slice(0, 10).map((trend, idx) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-base-200' : ''}>
+                  <tr key={idx} className={idx % 2 === 0 ? "bg-base-200" : ""}>
                     <td>{format_date(trend.date)}</td>
                     <td className="font-mono">{trend.daily_active_users}</td>
                     <td className="font-mono">{trend.total_operations}</td>
