@@ -392,7 +392,7 @@ export function ImageGeneratorWithJobs({
 
   const selected_model = model_id ? available_models.find(m => m.id === model_id) : null
   const can_generate = useMemo(() => {
-    console.log('can_generate', prompt_text.trim(), job_generation.is_loading, available_mp)
+    //console.log('can_generate', prompt_text.trim(), job_generation.is_loading, available_mp)
     return prompt_text.trim() &&
       !job_generation.is_loading && (!job_generation.current_job || job_generation.current_job.status === 'completed' || job_generation.current_job.status === 'failed') &&
       selected_model &&
@@ -610,6 +610,7 @@ export function ImageGeneratorWithJobs({
                       />
                     </div>
 
+                    {/* SANA Settings */}
                     {selected_model?.id.includes('sana') && (
                       <Fragment>
                         {selected_model.model_config?.supports_steps && (
