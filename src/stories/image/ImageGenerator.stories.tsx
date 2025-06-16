@@ -1,67 +1,87 @@
-import type { Meta, StoryObj } from '@storybook/nextjs'
-import { ImageGenerator } from '@/components/image_generator'
+import type { Meta, StoryObj } from "@storybook/nextjs";
+import { ImageGenerator } from "@/components/image_generator";
 
 const meta = {
-  title: 'Image/ImageGenerator',
+  title: "Image/ImageGenerator",
   component: ImageGenerator,
   parameters: {
-    layout: 'fullscreen',
+    layout: "fullscreen",
   },
-  tags: ['autodocs'],
-} satisfies Meta<typeof ImageGenerator>
+  tags: ["autodocs"],
+} satisfies Meta<typeof ImageGenerator>;
 
-export default meta
-type Story = StoryObj<typeof meta>
+export default meta;
+type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
     available_mp: 1000,
-    user_plan: 'standard',
-    use_job_system: true
-  }
-}
+    user_plan: "standard",
+    use_job_system: true,
+  },
+};
 
 export const WithInitialPrompt: Story = {
   args: {
     available_mp: 1000,
-    user_plan: 'standard',
-    use_job_system: true
+    user_plan: "standard",
+    use_job_system: true,
   },
   play: async ({ canvasElement }) => {
     // Simulate entering a prompt
-    const promptInput = canvasElement.querySelector('textarea')
+    const promptInput = canvasElement.querySelector("textarea");
     if (promptInput) {
-      promptInput.value = 'A futuristic cityscape at sunset with flying cars'
+      promptInput.value = "A futuristic cityscape at sunset with flying cars";
     }
   },
-}
+};
 
 export const MobileView: Story = {
+  args: {
+    available_mp: 1000,
+    user_plan: "standard",
+    use_job_system: true,
+  },
   parameters: {
     viewport: {
-      defaultViewport: 'mobile',
+      defaultViewport: "mobile",
     },
   },
-}
+};
 
 export const TabletView: Story = {
+  args: {
+    available_mp: 1000,
+    user_plan: "standard",
+    use_job_system: true,
+  },
   parameters: {
     viewport: {
-      defaultViewport: 'tablet',
+      defaultViewport: "tablet",
     },
   },
-}
+};
 
 export const DarkTheme: Story = {
-  parameters: {
-    backgrounds: { default: 'dark' },
-    theme: 'dark',
+  args: {
+    available_mp: 1000,
+    user_plan: "standard",
+    use_job_system: true,
   },
-}
+  parameters: {
+    backgrounds: { default: "dark" },
+    theme: "dark",
+  },
+};
 
 export const LightTheme: Story = {
-  parameters: {
-    backgrounds: { default: 'light' },
-    theme: 'light',
+  args: {
+    available_mp: 1000,
+    user_plan: "standard",
+    use_job_system: true,
   },
-}
+  parameters: {
+    backgrounds: { default: "light" },
+    theme: "light",
+  },
+};
