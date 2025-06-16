@@ -14,14 +14,14 @@ import { useAdminStatus } from "@/hooks/use_admin_status";
 export default function Navbar() {
   const { mp_tokens, is_loading_tokens, token_error } = useContext(MpContext);
   const { is_admin } = useAdminStatus();
-  
+
   return (
     <nav
       className="navbar bg-base-100 shadow-md px-4 md:px-6"
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="flex-1 flex items-center">
+      <div className="flex-1 flex items-center gap-4">
         <Link
           href="/"
           aria-label="Go to home page"
@@ -29,15 +29,15 @@ export default function Navbar() {
         >
           Studio.Moikas
         </Link>
+        <Link href="/status" className="text-xs text-gray-600 hover:text-primary">
+          Status
+        </Link>
       </div>
       <div className="flex-none gap-2">
         <SignedIn>
           <div className="flex items-center gap-3">
             {is_admin && (
-              <Link
-                href="/admin"
-                className="btn btn-sm btn-outline btn-primary"
-              >
+              <Link href="/admin" className="btn btn-sm btn-outline btn-primary">
                 Admin
               </Link>
             )}
@@ -54,11 +54,7 @@ export default function Navbar() {
                 role="status"
               ></span>
             ) : token_error ? (
-              <span
-                className="text-error text-xs"
-                title={token_error}
-                aria-live="polite"
-              >
+              <span className="text-error text-xs" title={token_error} aria-live="polite">
                 MP: --
               </span>
             ) : (
@@ -77,10 +73,7 @@ export default function Navbar() {
         </SignedIn>
         <SignedOut>
           <Link href="/sign-in">
-            <button
-              className="btn btn-primary"
-              aria-label="Sign in to your account"
-            >
+            <button className="btn btn-primary" aria-label="Sign in to your account">
               Sign In
             </button>
           </Link>

@@ -21,9 +21,20 @@ export default function Cookie_consent_banner() {
   return (
     <div className="fixed bottom-0 left-0 w-full bg-gray-900 text-white p-4 flex flex-col md:flex-row items-center justify-center z-50 shadow-lg">
       <span className="mb-2 md:mb-0 md:mr-4">
-        We use cookies and analytics to improve your experience. By using this site, you agree to our use of cookies. See our {" "}
-        <a href="/privacy-policy" className="underline text-primary">Privacy Policy</a> and {" "}
-        <a href="/terms-of-service" className="underline text-primary">Terms of Service</a>.
+        We use cookies and analytics to improve your experience. By using this site, you agree to
+        our use of cookies. See our{" "}
+        <a href="/cookie-policy" className="underline text-primary">
+          Cookie Policy
+        </a>
+        ,{" "}
+        <a href="/privacy-policy" className="underline text-primary">
+          Privacy Policy
+        </a>{" "}
+        and{" "}
+        <a href="/terms-of-service" className="underline text-primary">
+          Terms of Service
+        </a>
+        .
       </span>
       <button
         onClick={handle_accept}
@@ -33,4 +44,4 @@ export default function Cookie_consent_banner() {
       </button>
     </div>
   );
-} 
+}
