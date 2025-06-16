@@ -121,9 +121,8 @@ export async function POST(req: NextRequest) {
       const violation_text = format_violations(moderation_result.violations);
       return handle_api_error(
         new Error(
-          `Content blocked: This prompt contains ${violation_text}. Adult content with consenting adults is allowed, but harmful or illegal content is not permitted.`
-        ),
-        "CONTENT_MODERATION_VIOLATION"
+          `Content blocked: This prompt contains ${violation_text}. Harmful or illegal content is not permitted.`
+        )
       );
     }
 
