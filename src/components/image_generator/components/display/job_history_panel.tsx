@@ -115,9 +115,9 @@ export function JobHistoryPanel({
                   <Download className="w-4 h-4 mr-1" />
                   Download
                 </button>
-                {current_job.metadata?.inference_time && (
+                {typeof current_job.metadata?.inference_time === "number" && (
                   <span className="text-xs text-base-content/60">
-                    Generated in {(current_job.metadata.inference_time as number).toFixed(1)}s
+                    Generated in {current_job.metadata.inference_time.toFixed(1)}s
                   </span>
                 )}
               </div>
@@ -170,8 +170,8 @@ export function JobHistoryPanel({
               <div className="flex items-center justify-between mt-2">
                 <span className="text-xs text-base-content/60">
                   {job.cost} MP • {job.model}
-                  {job.metadata?.inference_time && (
-                    <> • {(job.metadata.inference_time as number).toFixed(1)}s</>
+                  {typeof job.metadata?.inference_time === "number" && (
+                    <> • {job.metadata.inference_time.toFixed(1)}s</>
                   )}
                 </span>
                 {job.status === "completed" && <Eye className="w-4 h-4 text-base-content/60" />}
