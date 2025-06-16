@@ -16,6 +16,7 @@ import { InsufficientTokensError } from "@/lib/utils/errors/handlers";
 import { sanitize_text } from "@/lib/utils/security/sanitization";
 import { calculate_final_cost } from "@/lib/pricing_config";
 import { generate_imggen_cache_key } from "@/lib/generate_helpers";
+import type { ModelConfig } from "@/types/models";
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node";
 import { fal } from "@fal-ai/client";
 import { moderate_prompt, format_violations } from "@/lib/utils/api/prompt_moderation";
@@ -130,15 +131,33 @@ export async function POST(req: NextRequest) {
         )
       );
     }
+    let model_config: ModelConfig | null;
+    let model_error: unknown;
 
-    // 7. Get model from database and calculate cost
-    const { data: model_config, error: model_error } = await supabase
-      .from("models")
-      .select("*")
-      .eq("model_id", validated.model)
-      .eq("is_active", true)
-      .single();
+    // if a fal-ai/lora search with model_name
+    if (validated.model.includes("fal-ai/lora") && validated.model_name) {
+      const { data, error } = await supabase
+        .from("models")
+        .select("*")
+        .eq("model_id", validated.model)
+        .eq("metadata->>default_model_name", validated.model_name)
+        .eq("is_active", true)
+        .single();
 
+      model_config = data;
+      model_error = error;
+    } else {
+      // 7. Get model from database and calculate cost
+      const { data, error } = await supabase
+        .from("models")
+        .select("*")
+        .eq("model_id", validated.model)
+        .eq("is_active", true)
+        .single();
+
+      model_config = data;
+      model_error = error;
+    }
     if (model_error || !model_config) {
       throw new Error(`Invalid or inactive model: ${validated.model}`);
     }
