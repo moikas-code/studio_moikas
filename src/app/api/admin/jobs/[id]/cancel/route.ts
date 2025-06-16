@@ -18,13 +18,13 @@ import {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 1. Require admin authentication
     await require_admin_access()
     
-    const job_id = params.id
+    const { id: job_id } = await params
     if (!job_id) {
       return api_error('Job ID is required', 400)
     }

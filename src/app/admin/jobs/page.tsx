@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, RefreshCw, Search, Download, Eye, XCircle, CheckCircle, Clock } from 'lucide-react'
+import { Loader2, RefreshCw, Search, Download, Eye, XCircle, CheckCircle, Clock, ExternalLink, Image } from 'lucide-react'
 
 interface Job {
   id: string
@@ -329,6 +329,17 @@ export default function AdminJobsPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          {job.type === 'image' && job.status === 'completed' && job.image_url && (
+                            <a
+                              href={job.image_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-ghost btn-xs"
+                              title="View image"
+                            >
+                              <Image className="w-4 h-4" />
+                            </a>
+                          )}
                           {job.status === 'failed' && (
                             <button
                               onClick={() => handle_retry_job(job)}
@@ -428,6 +439,81 @@ export default function AdminJobsPage() {
                   <div>
                     <p className="text-sm text-base-content/60">Error</p>
                     <p className="text-sm text-error bg-error/10 p-3 rounded">{selected_job.error}</p>
+                  </div>
+                )}
+                
+                {/* Display generated content based on type */}
+                {selected_job.type === 'image' && selected_job.image_url && (
+                  <div>
+                    <p className="text-sm text-base-content/60 mb-2">Generated Image(s)</p>
+                    <div className="space-y-2">
+                      {(() => {
+                        // Parse image_url if it's a JSON array
+                        let images: string[] = []
+                        if (selected_job.image_url.startsWith('[')) {
+                          try {
+                            images = JSON.parse(selected_job.image_url)
+                          } catch {
+                            images = [selected_job.image_url]
+                          }
+                        } else {
+                          images = [selected_job.image_url]
+                        }
+                        
+                        return images.map((url, index) => (
+                          <div key={index} className="bg-base-300 p-3 rounded">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium">
+                                Image {images.length > 1 ? `${index + 1} of ${images.length}` : ''}
+                              </p>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-ghost btn-xs gap-1"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Open
+                              </a>
+                            </div>
+                            {url.startsWith('http') || url.startsWith('data:') ? (
+                              <img 
+                                src={url} 
+                                alt={`Generated ${index + 1}`}
+                                className="w-full max-w-md rounded"
+                              />
+                            ) : (
+                              <p className="text-xs font-mono break-all">{url}</p>
+                            )}
+                          </div>
+                        ))
+                      })()}
+                    </div>
+                  </div>
+                )}
+                
+                {selected_job.type === 'video' && selected_job.video_url && (
+                  <div>
+                    <p className="text-sm text-base-content/60">Generated Video</p>
+                    <a
+                      href={selected_job.video_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-primary btn-sm gap-2 mt-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Video
+                    </a>
+                  </div>
+                )}
+                
+                {selected_job.type === 'audio' && selected_job.audio_url && (
+                  <div>
+                    <p className="text-sm text-base-content/60">Generated Audio</p>
+                    <audio controls className="w-full mt-2">
+                      <source src={selected_job.audio_url} />
+                      Your browser does not support the audio element.
+                    </audio>
                   </div>
                 )}
                 
