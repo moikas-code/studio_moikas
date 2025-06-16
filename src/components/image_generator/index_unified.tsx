@@ -78,6 +78,36 @@ export function ImageGenerator({
   const [image_format, set_image_format] = useState<"jpeg" | "png">("jpeg");
   const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined);
   const [custom_model_name, set_custom_model_name] = useState<string>("");
+
+  // Persist custom model name per model
+  useEffect(() => {
+    if (!model_id) return;
+
+    // Load saved custom model name
+    const saved_model_name_key = `custom_model_name_${model_id}`;
+    const saved_model_name = localStorage.getItem(saved_model_name_key);
+
+    if (saved_model_name) {
+      set_custom_model_name(saved_model_name);
+    } else {
+      // Reset to default or empty
+      const selected_model = available_models.find((m) => m.id === model_id);
+      if (selected_model?.model_config?.metadata?.default_model_name) {
+        set_custom_model_name(selected_model.model_config.metadata.default_model_name as string);
+      } else {
+        set_custom_model_name("");
+      }
+    }
+  }, [model_id, available_models]);
+
+  // Save custom model name when it changes
+  useEffect(() => {
+    if (!model_id || !custom_model_name) return;
+
+    const saved_model_name_key = `custom_model_name_${model_id}`;
+    localStorage.setItem(saved_model_name_key, custom_model_name);
+  }, [custom_model_name, model_id]);
+
   const [generation_start_time, set_generation_start_time] = useState<number | null>(null);
   const [elapsed_seconds, set_elapsed_seconds] = useState<number>(0);
 
@@ -86,7 +116,7 @@ export function ImageGenerator({
   const job_generation = useJobBasedImageGeneration();
   const { is_enhancing, enhance_prompt } = usePromptEnhancement();
   const aspect_ratio = useAspectRatio();
-  const sana = useSanaSettings();
+  const sana = useSanaSettings(model_id || undefined);
 
   // Helper to get current generation state
   const generation_state = useMemo(() => {
@@ -163,16 +193,21 @@ export function ImageGenerator({
     fetch_models();
   }, [user_plan, auth_loaded]);
 
-  // Set initial sana settings when models are loaded and model_id is set
+  // Load model defaults when model changes, but only if user hasn't saved custom settings
   useEffect(() => {
     if (!models_loading && available_models.length > 0 && model_id) {
       const selected_model = available_models.find((m) => m.id === model_id);
       if (selected_model?.model_config) {
-        if (selected_model.model_config.default_cfg !== undefined) {
-          sana.update_guidance_scale(selected_model.model_config.default_cfg);
-        }
-        if (selected_model.model_config.default_steps !== undefined) {
-          sana.update_inference_steps(selected_model.model_config.default_steps);
+        // Check if user has saved settings for this model
+        const saved_settings_key = `sana_settings_${model_id}`;
+        const has_saved_settings = localStorage.getItem(saved_settings_key);
+
+        // Only load model defaults if user hasn't saved custom settings
+        if (!has_saved_settings) {
+          sana.load_model_defaults({
+            default_cfg: selected_model.model_config.default_cfg,
+            default_steps: selected_model.model_config.default_steps,
+          });
         }
       }
     }
