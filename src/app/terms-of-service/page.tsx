@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from "react";
-import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image as ImageIcon, Video, Mic, Bot, Shield, Globe, Database, Gavel } from "lucide-react";
+import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image as ImageIcon, Video, Mic, Bot, Shield, Globe, Gavel } from "lucide-react";
 import Link from "next/link";
 
 export default function Terms_of_service_page() {
@@ -521,7 +521,7 @@ export default function Terms_of_service_page() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary/60 mt-1">•</span>
-                      <span>Right to erasure ("right to be forgotten")</span>
+                      <span>Right to erasure (&quot;right to be forgotten&quot;)</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary/60 mt-1">•</span>
@@ -581,7 +581,7 @@ export default function Terms_of_service_page() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary/60 mt-1">•</span>
-                      <span>We'll notify you of major model changes when possible</span>
+                      <span>We&apos;ll notify you of major model changes when possible</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary/60 mt-1">•</span>

@@ -335,7 +335,7 @@ export default function Privacy_policy_page() {
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Users className="w-5 h-5 text-primary" />
                 </div>
-                <h2 className="text-xl font-semibold">Children's Privacy</h2>
+                <h2 className="text-xl font-semibold">Children&apos;s Privacy</h2>
               </div>
               <div className="space-y-2 text-base-content/80">
                 <p>Studio Moikas is not intended for children under 13 (or 16 in the EU).</p>
@@ -407,7 +407,7 @@ export default function Privacy_policy_page() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary/60 mt-1">•</span>
-                    <span>Notifications will include what data was affected and steps we're taking</span>
+                    <span>Notifications will include what data was affected and steps we&apos;re taking</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary/60 mt-1">•</span>
@@ -471,7 +471,7 @@ export default function Privacy_policy_page() {
                 <ul className="space-y-2">
                   <li className="flex items-start gap-2">
                     <span className="text-primary/60 mt-1">•</span>
-                    <span>Contract: To provide our AI services you've subscribed to</span>
+                    <span>Contract: To provide our AI services you&apos;ve subscribed to</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary/60 mt-1">•</span>
