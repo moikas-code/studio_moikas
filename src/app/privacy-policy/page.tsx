@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from "react";
-import { Shield, Eye, Database, Cookie, Lock, Mail, Users, AlertCircle, ChevronDown } from "lucide-react";
+import { Shield, Eye, Database, Cookie, Lock, Mail, Users, AlertCircle, ChevronDown, Scale } from "lucide-react";
 import Link from "next/link";
 
 export default function Privacy_policy_page() {
@@ -390,6 +390,106 @@ export default function Privacy_policy_page() {
             </div>
           </div>
 
+          {/* Data Breach Response */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">Data Breach Response</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We will notify affected users within 72 hours of discovering a breach</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Notifications will include what data was affected and steps we're taking</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>We maintain incident response procedures to minimize impact</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>You will receive guidance on protecting your account</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* California Privacy Rights */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Shield className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">California Privacy Rights (CCPA)</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Right to know what personal information we collect</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Right to delete your personal information</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Right to opt-out of sale (we do not sell your data)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Right to non-discrimination for exercising privacy rights</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Submit requests at privacy@studiomoikas.com</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Legal Basis for Processing */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Scale className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">Legal Basis for Processing (EU Users)</h2>
+              </div>
+              <div className="space-y-2 text-base-content/80">
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Contract: To provide our AI services you've subscribed to</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Legitimate Interests: Security, fraud prevention, service improvement</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Consent: For marketing communications (which you can withdraw)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary/60 mt-1">•</span>
+                    <span>Legal Obligation: To comply with applicable laws</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
           {/* Changes to Privacy Policy */}
           <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
             <div className="px-6 py-4">
@@ -434,25 +534,25 @@ export default function Privacy_policy_page() {
             <div>
               <p className="font-semibold">Privacy Inquiries:</p>
               <p>
-                Email: <a href="mailto:privacy@studiomoikas.com" className="text-primary hover:underline">privacy@studiomoikas.com</a>
+                Email: <a href="https://x.com/moikas_official" target="blank" className="text-primary hover:underline">Moikas</a>
               </p>
             </div>
             <div>
               <p className="font-semibold">Data Requests (GDPR/CCPA):</p>
               <p>
-                Email: <a href="mailto:privacy@studiomoikas.com" className="text-primary hover:underline">privacy@studiomoikas.com</a>
+                Email: <a href="https://x.com/moikas_official" target="blank" className="text-primary hover:underline">Moikas</a>
               </p>
             </div>
             <div className="pt-4 border-t border-base-content/20">
               <p className="text-sm">
                 General support: Contact{" "}
                 <a 
-                  href="https://x.com/moikapy_" 
+                  href="https://x.com/moikas_official" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="text-primary hover:underline"
                 >
-                  @moikapy_
+                  Moikas
                 </a>{" "}
                 on X
               </p>
