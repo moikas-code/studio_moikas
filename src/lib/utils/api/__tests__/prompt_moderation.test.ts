@@ -1,25 +1,36 @@
-import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
+import { describe, it, expect, beforeEach, mock } from 'bun:test'
 import { 
   moderate_prompt, 
   format_violations, 
   ModerationResult 
 } from '../prompt_moderation'
-import * as redis_module from '../../database/redis'
 
-// Mock Redis
-vi.mock('../../database/redis', () => ({
-  get_redis_client: vi.fn(() => ({
-    get: vi.fn(),
-    set: vi.fn()
-  }))
+// Mock Redis module
+const mockRedisGet = mock()
+const mockRedisSet = mock()
+const mockGetRedisClient = mock(() => ({
+  get: mockRedisGet,
+  set: mockRedisSet
+}))
+
+mock.module('../../database/redis', () => ({
+  get_redis_client: mockGetRedisClient
 }))
 
 // Mock fetch for API calls
-global.fetch = vi.fn()
+const mockFetch = mock()
+global.fetch = mockFetch as any
 
 describe('Prompt Moderation', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockRedisGet.mockReset()
+    mockRedisSet.mockReset()
+    mockGetRedisClient.mockReset()
+    mockFetch.mockReset()
+    mockGetRedisClient.mockReturnValue({
+      get: mockRedisGet,
+      set: mockRedisSet
+    })
     process.env.XAI_API_KEY = 'test-api-key'
   })
 
@@ -31,7 +42,7 @@ describe('Prompt Moderation', () => {
         confidence: 0.95
       }
 
-      ;(global.fetch as Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           choices: [{ message: { content: JSON.stringify(mock_response) } }]
@@ -52,7 +63,7 @@ describe('Prompt Moderation', () => {
         confidence: 0.98
       }
 
-      ;(global.fetch as Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           choices: [{ message: { content: JSON.stringify(mock_response) } }]
@@ -73,7 +84,7 @@ describe('Prompt Moderation', () => {
         confidence: 0.92
       }
 
-      ;(global.fetch as Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           choices: [{ message: { content: JSON.stringify(mock_response) } }]
@@ -94,22 +105,17 @@ describe('Prompt Moderation', () => {
         cached: true
       }
 
-      const redis_client = {
-        get: vi.fn().mockResolvedValueOnce(cached_result),
-        set: vi.fn()
-      }
-
-      ;(redis_module.get_redis_client as Mock).mockReturnValueOnce(redis_client)
+      mockRedisGet.mockResolvedValueOnce(cached_result)
 
       const result = await moderate_prompt('Test prompt')
       
       expect(result.cached).toBe(true)
-      expect(redis_client.get).toHaveBeenCalledOnce()
-      expect(global.fetch).not.toHaveBeenCalled()
+      expect(mockRedisGet).toHaveBeenCalledTimes(1)
+      expect(mockFetch).not.toHaveBeenCalled()
     })
 
     it('should default to safe on API error', async () => {
-      ;(global.fetch as Mock).mockRejectedValueOnce(new Error('API Error'))
+      mockFetch.mockRejectedValueOnce(new Error('API Error'))
 
       const result = await moderate_prompt('Test prompt')
       
@@ -125,7 +131,7 @@ describe('Prompt Moderation', () => {
         confidence: 0.3 // Low confidence
       }
 
-      ;(global.fetch as Mock).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           choices: [{ message: { content: JSON.stringify(mock_response) } }]
