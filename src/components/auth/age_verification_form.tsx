@@ -1,99 +1,137 @@
-"use client"
-import React, { useState } from "react"
-import { Calendar, AlertCircle, Globe } from "lucide-react"
-import { useRouter } from "next/navigation"
+"use client";
+import React, { useState } from "react";
+import { Calendar, AlertCircle, Globe } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 const EU_COUNTRIES = [
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
-  'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 
-  'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'
-]
+  "AT",
+  "BE",
+  "BG",
+  "HR",
+  "CY",
+  "CZ",
+  "DK",
+  "EE",
+  "FI",
+  "FR",
+  "DE",
+  "GR",
+  "HU",
+  "IE",
+  "IT",
+  "LV",
+  "LT",
+  "LU",
+  "MT",
+  "NL",
+  "PL",
+  "PT",
+  "RO",
+  "SK",
+  "SI",
+  "ES",
+  "SE",
+];
 
 interface AgeVerificationFormProps {
-  onComplete?: () => void
+  onComplete?: () => void;
 }
 
 export default function AgeVerificationForm({ onComplete }: AgeVerificationFormProps) {
-  const router = useRouter()
-  const [birth_date, set_birth_date] = useState("")
-  const [region, set_region] = useState("")
-  const [is_loading, set_is_loading] = useState(false)
-  const [error, set_error] = useState("")
+  const router = useRouter();
+  const { getToken } = useAuth();
+  const [birth_date, set_birth_date] = useState("");
+  const [region, set_region] = useState("");
+  const [is_loading, set_is_loading] = useState(false);
+  const [error, set_error] = useState("");
 
   const get_min_age = () => {
-    return EU_COUNTRIES.includes(region) ? 16 : 13
-  }
+    return EU_COUNTRIES.includes(region) ? 16 : 13;
+  };
 
   const calculate_age = (birth_date: string) => {
-    const birth = new Date(birth_date)
-    const today = new Date()
-    let age = today.getFullYear() - birth.getFullYear()
-    const month_diff = today.getMonth() - birth.getMonth()
-    
+    const birth = new Date(birth_date);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const month_diff = today.getMonth() - birth.getMonth();
+
     if (month_diff < 0 || (month_diff === 0 && today.getDate() < birth.getDate())) {
-      age--
+      age--;
     }
-    
-    return age
-  }
+
+    return age;
+  };
 
   const handle_submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    set_error("")
-    
+    e.preventDefault();
+    set_error("");
+
     // Client-side age check
-    const age = calculate_age(birth_date)
-    const min_age = get_min_age()
-    
+    const age = calculate_age(birth_date);
+    const min_age = get_min_age();
+
     if (age < min_age) {
-      set_error(`You must be at least ${min_age} years old to use Studio Moikas`)
-      return
+      set_error(`You must be at least ${min_age} years old to use Studio Moikas`);
+      return;
     }
-    
-    set_is_loading(true)
-    
+
+    set_is_loading(true);
+
     try {
       const response = await fetch("/api/auth/verify-age", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           birth_date,
-          region: region || undefined
-        })
-      })
-      
-      const data = await response.json()
-      
+          region: region || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.error || "Age verification failed")
+        throw new Error(data.error || "Age verification failed");
       }
-      
-      // Success - redirect to tools or call completion handler
-      if (onComplete) {
-        onComplete()
-      } else {
-        router.push("/tools")
+
+      // Force session refresh to get updated metadata
+      try {
+        await getToken({ skipCache: true });
+
+        // Small delay to ensure token is refreshed
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Success - redirect to tools or call completion handler
+        if (onComplete) {
+          onComplete();
+        } else {
+          router.push("/tools");
+        }
+      } catch {
+        // If token refresh fails, force a page reload which will refresh the session
+        console.log("Token refresh failed, reloading page to refresh session");
+        window.location.href = onComplete ? window.location.href : "/tools";
       }
     } catch (err) {
-      set_error(err instanceof Error ? err.message : "Age verification failed")
+      set_error(err instanceof Error ? err.message : "Age verification failed");
     } finally {
-      set_is_loading(false)
+      set_is_loading(false);
     }
-  }
+  };
 
   // Get max date (today)
   const get_max_date = () => {
-    return new Date().toISOString().split('T')[0]
-  }
+    return new Date().toISOString().split("T")[0];
+  };
 
   // Get min date (150 years ago)
   const get_min_date = () => {
-    const date = new Date()
-    date.setFullYear(date.getFullYear() - 150)
-    return date.toISOString().split('T')[0]
-  }
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 150);
+    return date.toISOString().split("T")[0];
+  };
 
   return (
     <div className="max-w-md mx-auto p-6">
@@ -104,15 +142,14 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
         </div>
         <h2 className="text-2xl font-bold mb-2">Verify Your Age</h2>
         <p className="text-base-content/70">
-          To comply with legal requirements, we need to verify that you meet the minimum age requirement.
+          To comply with legal requirements, we need to verify that you meet the minimum age
+          requirement.
         </p>
       </div>
 
       <form onSubmit={handle_submit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium mb-2">
-            Birth Date
-          </label>
+          <label className="block text-sm font-medium mb-2">Birth Date</label>
           <input
             type="date"
             value={birth_date}
@@ -209,9 +246,12 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
       </form>
 
       <p className="text-xs text-base-content/60 text-center mt-6">
-        Your birth date is used only for age verification and is stored securely.
-        See our <a href="/privacy-policy" className="link link-primary">Privacy Policy</a> for details.
+        Your birth date is used only for age verification and is stored securely. See our{" "}
+        <a href="/privacy-policy" className="link link-primary">
+          Privacy Policy
+        </a>{" "}
+        for details.
       </p>
     </div>
-  )
+  );
 }
