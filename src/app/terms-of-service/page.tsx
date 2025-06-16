@@ -284,7 +284,7 @@ export default function Terms_of_service_page() {
           subtitle: "Copyright Infringement Claims",
           items: [
             "We respect intellectual property rights and respond to valid DMCA takedown notices",
-            "To report copyright infringement, send a DMCA notice to: legal@studiomoikas.com",
+            "To report copyright infringement, send a DMCA notice to: x.com/moikas_official",
             "Include: (1) Your signature, (2) Identification of copyrighted work, (3) URL of infringing content, (4) Your contact information, (5) Good faith statement, (6) Statement of accuracy under penalty of perjury"
           ]
         },
