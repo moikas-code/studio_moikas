@@ -10,6 +10,7 @@ export const maxDuration = 30;
 
 // Additional validation for fal.ai webhook
 import { z } from "zod";
+import { ModelConfig } from "@/types/models";
 
 const fal_ai_webhook_schema = z.object({
   request_id: z.string(),
@@ -232,13 +233,28 @@ export async function POST(req: NextRequest) {
           // Handle time-based billing if applicable
           if (validated.metrics?.inference_time && job.model) {
             // Fetch the model configuration to check billing type
-            const { data: model_config } = await supabase
-              .from("models")
-              .select(
-                "billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds"
-              )
-              .eq("model_id", job.model)
-              .single();
+            let model_config: ModelConfig | undefined;
+            // if job.model is a fal-ai/lora model use model_name as well as model_id
+            if (job.model.includes("fal-ai/lora")) {
+              const { data } = await supabase
+                .from("models")
+                .select(
+                  "billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds"
+                )
+                .eq("model_id", job.model)
+                .eq("metadata->>default_model_name", job.metadata?.model_name)
+                .single();
+              model_config = data as ModelConfig;
+            } else {
+              const { data } = await supabase
+                .from("models")
+                .select(
+                  "billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds"
+                )
+                .eq("model_id", job.model)
+                .single();
+              model_config = data as ModelConfig;
+            }
 
             if (model_config?.billing_type === "time_based") {
               // Calculate actual cost based on time
@@ -265,8 +281,22 @@ export async function POST(req: NextRequest) {
               const base_mp_cost = model_config.custom_cost / 0.001;
               const time_based_cost_mp = Math.ceil(base_mp_cost * billable_seconds);
 
+              // Apply plan upcharge
+              const { data: subscription } = await supabase
+                .from("subscriptions")
+                .select("plan")
+                .eq("user_id", job.user_id)
+                .single();
+
+              let final_cost = time_based_cost_mp;
+              if (subscription?.plan === "free") {
+                final_cost = Math.ceil(time_based_cost_mp * 4); // 300% upcharge for free users
+              } else if (subscription?.plan === "standard") {
+                final_cost = Math.ceil(time_based_cost_mp * 1.5); // 50% upcharge for standard users
+              }
+
               // Calculate the difference from the original estimated cost
-              const cost_difference = time_based_cost_mp - (job.cost || 0);
+              const cost_difference = final_cost - (job.cost || 0);
 
               // Update the job's metadata with billing details
               update_data.metadata = {
@@ -276,7 +306,9 @@ export async function POST(req: NextRequest) {
                 time_based_billing: true,
                 actual_inference_seconds: validated.metrics.inference_time,
                 billable_seconds: billable_seconds,
+                base_mp_per_second: base_mp_cost,
                 time_based_cost_mp: time_based_cost_mp,
+                final_cost_mp: final_cost,
                 original_estimated_cost_mp: job.cost,
                 cost_adjustment_mp: cost_difference,
               };
@@ -499,7 +531,9 @@ export async function POST(req: NextRequest) {
 
               let final_cost = time_based_cost_mp;
               if (subscription?.plan === "free") {
-                final_cost = Math.ceil(time_based_cost_mp * 1.5); // 50% upcharge for free users
+                final_cost = Math.ceil(time_based_cost_mp * 4); // 300% upcharge for free users
+              } else if (subscription?.plan === "standard") {
+                final_cost = Math.ceil(time_based_cost_mp * 1.5); // 50% upcharge for standard users
               }
 
               // Calculate the difference from the original estimated cost
