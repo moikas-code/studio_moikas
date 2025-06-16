@@ -20,9 +20,12 @@ const review_schema = z.object({
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Await params
+    const resolvedParams = await params
+    
     // Require admin authentication
     const admin_response = await require_admin_access()
     if (admin_response) return admin_response
@@ -41,7 +44,7 @@ export async function POST(
         false_positive_notes: validated.notes,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .eq('false_positive_reported', true)
     
     if (error) {
