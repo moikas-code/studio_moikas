@@ -15,10 +15,9 @@ export default async function Tools_layout({ children }: { children: React.React
   const { is_verified, needs_verification } = await check_age_verification();
 
   if (needs_verification && !is_verified) {
-    // Get the current path for return URL
-    const headers = await import("next/headers").then((m) => m.headers);
-    const pathname = headers().get("x-pathname") || "/tools";
-    redirect(`/tools/age-verification?return_url=${encodeURIComponent(pathname)}`);
+    // For the tools layout, we'll just redirect to the age verification page
+    // The middleware will handle preserving the return URL
+    redirect("/tools/age-verification");
   }
 
   return <ToolsLayoutClient>{children}</ToolsLayoutClient>;
