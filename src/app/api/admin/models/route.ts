@@ -164,15 +164,17 @@ export async function POST(req: NextRequest) {
     
     const supabase = get_service_role_client();
     
-    // Check if model_id already exists
+    // Check if model_id already exists unless its is fal-ai/lora
+    if (validated.model_id !== 'fal-ai/lora') {
     const { data: existing } = await supabase
       .from('models')
       .select('id')
       .eq('model_id', validated.model_id)
       .single();
-    
-    if (existing) {
-      return api_error('Model ID already exists', 400);
+        
+      if (existing) {
+        return api_error('Model ID already exists', 400);
+      }
     }
     
     // Create the model
