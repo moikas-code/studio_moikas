@@ -20,8 +20,7 @@ export async function require_age_verification(): Promise<NextResponse | null> {
     if (needs_verification && !is_verified) {
       return api_error(
         "Age verification required. Please verify your age to access this feature.",
-        403,
-        "AGE_VERIFICATION_REQUIRED"
+        403
       );
     }
 

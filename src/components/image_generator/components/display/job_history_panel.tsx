@@ -1,5 +1,6 @@
 import React from "react";
 import { Clock, CheckCircle, XCircle, Loader2, Download, Eye } from "lucide-react";
+import Image from "next/image";
 import type { ImageJob } from "../../hooks/use_job_based_image_generation";
 
 interface JobHistoryPanelProps {
@@ -97,14 +98,17 @@ export function JobHistoryPanel({
           {current_job.status === "completed" && current_job.image_url && (
             <>
               <div className="mt-3 mb-3">
-                <img
+                <Image
                   src={
                     current_job.image_url.startsWith("data:")
                       ? current_job.image_url
                       : `data:image/png;base64,${current_job.image_url}`
                   }
                   alt="Generated"
+                  width={256}
+                  height={128}
                   className="w-full h-32 object-cover rounded"
+                  unoptimized
                 />
               </div>
               <div className="flex justify-between items-center">

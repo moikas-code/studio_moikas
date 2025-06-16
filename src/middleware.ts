@@ -18,7 +18,10 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       const { sessionClaims } = await auth();
 
       // Check if user has verified their age
-      const age_verified = sessionClaims?.publicMetadata?.age_verified as boolean | undefined;
+      const public_metadata = sessionClaims?.publicMetadata as
+        | { age_verified?: boolean }
+        | undefined;
+      const age_verified = public_metadata?.age_verified;
 
       if (!age_verified) {
         // Redirect to age verification with return URL

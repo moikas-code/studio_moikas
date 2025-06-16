@@ -33,7 +33,6 @@ const plans = [
       "Email support",
       "No watermarks",
       "60 requests per minute",
-      "API access",
       "MEMU workflows (Pro)",
     ],
     limitations: [],
@@ -43,17 +42,17 @@ const plans = [
   },
   {
     name: "Pay as you go",
-    price: "From $5",
+    price: "From $2",
     period: "one-time",
     description: "Buy tokens when you need them",
     features: [
       "Never expires",
       "Use across all tools",
-      "Same features as Standard",
+      "Same features as Free plan",
       "No monthly commitment",
       "Bulk discounts available",
     ],
-    limitations: [],
+    limitations: ["Limited to 10 requests/minute", "Watermarked outputs"],
     cta: "Buy Tokens",
     href: "/buy-tokens",
     popular: false,
@@ -136,8 +135,8 @@ export default function MacPricingTable() {
                 <button
                   className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-300 ${
                     plan.popular
-                      ? "bg-gradient-to-r from-jade to-jade-dark text-white hover:shadow-lg"
-                      : "glass dark:glass-dark text-gray-700 dark:text-gray-300 hover:shadow-macos"
+                      ? "bg-gradient-to-r from-jade to-jade-dark dark:text-white hover:shadow-lg"
+                      : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:shadow-macos hover:bg-gray-200 dark:hover:bg-gray-700"
                   }`}
                   onClick={() => track(`Landing-Pricing-${plan.name}-Click`)}
                 >
@@ -160,20 +159,71 @@ export default function MacPricingTable() {
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-white/50 dark:bg-gray-900/50 rounded-xl">
-                <div className="text-2xl font-bold text-jade">20-50</div>
+                <div className="text-2xl font-bold text-jade">1-320*</div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">Image Gen</div>
               </div>
               <div className="text-center p-3 bg-white/50 dark:bg-gray-900/50 rounded-xl">
-                <div className="text-2xl font-bold text-jade">100-200</div>
+                <div className="text-2xl font-bold text-jade">750/sec*</div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">Video Effects</div>
               </div>
               <div className="text-center p-3 bg-white/50 dark:bg-gray-900/50 rounded-xl">
-                <div className="text-2xl font-bold text-jade">10-30</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Audio/TTS</div>
+                <div className="text-2xl font-bold text-jade">25/250</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">TTS (MP/chars)</div>
               </div>
               <div className="text-center p-3 bg-white/50 dark:bg-gray-900/50 rounded-xl">
                 <div className="text-2xl font-bold text-jade">5-15</div>
                 <div className="text-xs text-gray-600 dark:text-gray-400">Text AI</div>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
+              * Costs vary by model and plan. Video charges per second of output.
+            </p>
+          </div>
+        </div>
+
+        {/* Detailed Pricing Breakdown */}
+        <div className="mt-8 max-w-3xl mx-auto">
+          <div className="p-6 glass dark:glass-dark rounded-2xl shadow-macos">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              How Image Generation Pricing Works
+            </h4>
+            <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
+              <div>
+                <span className="font-medium text-gray-800 dark:text-gray-200">
+                  Pricing Models:
+                </span>
+                <ul className="mt-1 ml-4 space-y-1">
+                  <li>
+                    • <strong>Flat Rate:</strong> Most models charge a fixed MP cost per image
+                  </li>
+                  <li>
+                    • <strong>Time-Based:</strong> LoRA/SD models charge 1 MP per second of
+                    generation
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <span className="font-medium text-gray-800 dark:text-gray-200">
+                  Plan Multipliers:
+                </span>
+                <ul className="mt-1 ml-4 space-y-1">
+                  <li>
+                    • <strong>Free users:</strong> 4x base cost
+                  </li>
+                  <li>
+                    • <strong>Standard users:</strong> 1.5x base cost
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <span className="font-medium text-gray-800 dark:text-gray-200">
+                  Example Base Costs:
+                </span>
+                <ul className="mt-1 ml-4 space-y-1">
+                  <li>• SANA: 1 MP → 4 MP (Free) / 1.5 MP (Standard)</li>
+                  <li>• FLUX Dev: 25 MP → 100 MP (Free) / 37.5 MP (Standard)</li>
+                  <li>• LoRA Models: 1 MP/sec → 4 MP/sec (Free) / 1.5 MP/sec (Standard)</li>
+                </ul>
               </div>
             </div>
           </div>

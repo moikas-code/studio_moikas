@@ -18,7 +18,7 @@ export default function MacHeroSection() {
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-2 glass dark:glass-dark rounded-full text-sm font-medium mb-8 animate-scale-in">
           <Sparkles className="w-4 h-4 text-jade" />
-          <span className="text-gray-700 dark:text-gray-300">AI-Powered Creative Studio</span>
+          <span className="text-gray-700 dark:text-gray-300">Early Access • Community Project</span>
         </div>
 
         {/* Main Headline */}
@@ -43,7 +43,7 @@ export default function MacHeroSection() {
             "Voice Cloning",
             "Video Effects",
             "AI Workflows",
-            "No Subscriptions",
+            "No commitment required",
           ].map((feature, index) => (
             <div
               key={feature}
@@ -60,7 +60,7 @@ export default function MacHeroSection() {
           <SignedOut>
             <Link href="/sign-up">
               <button
-                className="group relative px-8 py-4 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover transform hover:scale-[1.02] transition-all duration-300"
+                className="group relative px-8 py-4 bg-gradient-to-r from-jade to-jade-dark dark:text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover transform hover:scale-[1.02] transition-all duration-300"
                 onClick={() => track("Landing-MacHero-GetStarted-Click")}
               >
                 <span className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export default function MacHeroSection() {
           <SignedIn>
             <Link href="/tools">
               <button
-                className="group relative px-8 py-4 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover transform hover:scale-[1.02] transition-all duration-300"
+                className="group relative px-8 py-4 bg-gradient-to-r from-jade to-jade-dark dark:text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover transform hover:scale-[1.02] transition-all duration-300"
                 onClick={() => track("Landing-MacHero-OpenStudio-Click")}
               >
                 <span className="flex items-center gap-2">

@@ -11,7 +11,7 @@ const features = [
     href: "/tools/create",
     color: "from-purple-500/10 to-pink-500/10",
     iconColor: "text-purple-500",
-    tokens: "20-50 MP",
+    tokens: "1-320 MP*",
   },
   {
     title: "Video Effects",
@@ -20,7 +20,7 @@ const features = [
     href: "/tools/video-effects",
     color: "from-blue-500/10 to-cyan-500/10",
     iconColor: "text-blue-500",
-    tokens: "100-200 MP",
+    tokens: "750 MP/sec*",
   },
   {
     title: "Audio Studio",
@@ -29,7 +29,7 @@ const features = [
     href: "/tools/audio",
     color: "from-pink-500/10 to-rose-500/10",
     iconColor: "text-pink-500",
-    tokens: "10-30 MP",
+    tokens: "25 MP/250 chars",
   },
   {
     title: "MEMU Workflows",
@@ -134,12 +134,16 @@ export default function MacFeatureGrid() {
         </div>
 
         {/* Additional Info */}
-        <div className="mt-16 text-center">
+        <div className="mt-16 text-center space-y-4">
           <div className="inline-flex items-center gap-4 px-6 py-3 glass dark:glass-dark rounded-full">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              No hidden fees • Cancel anytime • API access available
+              No hidden fees • Cancel anytime • Instant access
             </span>
           </div>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            * Costs vary by model and plan. Some models charge per second of generation. See pricing
+            for details.
+          </p>
         </div>
       </div>
     </section>

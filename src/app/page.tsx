@@ -6,7 +6,6 @@ import MacHeroSection from "../components/landing/MacHeroSection";
 import MacDemoShowcase from "../components/landing/MacDemoShowcase";
 import MacFeatureGrid from "../components/landing/MacFeatureGrid";
 import MacPricingTable from "../components/landing/MacPricingTable";
-import MacFooter from "../components/landing/MacFooter";
 
 export default function Home() {
   const { user, isLoaded } = useUser();
@@ -44,7 +43,6 @@ export default function Home() {
       <MacDemoShowcase />
       <MacFeatureGrid />
       <MacPricingTable />
-      <MacFooter />
     </div>
   );
 }

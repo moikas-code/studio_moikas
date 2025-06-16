@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import Image from "next/image";
 import { useImageGeneration, type GenerationParams } from "./hooks/use_image_generation";
 import { useJobBasedImageGeneration } from "./hooks/use_job_based_image_generation";
 import { usePromptEnhancement } from "./hooks/use_prompt_enhancement";
@@ -550,14 +551,14 @@ export function ImageGenerator({
                             <div className="flex flex-col flex-1">
                               <span className="font-medium">{selected_model.name}</span>
                               {selected_model.model_config?.model_id === "fal-ai/lora" &&
-                                selected_model.model_config?.metadata?.lora_path && (
-                                  <span className="text-xs text-base-content/50">
-                                    LoRA:{" "}
-                                    {String(selected_model.model_config.metadata.lora_path)
-                                      .split("/")
-                                      .pop()}
-                                  </span>
-                                )}
+                              selected_model.model_config?.metadata?.lora_path ? (
+                                <span className="text-xs text-base-content/50">
+                                  LoRA:{" "}
+                                  {String(selected_model.model_config.metadata.lora_path)
+                                    .split("/")
+                                    .pop()}
+                                </span>
+                              ) : null}
                             </div>
                             <span className="text-xs text-base-content/60 whitespace-nowrap">
                               {selected_model.model_config?.billing_type === "time_based"
@@ -1042,10 +1043,13 @@ export function ImageGenerator({
                     </>
                   )}
 
-                  <img
+                  <Image
                     src={generated_images.urls[current_image_index]}
                     alt={`Generated ${current_image_index + 1}`}
+                    width={1024}
+                    height={1024}
                     className="w-full h-auto"
+                    unoptimized
                   />
                 </div>
 
@@ -1062,10 +1066,13 @@ export function ImageGenerator({
                             : "opacity-60 hover:opacity-100"
                         }`}
                       >
-                        <img
+                        <Image
                           src={url}
                           alt={`Thumbnail ${index + 1}`}
+                          width={80}
+                          height={80}
                           className="w-20 h-20 object-cover"
+                          unoptimized
                         />
                       </button>
                     ))}
