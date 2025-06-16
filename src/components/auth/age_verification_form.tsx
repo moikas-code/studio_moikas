@@ -63,6 +63,43 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
     return age;
   };
 
+  const wait_for_verification = async (max_attempts = 6): Promise<boolean> => {
+    for (let attempt = 1; attempt <= max_attempts; attempt++) {
+      try {
+        console.log(`Checking verification status, attempt ${attempt}/${max_attempts}`);
+
+        // Try to get fresh token from Clerk
+        await getToken({ skipCache: true });
+
+        // Check verification status via API
+        const check_response = await fetch("/api/auth/verify-age", {
+          method: "GET",
+        });
+
+        if (check_response.ok) {
+          const check_data = await check_response.json();
+          if (check_data.verified) {
+            console.log("Verification confirmed via API");
+            return true;
+          }
+        }
+
+        // Wait with exponential backoff (500ms, 1s, 2s, 4s, 8s, 16s)
+        const delay = Math.min(500 * Math.pow(2, attempt - 1), 16000);
+        console.log(`Verification not ready, waiting ${delay}ms before retry`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } catch (error) {
+        console.warn(`Verification check attempt ${attempt} failed:`, error);
+        // Continue with exponential backoff even on errors
+        const delay = Math.min(500 * Math.pow(2, attempt - 1), 16000);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    console.warn("Verification status check timed out after all attempts");
+    return false;
+  };
+
   const handle_submit = async (e: React.FormEvent) => {
     e.preventDefault();
     set_error("");
@@ -79,6 +116,7 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
     set_is_loading(true);
 
     try {
+      console.log("Submitting age verification");
       const response = await fetch("/api/auth/verify-age", {
         method: "POST",
         headers: {
@@ -96,25 +134,27 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
         throw new Error(data.error || "Age verification failed");
       }
 
-      // Force session refresh to get updated metadata
-      try {
-        await getToken({ skipCache: true });
+      console.log("Age verification submitted successfully, waiting for propagation");
 
-        // Small delay to ensure token is refreshed
-        await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for verification to propagate through both Clerk and database
+      const verification_confirmed = await wait_for_verification();
 
+      if (verification_confirmed) {
+        console.log("Verification confirmed, redirecting");
         // Success - redirect to tools or call completion handler
         if (onComplete) {
           onComplete();
         } else {
           router.push("/tools");
         }
-      } catch {
-        // If token refresh fails, force a page reload which will refresh the session
-        console.log("Token refresh failed, reloading page to refresh session");
+      } else {
+        console.log("Verification timeout, forcing page reload");
+        // If verification doesn't confirm within reasonable time, force reload
+        // The database should have the verification, middleware will handle fallback
         window.location.href = onComplete ? window.location.href : "/tools";
       }
     } catch (err) {
+      console.error("Age verification error:", err);
       set_error(err instanceof Error ? err.message : "Age verification failed");
     } finally {
       set_is_loading(false);
@@ -237,7 +277,7 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
           {is_loading ? (
             <>
               <span className="loading loading-spinner loading-sm"></span>
-              Verifying...
+              Verifying and syncing...
             </>
           ) : (
             "Verify Age"

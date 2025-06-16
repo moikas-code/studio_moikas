@@ -3,6 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { handle_api_error, api_success, api_error } from "@/lib/utils/api/response";
 import { validate_request } from "@/lib/utils/api/validation";
 import { get_service_role_client } from "@/lib/utils/database/supabase";
+import { check_age_verification } from "@/lib/utils/auth/age_verification";
 import { z } from "zod";
 
 const age_verification_schema = z.object({
@@ -134,6 +135,20 @@ export async function POST(req: NextRequest) {
     return api_success({
       message: "Age verification successful",
       verified: true,
+    });
+  } catch (error) {
+    return handle_api_error(error);
+  }
+}
+
+export async function GET() {
+  try {
+    const verification_status = await check_age_verification();
+
+    return api_success({
+      verified: verification_status.is_verified,
+      needs_verification: verification_status.needs_verification,
+      user_id: verification_status.user_id,
     });
   } catch (error) {
     return handle_api_error(error);

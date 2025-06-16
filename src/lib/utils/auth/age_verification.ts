@@ -18,12 +18,12 @@ export async function check_age_verification(): Promise<{
       return { is_verified: true, needs_verification: false, user_id: user.id };
     }
 
-    // Check database - but handle missing columns gracefully
+    // Check database for age verification
     const supabase = get_service_role_client();
     try {
       const { data, error } = await supabase
         .from("users")
-        .select("id")
+        .select("id, age_verified_at")
         .eq("clerk_id", user.id)
         .single();
 
@@ -31,11 +31,26 @@ export async function check_age_verification(): Promise<{
         return { is_verified: false, needs_verification: true, user_id: user.id };
       }
 
-      // If we can't check age_verified_at column (doesn't exist),
-      // fall back to Clerk metadata only
+      // Check if age is verified in database
+      const db_verified = data.age_verified_at !== null;
+
+      if (db_verified) {
+        // If verified in database but not in Clerk metadata, sync them
+        if (!user.publicMetadata?.age_verified) {
+          console.log(
+            "Database shows verified but Clerk metadata doesn't, user should be verified"
+          );
+        }
+        return {
+          is_verified: true,
+          needs_verification: false,
+          user_id: user.id,
+        };
+      }
+
       return {
-        is_verified: user.publicMetadata?.age_verified === true,
-        needs_verification: user.publicMetadata?.age_verified !== true,
+        is_verified: false,
+        needs_verification: true,
         user_id: user.id,
       };
     } catch (error) {
