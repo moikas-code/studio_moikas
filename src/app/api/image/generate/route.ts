@@ -19,6 +19,7 @@ import { generate_imggen_cache_key } from "@/lib/generate_helpers";
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node";
 import { fal } from "@fal-ai/client";
 import { moderate_prompt, format_violations } from "@/lib/utils/api/prompt_moderation";
+import { require_age_verification } from "@/lib/utils/api/age_verification";
 
 // Type definitions for fal.ai responses
 type FalImageObject = {
@@ -73,7 +74,11 @@ export async function POST(req: NextRequest) {
     // 1. Authenticate
     const user = await require_auth();
 
-    // 2. Parse and validate request
+    // 2. Check age verification
+    const age_error = await require_age_verification();
+    if (age_error) return age_error;
+
+    // 3. Parse and validate request
     const body = await req.json();
     const validated = validate_request(image_generation_schema, body);
 

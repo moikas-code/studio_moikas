@@ -126,7 +126,7 @@ export function ImageGenerator({
         if (data.data && data.data.models) {
           const models = data.data.models.map(
             (model: ModelConfig & { effective_cost_mp: number }) => ({
-              id: model.model_id,
+              id: model.id, // Use unique database ID instead of model_id
               name: model.name,
               cost: model.effective_cost_mp,
               model_config: model,
@@ -268,15 +268,16 @@ export function ImageGenerator({
   const handle_generate = async () => {
     if (!prompt_text.trim()) return;
 
+    if (!model_id) return;
+
     const selected_model = available_models.find((m) => m.id === model_id);
     const model_config = selected_model?.model_config;
-
-    if (!model_id) return;
+    const actual_model_id = selected_model?.model_config?.model_id || model_id;
 
     const dimensions = aspect_ratio.get_dimensions();
     const params: GenerationParams = {
       prompt: prompt_text,
-      model: model_id,
+      model: actual_model_id, // Use the actual model_id from config
       width: dimensions.width,
       height: dimensions.height,
     };
@@ -303,16 +304,22 @@ export function ImageGenerator({
         params.num_inference_steps = sana.num_inference_steps || model_config.default_steps || 25;
       }
 
-      if (model_id.includes("sana") && sana.style_name && sana.style_name !== "none") {
+      if (actual_model_id.includes("sana") && sana.style_name && sana.style_name !== "none") {
         params.style_name = sana.style_name;
       }
 
-      // For fal-ai/lora, model_name is required
-      if (model_id === "fal-ai/lora") {
+      // For fal-ai/lora, model_name is required and we need to add the LoRA path
+      if (actual_model_id === "fal-ai/lora") {
         params.model_name =
           custom_model_name.trim() ||
           (model_config.metadata?.default_model_name as string) ||
           "stabilityai/stable-diffusion-xl-base-1.0";
+
+        // Add the LoRA path from the model metadata if it exists
+        if (model_config.metadata?.lora_path) {
+          const lora_path = String(model_config.metadata.lora_path);
+          params.loras = [{ path: lora_path, scale: 1.0 }, ...(params.loras || [])];
+        }
       } else if (
         model_config.supports_loras &&
         model_config.metadata?.allow_custom_model_name &&
@@ -323,7 +330,7 @@ export function ImageGenerator({
     }
 
     // Fast-SDXL specific parameters
-    if (model_id === "fal-ai/fast-sdxl") {
+    if (actual_model_id === "fal-ai/fast-sdxl") {
       params.num_images = num_images;
       params.enable_safety_checker = enable_safety_checker;
       params.expand_prompt = expand_prompt;
@@ -369,7 +376,7 @@ export function ImageGenerator({
         set_generated_images({
           urls: result.images || [result.image_base64],
           prompt: prompt_text,
-          model: model_id,
+          model: actual_model_id,
           timestamp: Date.now(),
           total_cost: result.total_cost || 0,
           inference_time: result.inference_time,
@@ -537,11 +544,22 @@ export function ImageGenerator({
                                hover:bg-base-200/70 transition-colors"
                       disabled={models_loading}
                     >
-                      <span className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         {selected_model ? (
                           <>
-                            <span className="font-medium">{selected_model.name}</span>
-                            <span className="text-xs text-base-content/60">
+                            <div className="flex flex-col flex-1">
+                              <span className="font-medium">{selected_model.name}</span>
+                              {selected_model.model_config?.model_id === "fal-ai/lora" &&
+                                selected_model.model_config?.metadata?.lora_path && (
+                                  <span className="text-xs text-base-content/50">
+                                    LoRA:{" "}
+                                    {String(selected_model.model_config.metadata.lora_path)
+                                      .split("/")
+                                      .pop()}
+                                  </span>
+                                )}
+                            </div>
+                            <span className="text-xs text-base-content/60 whitespace-nowrap">
                               {selected_model.model_config?.billing_type === "time_based"
                                 ? `${selected_model.cost * (user_plan === "free" ? 4 : 1.5)} MP/s`
                                 : `${selected_model.cost} MP`}
@@ -550,7 +568,7 @@ export function ImageGenerator({
                         ) : (
                           <span className="text-base-content/40">Select a model...</span>
                         )}
-                      </span>
+                      </div>
                       <ChevronDown
                         className={`w-4 h-4 transition-transform ${
                           show_model_dropdown ? "rotate-180" : ""
@@ -561,29 +579,44 @@ export function ImageGenerator({
                     {show_model_dropdown && (
                       <div
                         className="absolute z-10 w-full mt-2 bg-base-200 rounded-xl 
-                                    shadow-xl border border-base-300/50 overflow-hidden"
+                                    shadow-xl border border-base-300/50 overflow-hidden max-h-96 overflow-y-auto"
                       >
                         {available_models
                           .sort((a, b) => a.cost - b.cost)
-                          .map((model) => (
-                            <button
-                              key={model.id}
-                              onClick={() => {
-                                set_model_id(model.id);
-                                set_show_model_dropdown(false);
-                              }}
-                              className={`w-full px-4 py-3 text-left hover:bg-base-300/50 
-                                     transition-colors flex items-center justify-between
-                                     ${model.id === model_id ? "bg-primary/10" : ""}`}
-                            >
-                              <span className="font-medium">{model.name}</span>
-                              <span className="text-sm text-base-content/60">
-                                {model.model_config?.billing_type === "time_based"
-                                  ? `${model.cost * (user_plan === "free" ? 4 : 1.5)} MP/s`
-                                  : `${model.cost * (user_plan === "free" ? 4 : 1.5)} MP`}
-                              </span>
-                            </button>
-                          ))}
+                          .map((model) => {
+                            const is_lora = model.model_config?.model_id === "fal-ai/lora";
+                            const lora_path =
+                              is_lora && model.model_config?.metadata?.lora_path
+                                ? String(model.model_config.metadata.lora_path)
+                                : null;
+
+                            return (
+                              <button
+                                key={model.id}
+                                onClick={() => {
+                                  set_model_id(model.id);
+                                  set_show_model_dropdown(false);
+                                }}
+                                className={`w-full px-4 py-3 text-left hover:bg-base-300/50 
+                                       transition-colors flex items-center justify-between
+                                       ${model.id === model_id ? "bg-primary/10" : ""}`}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{model.name}</span>
+                                  {is_lora && lora_path && (
+                                    <span className="text-xs text-base-content/50 mt-0.5">
+                                      LoRA: {lora_path.split("/").pop()}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-sm text-base-content/60">
+                                  {model.model_config?.billing_type === "time_based"
+                                    ? `${model.cost * (user_plan === "free" ? 4 : 1.5)} MP/s`
+                                    : `${model.cost * (user_plan === "free" ? 4 : 1.5)} MP`}
+                                </span>
+                              </button>
+                            );
+                          })}
                       </div>
                     )}
                   </div>
