@@ -358,6 +358,22 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                         {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Dashboard</span>}
                       </Link>
                     </li>
+                    <li>
+                      <Link
+                        href="/admin/moderation"
+                        className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2 text-error hover:text-error`}
+                        aria-label="Content Moderation"
+                        title={is_minimized ? "Moderation" : undefined}
+                        onClick={() =>
+                          track("Sidebar Admin Moderation Clicked", {
+                            timestamp: new Date().toISOString(),
+                          })
+                        }
+                      >
+                        <Shield className="w-5 h-5 flex-shrink-0" />
+                        {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Moderation</span>}
+                      </Link>
+                    </li>
                   </ul>
                 </nav>
               )}

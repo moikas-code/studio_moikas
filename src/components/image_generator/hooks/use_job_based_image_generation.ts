@@ -101,8 +101,20 @@ export function useJobBasedImageGeneration() {
             toast.success('Image generated successfully!')
             track('image_job_completed', { job_id })
           } else {
-            toast.error(job.error || 'Image generation failed')
-            track('image_job_failed', { job_id, error: job.error })
+            const error_message = job.error || 'Image generation failed'
+            const is_moderation_error = error_message.includes('Content blocked:') || 
+                                       error_message.includes('CONTENT_MODERATION_VIOLATION')
+            
+            if (is_moderation_error) {
+              toast.error(error_message, {
+                duration: 6000, // Show for longer since it's important
+                icon: '🚫',
+              })
+            } else {
+              toast.error(error_message)
+            }
+            
+            track('image_job_failed', { job_id, error: job.error, is_moderation_error })
           }
         }
       }
@@ -175,12 +187,27 @@ export function useJobBasedImageGeneration() {
       return data
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Job submission failed'
+      
+      // Check if this is a moderation violation
+      const is_moderation_error = message.includes('Content blocked:') || 
+                                  message.includes('CONTENT_MODERATION_VIOLATION')
+      
       set_error_message(message)
-      toast.error(message)
+      
+      // Show appropriate toast based on error type
+      if (is_moderation_error) {
+        toast.error(message, {
+          duration: 6000, // Show for longer since it's important
+          icon: '🚫',
+        })
+      } else {
+        toast.error(message)
+      }
       
       track('image_job_submission_error', {
         error: message,
-        model: params.model
+        model: params.model,
+        is_moderation_error
       })
       
       return null

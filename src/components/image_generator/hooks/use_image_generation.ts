@@ -117,12 +117,27 @@ export function useImageGeneration() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Generation failed'
+      
+      // Check if this is a moderation violation
+      const is_moderation_error = message.includes('Content blocked:') || 
+                                  message.includes('CONTENT_MODERATION_VIOLATION')
+      
       set_error_message(message)
-      toast.error(message)
+      
+      // Show appropriate toast based on error type
+      if (is_moderation_error) {
+        toast.error(message, {
+          duration: 6000, // Show for longer since it's important
+          icon: '🚫',
+        })
+      } else {
+        toast.error(message)
+      }
       
       track('image_generation_error', {
         error: message,
-        model: params.model
+        model: params.model,
+        is_moderation_error
       })
       
       return null

@@ -38,6 +38,10 @@ import {
 } from "@/lib/generate_helpers"
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
 import { calculate_final_cost } from "@/lib/pricing_config"
+import { 
+  moderate_prompt, 
+  format_violations
+} from "@/lib/utils/api/prompt_moderation"
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,8 +77,33 @@ export async function POST(req: NextRequest) {
         : RATE_LIMITS.image_generation_standard
     )
     
-    // 6. Get model from database and calculate cost
+    // 6. Moderate prompt content
+    const moderation_result = await moderate_prompt(prompt, {
+      skipForAdmin: subscription.plan === 'admin' // Optional: skip moderation for admins
+    })
+    
+    // Get supabase client for both moderation logging and model lookup
     const supabase = get_service_role_client()
+    
+    // Log moderation decision to database
+    await supabase.rpc('log_moderation_decision', {
+      p_user_id: user.user_id,
+      p_prompt: prompt,
+      p_safe: moderation_result.safe,
+      p_violations: moderation_result.violations,
+      p_confidence: moderation_result.confidence
+    })
+    
+    // Block unsafe content
+    if (!moderation_result.safe) {
+      const violation_text = format_violations(moderation_result.violations)
+      return handle_api_error(
+        new Error(`Content blocked: This prompt contains ${violation_text}. Adult content with consenting adults is allowed, but harmful or illegal content is not permitted.`),
+        'CONTENT_MODERATION_VIOLATION'
+      )
+    }
+    
+    // 7. Get model from database and calculate cost
     const { data: model_config } = await supabase
       .from('models')
       .select('*')

@@ -5,6 +5,13 @@ import { fal } from "@fal-ai/client"
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
+// Type for fal.ai image generation result
+interface FalImageResult {
+  images?: Array<{ url: string }>
+  image?: { url: string }
+  url?: string
+}
+
 // Configure fal client
 if (process.env.FAL_KEY) {
   fal.config({
@@ -232,7 +239,7 @@ export async function POST(
           const result = await fal.subscribe(job.model, {
             input: fal_input,
             logs: true
-          })
+          }) as FalImageResult
           // For synchronous results, we need to update the job immediately
           // This is a simplified version - in production you'd want to handle the result properly
           const { error: update_error } = await supabase
@@ -240,7 +247,7 @@ export async function POST(
             .update({
               status: 'completed',
               completed_at: new Date().toISOString(),
-              image_url: (result as any)?.images?.[0]?.url || (result as any)?.image?.url || (result as any)?.url || null
+              image_url: result?.images?.[0]?.url || result?.image?.url || result?.url || null
             })
             .eq('id', new_job.id)
           
