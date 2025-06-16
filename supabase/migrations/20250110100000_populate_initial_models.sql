@@ -32,7 +32,7 @@ INSERT INTO models (
 ('fal-ai/flux-1/schnell', 'FLUX Schnell', 'image', 0.003, 0.003,
   false, true, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16', '4:3', '3:4', '21:9', '9:21'],
-  false, false, 4, 80, ARRAY['fast', 'efficient'], false
+  true, true, 4, 80, ARRAY['fast', 'efficient'], false
 ),
 -- Stable Diffusion
 ('fal-ai/fast-sdxl', 'Fast SDXL', 'image', 0.002, 0.002,
@@ -113,7 +113,7 @@ UPDATE models SET
   max_images = 8,
   metadata = jsonb_build_object(
     'supports_seed', true,
-    'supports_negative_prompt', true,
+    'supports_negative_prompt', false,
     'enable_safety_checker', true,
     'safety_checker_version', 'v1',
     'supported_formats', ARRAY['jpeg', 'png'],
@@ -142,10 +142,10 @@ INSERT INTO models (
   supported_aspect_ratios, duration_options,
   supports_audio_generation, display_order, tags, is_default
 ) VALUES
-('fal-ai/hunyuan-video', 'HunyuanVideo', 'video', 0.018, 0.018,
+('fal-ai/veo3', 'VEO3', 'video', 0.75, 0.75,
   true, false, 'aspect_ratio',
   ARRAY['1:1', '16:9', '9:16'],
-  ARRAY[1, 2, 3, 4, 5],
+  ARRAY[8],
   false, 200, ARRAY['video', 'high-quality'], true
 );
 

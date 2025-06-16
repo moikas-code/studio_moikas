@@ -340,6 +340,7 @@ function ModelManagementPageContent() {
                           </div>
                           <div className="text-xs text-base-content/50">
                             ${model.custom_cost}
+                            {model.billing_type === 'time_based' && ' /sec'}
                           </div>
                         </div>
                       </td>
@@ -359,6 +360,9 @@ function ModelManagementPageContent() {
                           )}
                           {model.supports_both_size_modes === true && (
                             <span className="badge badge-xs badge-info">Flex</span>
+                          )}
+                          {model.billing_type === 'time_based' && (
+                            <span className="badge badge-xs badge-warning">Time</span>
                           )}
                         </div>
                       </td>

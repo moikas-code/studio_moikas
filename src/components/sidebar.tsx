@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Star, ChevronLeft, ChevronRight, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug, Mic, Shield } from "lucide-react";
+import { Bell, Star, ChevronLeft, ChevronRight, ChevronDown, Home, Image as ImageIcon, Edit, FileText, Video, MessageSquare, Bug, Mic, Shield } from "lucide-react";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
@@ -17,7 +17,22 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
   const [report_bug_open, set_report_bug_open] = useState(false);
   const [is_minimized, set_is_minimized] = useState(false);
   const [is_admin, set_is_admin] = useState(false);
+  const [collapsed_sections, set_collapsed_sections] = useState<{[key: string]: boolean}>({
+    tools: true,  // Other tools minimized by default
+    image: false, // Image tools expanded by default
+    video: false, // Video tools expanded by default
+    audio: false, // Audio tools expanded by default
+    support: true, // Support minimized by default
+    admin: true   // Admin minimized by default
+  });
   const { user } = useUser();
+
+  const toggle_section = (section: string) => {
+    set_collapsed_sections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   // Check if user is admin
   useEffect(() => {
@@ -79,29 +94,125 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                   {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Home</span>}
                 </Link>
               </li>
-              {/* Add more tool links here as needed */}
             </ul>
           </nav>
+          
+          {/* Image Tools Section */}
           <div className={`${is_minimized ? 'py-2' : 'p-6'} border-b border-base-300`}>
             {!is_minimized && (
-              <p className="text-sm font-bold tracking-tight text-primary">
-                Tools
-              </p>
+              <button
+                onClick={() => toggle_section('image')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-sm font-bold tracking-tight text-primary">Image Tools</p>
+                <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.image ? '' : 'rotate-180'}`} />
+              </button>
             )}
           </div>
-          <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Main tools">
-            <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
-              <li>
-                <Link
-                  href="/tools/audio"
-                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
-                  aria-label="Audio tool"
-                  title={is_minimized ? "Audio" : undefined}
-                >
-                  <Mic className="w-5 h-5 flex-shrink-0" />
-                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Audio</span>}
-                </Link>
-              </li>
+          {!collapsed_sections.image && (
+            <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Image tools">
+              <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+                <li>
+                  <Link
+                    href="/tools/create"
+                    className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
+                    aria-label="Image Generator tool"
+                    title={is_minimized ? "Create" : undefined}
+                  >
+                    <ImageIcon className="w-5 h-5 flex-shrink-0" />
+                    {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Create</span>}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/tools/image-editor"
+                    className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
+                    aria-label="Image Editor tool"
+                    title={is_minimized ? "Image Editor" : undefined}
+                  >
+                    <Edit className="w-5 h-5 flex-shrink-0" />
+                    {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Image Editor</span>}
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          )}
+          
+          {/* Video Tools Section */}
+          <div className={`${is_minimized ? 'py-2' : 'p-6'} border-b border-base-300`}>
+            {!is_minimized && (
+              <button
+                onClick={() => toggle_section('video')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-sm font-bold tracking-tight text-primary">Video Tools</p>
+                <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.video ? '' : 'rotate-180'}`} />
+              </button>
+            )}
+          </div>
+          {!collapsed_sections.video && (
+            <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Video tools">
+              <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+                <li>
+                  <Link
+                    href="/tools/video-effects"
+                    className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
+                    aria-label="Video Generator tool"
+                    title={is_minimized ? "Video Generator" : undefined}
+                  >
+                    <Video className="w-5 h-5 flex-shrink-0" />
+                    {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Video Generator</span>}
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          )}
+          
+          {/* Audio Tools Section */}
+          <div className={`${is_minimized ? 'py-2' : 'p-6'} border-b border-base-300`}>
+            {!is_minimized && (
+              <button
+                onClick={() => toggle_section('audio')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-sm font-bold tracking-tight text-primary">Audio Tools</p>
+                <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.audio ? '' : 'rotate-180'}`} />
+              </button>
+            )}
+          </div>
+          {!collapsed_sections.audio && (
+            <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Audio tools">
+              <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+                <li>
+                  <Link
+                    href="/tools/audio"
+                    className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
+                    aria-label="Audio tool"
+                    title={is_minimized ? "Audio" : undefined}
+                  >
+                    <Mic className="w-5 h-5 flex-shrink-0" />
+                    {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Audio Studio</span>}
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          )}
+          
+          {/* Other Tools Section */}
+          <div className={`${is_minimized ? 'py-2' : 'p-6'} border-b border-base-300`}>
+            {!is_minimized && (
+              <button
+                onClick={() => toggle_section('tools')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-sm font-bold tracking-tight text-primary">Other Tools</p>
+                <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.tools ? '' : 'rotate-180'}`} />
+              </button>
+            )}
+          </div>
+          {!collapsed_sections.tools && (
+            <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Other tools">
+              <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
               <li>
                 <Link
                   href="/tools/memu"
@@ -111,28 +222,6 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                 >
                   <MessageSquare className="w-5 h-5 flex-shrink-0" />
                   {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">MEMU</span>}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/tools/create"
-                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
-                  aria-label="Image Generator tool"
-                  title={is_minimized ? "Create" : undefined}
-                >
-                  <ImageIcon className="w-5 h-5 flex-shrink-0" />
-                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Create</span>}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/tools/image-editor"
-                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
-                  aria-label="Image Editor tool"
-                  title={is_minimized ? "Image Editor" : undefined}
-                >
-                  <Edit className="w-5 h-5 flex-shrink-0" />
-                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Image Editor</span>}
                 </Link>
               </li>
               {/* Add more tool links here as needed */}
@@ -147,28 +236,25 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
                   {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Text Analyzer</span>}
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/tools/video-effects"
-                  className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2`}
-                  aria-label="Video Generator tool"
-                  title={is_minimized ? "Video Generator" : undefined}
-                >
-                  <Video className="w-5 h-5 flex-shrink-0" />
-                  {!is_minimized && <span className="text-base font-medium text-md whitespace-nowrap">Video Generator</span>}
-                </Link>
-              </li>
 
             </ul>
           </nav>
+          )}
+          
+          {/* Support Section */}
           <div className={`${is_minimized ? 'p-2' : 'p-6'} border-b border-base-300`}>
             {!is_minimized && (
-              <p className="text-sm font-bold tracking-tight text-primary">
-                Support
-              </p>
+              <button
+                onClick={() => toggle_section('support')}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <p className="text-sm font-bold tracking-tight text-primary">Support</p>
+                <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.support ? '' : 'rotate-180'}`} />
+              </button>
             )}
           </div>
-          <nav className={`flex flex-col ${is_minimized ? 'hidden' : 'p-4'}`} aria-label="Support tools">
+          {!collapsed_sections.support && (
+          <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Support tools">
            < ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
               <li>
                 <a
@@ -237,37 +323,60 @@ export default function Sidebar({ open = false, on_close }: { open?: boolean; on
               {/* Add more tool links here as needed */}
             </ul>
           </nav>
+          )}
           
           {/* Admin Section - Only visible to admin users */}
           {is_admin && (
             <>
               <div className={`${is_minimized ? 'p-2' : 'p-6'} border-b border-base-300`}>
                 {!is_minimized && (
-                  <p className="text-sm font-bold tracking-tight text-error">
-                    Admin
-                  </p>
+                  <button
+                    onClick={() => toggle_section('admin')}
+                    className="flex items-center justify-between w-full text-left"
+                  >
+                    <p className="text-sm font-bold tracking-tight text-error">Admin</p>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${collapsed_sections.admin ? '' : 'rotate-180'}`} />
+                  </button>
                 )}
               </div>
-              <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Admin tools">
-                <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
-                  <li>
-                    <Link
-                      href="/admin"
-                      className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2 text-error hover:text-error`}
-                      aria-label="Admin Dashboard"
-                      title={is_minimized ? "Admin" : undefined}
-                      onClick={() =>
-                        track("Sidebar Admin Clicked", {
-                          timestamp: new Date().toISOString(),
-                        })
-                      }
-                    >
-                      <Shield className="w-5 h-5 flex-shrink-0" />
-                      {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Dashboard</span>}
-                    </Link>
-                  </li>
-                </ul>
-              </nav>
+              {!collapsed_sections.admin && (
+                <nav className={`flex flex-col ${is_minimized ? 'py-2' : 'p-4'}`} aria-label="Admin tools">
+                  <ul className={`menu ${is_minimized ? 'menu-sm' : 'menu-lg'} rounded-box w-full ${is_minimized ? '[&_a]:!px-2' : ''}`}>
+                    <li>
+                      <Link
+                        href="/admin"
+                        className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2 text-error hover:text-error`}
+                        aria-label="Admin Dashboard"
+                        title={is_minimized ? "Admin" : undefined}
+                        onClick={() =>
+                          track("Sidebar Admin Clicked", {
+                            timestamp: new Date().toISOString(),
+                          })
+                        }
+                      >
+                        <Shield className="w-5 h-5 flex-shrink-0" />
+                        {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Dashboard</span>}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/admin/moderation"
+                        className={`${is_minimized ? 'justify-center' : 'justify-start'} flex items-center gap-2 text-error hover:text-error`}
+                        aria-label="Content Moderation"
+                        title={is_minimized ? "Moderation" : undefined}
+                        onClick={() =>
+                          track("Sidebar Admin Moderation Clicked", {
+                            timestamp: new Date().toISOString(),
+                          })
+                        }
+                      >
+                        <Shield className="w-5 h-5 flex-shrink-0" />
+                        {!is_minimized && <span className="text-base font-medium whitespace-nowrap">Moderation</span>}
+                      </Link>
+                    </li>
+                  </ul>
+                </nav>
+              )}
             </>
           )}
         </div>

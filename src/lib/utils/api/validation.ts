@@ -40,6 +40,7 @@ const lora_schema = z.object({
 export const image_generation_schema = z.object({
   prompt: z.string().min(1).max(100000).transform(s => s.trim()),
   model: z.string().min(1),
+  model_name: z.string().optional(), // Custom model name for LoRA models
   aspect_ratio: z.string().optional(),
   width: z.number().int().min(64).max(14142).optional(),
   height: z.number().int().min(64).max(14142).optional(),

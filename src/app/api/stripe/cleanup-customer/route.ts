@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { Redis } from "@upstash/redis";
 import { check_rate_limit } from "@/lib/generate_helpers";
 import { auth } from "@clerk/nextjs/server";
+import { ensure_user_exists } from "@/lib/utils/api/auth";
 
 const stripe_secret_key = process.env.STRIPE_SECRET_KEY!;
 const supabase_url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -60,7 +61,17 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const { clerk_user_id, email } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+    
+    const { clerk_user_id, email } = body;
     if (!clerk_user_id || !email) {
       return NextResponse.json({ error: "Missing clerk_user_id or email" }, { status: 400 });
     }
@@ -71,11 +82,21 @@ export async function POST(req: NextRequest) {
     }
     // Connect to Supabase
     const supabase = createClient(supabase_url, supabase_service_key);
+    
+    // Ensure user exists in Supabase
+    let user_id: string;
+    try {
+      user_id = await ensure_user_exists(clerk_user_id, email);
+    } catch (error) {
+      console.error("Error ensuring user exists:", error);
+      return NextResponse.json({ error: "Failed to create/find user" }, { status: 500 });
+    }
+    
     // Get current user row
     const { data: user_row, error: user_error } = await supabase
       .from("users")
       .select("id, stripe_customer_id")
-      .eq("clerk_id", clerk_user_id)
+      .eq("id", user_id)
       .single();
     if (user_error || !user_row) {
       return NextResponse.json({ error: "User not found in Supabase" }, { status: 404 });

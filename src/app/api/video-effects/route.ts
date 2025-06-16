@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     
     // 4. Get user subscription
     const subscription = await get_user_subscription(user.user_id)
-    const is_free = subscription.plan_name === 'free'
+    const is_free = subscription.plan === 'free'
     
     // 5. Apply rate limiting
     await enforce_rate_limit(
@@ -81,9 +81,9 @@ export async function POST(req: NextRequest) {
     // For video, multiply by duration in seconds
     const base_cost_per_second = model_config.custom_cost / 0.001
     const base_total_cost = base_cost_per_second * validated.duration
-    const cost = subscription.plan_name === 'admin'
+    const cost = subscription.plan === 'admin'
       ? 0  // Admin users have 0 cost
-      : calculate_final_cost(base_total_cost, subscription.plan_name)
+      : calculate_final_cost(base_total_cost, subscription.plan)
     
     // 7. Check token balance (automatically skips for admin in has_sufficient_tokens)
     if (!await has_sufficient_tokens(user.user_id, cost)) {
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
         model: validated.model,
         duration: validated.duration,
         aspect_ratio: validated.aspect_ratio,
-        plan: subscription.plan_name,
+        plan: subscription.plan,
         job_id: job.id
       },
       token_result
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
           'Video generation refund: generation failed',
           {
             model: validated.model,
-            plan: subscription.plan_name,
+            plan: subscription.plan,
             refund_reason: 'generation_failed'
           },
           token_result

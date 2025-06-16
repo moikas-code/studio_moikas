@@ -18,8 +18,8 @@ export interface PricingConfig {
  * @deprecated Use getPricingMultiplier from plan_config.ts instead
  */
 export const PRICING_MULTIPLIERS: PricingConfig = {
-  standard: 1.0,  // Base pricing for standard users
-  free: 1.2,      // 20% markup for free users
+  standard: 1.5,  // Base pricing for standard users 50% markup
+  free: 4.0,      // 300% markup for free users
   admin: 0.0      // No cost for admins
 };
 

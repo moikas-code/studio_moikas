@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { generate_flux_image } from "@/lib/fal_client"
+import { generate_flux_image, generate_sd_lora_image } from "@/lib/fal_client"
 import { track } from "@vercel/analytics/server"
 
 // Next.js route configuration
@@ -38,6 +38,10 @@ import {
 } from "@/lib/generate_helpers"
 import { add_overlay_to_image_node } from "@/lib/generate_helpers_node"
 import { calculate_final_cost } from "@/lib/pricing_config"
+import { 
+  moderate_prompt, 
+  format_violations
+} from "@/lib/utils/api/prompt_moderation"
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,8 +77,33 @@ export async function POST(req: NextRequest) {
         : RATE_LIMITS.image_generation_standard
     )
     
-    // 6. Get model from database and calculate cost
+    // 6. Moderate prompt content
+    const moderation_result = await moderate_prompt(prompt, {
+      skipForAdmin: subscription.plan === 'admin' // Optional: skip moderation for admins
+    })
+    
+    // Get supabase client for both moderation logging and model lookup
     const supabase = get_service_role_client()
+    
+    // Log moderation decision to database
+    await supabase.rpc('log_moderation_decision', {
+      p_user_id: user.user_id,
+      p_prompt: prompt,
+      p_safe: moderation_result.safe,
+      p_violations: moderation_result.violations,
+      p_confidence: moderation_result.confidence
+    })
+    
+    // Block unsafe content
+    if (!moderation_result.safe) {
+      const violation_text = format_violations(moderation_result.violations)
+      return handle_api_error(
+        new Error(`Content blocked: This prompt contains ${violation_text}. Adult content with consenting adults is allowed, but harmful or illegal content is not permitted.`),
+        'CONTENT_MODERATION_VIOLATION'
+      )
+    }
+    
+    // 7. Get model from database and calculate cost
     const { data: model_config } = await supabase
       .from('models')
       .select('*')
@@ -88,13 +117,13 @@ export async function POST(req: NextRequest) {
     
     // Convert dollar cost to MP (1 MP = $0.001) with plan-based markup
     const base_mp_cost = model_config.custom_cost / 0.001
-    const cost_per_image = subscription.plan === 'admin' 
+    let cost_per_image = subscription.plan === 'admin' 
       ? 0  // Admin users have 0 cost
       : calculate_final_cost(base_mp_cost, subscription.plan)
     
     // Calculate total cost for multiple images
     const num_images = validated.num_images || 1
-    const total_cost = cost_per_image * num_images
+    let total_cost = cost_per_image * num_images
     
     // Skip token check for admin users
     if (subscription.plan !== 'admin') {
@@ -143,12 +172,25 @@ export async function POST(req: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 2000))
     }
     
-    // 9. Deduct tokens with admin check
+    // 9. Store initial cost for potential dynamic pricing
+    let initial_total_cost = total_cost
+    let is_dynamic_pricing = false
+    
+    // Check if this model supports dynamic pricing based on inference time
+    if ((model_config.metadata?.enable_dynamic_pricing || validated.model === 'fal-ai/lora') && model_config.metadata?.cost_per_inference_second) {
+      is_dynamic_pricing = true
+      console.log('[Dynamic Pricing] Model supports dynamic pricing')
+      // For dynamic pricing models, we'll deduct a minimal amount first
+      // and adjust after we know the actual inference time
+      initial_total_cost = 1 * num_images // 1 MP per image as placeholder
+    }
+    
+    // Deduct tokens with admin check
     // Check if user is admin and handle token deduction accordingly
     const token_result = await deduct_tokens_with_admin_check(
       supabase,
       user.user_id,
-      total_cost,
+      initial_total_cost,
       subscription
     )
     
@@ -197,6 +239,7 @@ export async function POST(req: NextRequest) {
         enable_safety_checker?: boolean;
         expand_prompt?: boolean;
         format?: 'jpeg' | 'png';
+        model_name?: string;
       } = {}
       
       // Add optional params
@@ -263,20 +306,209 @@ export async function POST(req: NextRequest) {
         }
       }
       
-      const result = await generate_flux_image(
-        prompt,
-        validated.width || 1024,
-        validated.height || 1024,
-        validated.model,
-        generation_options
-      )
+      // Handle custom model_name for LoRA models
+      let effective_model_id = validated.model
+      const is_lora_model = model_config.supports_loras || validated.model === 'fal-ai/lora'
+      const is_any_lora = validated.model === 'fal-ai/lora'
+      
+      // For the "Any LoRA" model, we need to handle it differently
+      if (is_any_lora) {
+        // For Any LoRA, we always use the fal-ai/lora endpoint
+        effective_model_id = 'fal-ai/lora'
+        
+        // The custom model name will be passed as a parameter to the API
+        if (validated.model_name) {
+          // Add model_name to generation options for the SD handler
+          generation_options.model_name = validated.model_name
+          console.log('[Any LoRA] Using fal-ai/lora endpoint with custom model:', validated.model_name)
+        } else {
+          // Use default model from metadata
+          const default_model = model_config.metadata?.default_model_name as string || 'stabilityai/stable-diffusion-xl-base-1.0'
+          generation_options.model_name = default_model
+          console.log('[Any LoRA] Using fal-ai/lora endpoint with default model:', default_model)
+        }
+      } else if (is_lora_model && validated.model_name) {
+        // For other LoRA-supporting models, use the custom model_name if provided
+        effective_model_id = validated.model_name
+        console.log('[LoRA] Using custom model:', effective_model_id)
+      }
+      
+      // Use appropriate handler based on model type
+      // Note: fal-ai/fast-sdxl uses the flux handler, not the SD handler
+      // fal-ai/lora endpoint uses the SD handler
+      const use_sd_handler = effective_model_id === 'fal-ai/lora' ||
+                             (is_lora_model && effective_model_id !== 'fal-ai/fast-sdxl') || 
+                             (validated.model.includes('stable-diffusion') && !validated.model.includes('fast-sdxl'))
+      
+      console.log('[Handler Selection]', {
+        original_model: validated.model,
+        effective_model_id,
+        is_lora_model,
+        is_any_lora,
+        use_sd_handler,
+        has_loras: !!generation_options.loras && generation_options.loras.length > 0,
+        has_model_name: !!generation_options.model_name
+      })
+      
+      const result = use_sd_handler
+        ? await generate_sd_lora_image(
+            prompt,
+            validated.width || 1024,
+            validated.height || 1024,
+            effective_model_id,
+            generation_options
+          )
+        : await generate_flux_image(
+            prompt,
+            validated.width || 1024,
+            validated.height || 1024,
+            effective_model_id,
+            generation_options
+          )
       
       console.log('Fal.ai result structure:', {
         hasData: 'data' in result,
         dataKeys: result.data ? Object.keys(result.data) : 'no data',
-        topLevelKeys: Object.keys(result)
+        topLevelKeys: Object.keys(result),
+        timings: 'timings' in result && typeof result === 'object' ? (result as { timings?: unknown }).timings : 'no timings'
       })
       console.log('Full result:', JSON.stringify(result, null, 2))
+      
+      // Extract inference time for dynamic pricing
+      let inference_time: number | undefined
+      if (result && typeof result === 'object' && 'timings' in result && typeof result.timings === 'object') {
+        const timings = result.timings as Record<string, unknown>
+        if ('inference' in timings && typeof timings.inference === 'number') {
+          inference_time = timings.inference
+          console.log('[Dynamic Pricing] Inference time:', inference_time, 'seconds')
+        }
+      }
+      
+      // Handle dynamic pricing adjustment if inference time is available
+      let actual_mp_cost: number | undefined
+      let actual_total_cost: number | undefined
+      let cost_per_second: number | undefined
+      
+      if (is_dynamic_pricing && inference_time !== undefined && model_config.metadata?.cost_per_inference_second) {
+        cost_per_second = model_config.metadata.cost_per_inference_second as number
+        actual_mp_cost = Math.ceil(inference_time * cost_per_second)
+        actual_total_cost = actual_mp_cost * num_images
+        
+        console.log('[Dynamic Pricing] Calculating actual cost:', {
+          inference_time,
+          cost_per_second,
+          actual_mp_cost,
+          actual_total_cost,
+          initial_total_cost
+        })
+        
+        // Adjust tokens if actual cost is different from initial
+        if (actual_total_cost > initial_total_cost && subscription.plan !== 'admin') {
+          const additional_cost = actual_total_cost - initial_total_cost
+          
+          // Check if user has enough tokens for the additional cost
+          const updated_subscription = await get_user_subscription(user.user_id)
+          const total_available = updated_subscription.renewable_tokens + updated_subscription.permanent_tokens
+          
+          if (total_available < additional_cost) {
+            // Refund initial deduction and fail
+            await supabase
+              .from('subscriptions')
+              .update({
+                renewable_tokens: subscription.renewable_tokens,
+                permanent_tokens: subscription.permanent_tokens
+              })
+              .eq('user_id', user.user_id)
+            
+            throw new Error(`Insufficient tokens for actual generation cost. Need ${actual_total_cost} MP total, but only ${total_available + initial_total_cost} MP available`)
+          }
+          
+          // Deduct additional tokens
+          const additional_result = await deduct_tokens_with_admin_check(
+            supabase,
+            user.user_id,
+            additional_cost,
+            updated_subscription
+          )
+          
+          if (!additional_result.success) {
+            // Refund initial deduction
+            await supabase
+              .from('subscriptions')
+              .update({
+                renewable_tokens: subscription.renewable_tokens,
+                permanent_tokens: subscription.permanent_tokens
+              })
+              .eq('user_id', user.user_id)
+            
+            throw new Error('Failed to deduct additional tokens for dynamic pricing')
+          }
+          
+          // Update total cost for response
+          if (actual_total_cost !== undefined && actual_mp_cost !== undefined) {
+            total_cost = actual_total_cost
+            cost_per_image = actual_mp_cost
+          }
+          
+          // Log the additional deduction
+          await log_usage_with_admin_tracking(
+            supabase,
+            user.user_id,
+            additional_cost,
+            'image_generation',
+            `Dynamic pricing adjustment for ${validated.model} (${inference_time.toFixed(2)}s inference)`,
+            {
+              model: validated.model,
+              inference_time,
+              cost_per_second,
+              additional_cost,
+              total_cost: actual_total_cost
+            },
+            additional_result
+          )
+        } else if (actual_total_cost < initial_total_cost && subscription.plan !== 'admin') {
+          // Refund the difference if actual cost is less
+          const refund_amount = initial_total_cost - actual_total_cost
+          
+          // Calculate how much was deducted from each token type
+          const renewable_deducted = Math.min(initial_total_cost, subscription.renewable_tokens)
+          
+          // Refund proportionally
+          const renewable_refund = Math.min(refund_amount, renewable_deducted)
+          const permanent_refund = refund_amount - renewable_refund
+          
+          await supabase
+            .from('subscriptions')
+            .update({
+              renewable_tokens: subscription.renewable_tokens + renewable_refund,
+              permanent_tokens: subscription.permanent_tokens + permanent_refund
+            })
+            .eq('user_id', user.user_id)
+          
+          // Update total cost for response
+          if (actual_total_cost !== undefined && actual_mp_cost !== undefined) {
+            total_cost = actual_total_cost
+            cost_per_image = actual_mp_cost
+          }
+          
+          // Log the refund
+          await log_usage_with_admin_tracking(
+            supabase,
+            user.user_id,
+            -refund_amount,
+            'image_generation',
+            `Dynamic pricing refund for ${validated.model} (${inference_time.toFixed(2)}s inference)`,
+            {
+              model: validated.model,
+              inference_time,
+              cost_per_second,
+              refund_amount,
+              total_cost: actual_total_cost
+            },
+            token_result
+          )
+        }
+      }
       
       // 11. Extract all generated images
       // Check different possible result structures
@@ -379,7 +611,9 @@ export async function POST(req: NextRequest) {
         costPerImage: cost_per_image,
         totalCost: total_cost,
         imageCount: processed_images.length,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...(inference_time !== undefined && { inferenceTime: inference_time }),
+        ...(is_dynamic_pricing && { dynamicPricing: true })
       }
       
       if (redis) {

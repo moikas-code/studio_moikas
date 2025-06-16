@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
             .from('subscriptions')
             .update({
               stripe_customer_id: session.customer,
-              plan_name: session.metadata?.plan || 'standard',
+              plan: session.metadata?.plan || 'standard',
               status: 'active'
             })
             .eq('user_id', session.metadata?.user_id || '')
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
           .from('subscriptions')
           .update({
             status: 'cancelled',
-            plan_name: 'free'
+            plan: 'free'
           })
           .eq('stripe_subscription_id', subscription.id)
         

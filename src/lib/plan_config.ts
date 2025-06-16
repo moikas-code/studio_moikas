@@ -40,7 +40,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
       'Limited models',
       'Basic rate limits'
     ],
-    pricing_multiplier: 1.2, // 20% markup for free users
+    pricing_multiplier: 4.0, // 300% markup for free users
     rate_limit_multiplier: 0.5, // Slower rate limits
     can_purchase_tokens: true,
     has_watermark: true,
@@ -68,7 +68,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     limitations: [
       'Token consumption applies'
     ],
-    pricing_multiplier: 1.0, // Base pricing
+    pricing_multiplier: 1.5, // Base pricing 50% markup
     rate_limit_multiplier: 1.0, // Standard rate limits
     can_purchase_tokens: true,
     has_watermark: false,

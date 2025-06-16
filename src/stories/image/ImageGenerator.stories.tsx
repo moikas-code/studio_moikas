@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import ImageGenerator from '@/components/image_generator'
+import { ImageGenerator } from '@/components/image_generator'
 
 const meta = {
   title: 'Image/ImageGenerator',
@@ -13,11 +13,19 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {}
+export const Default: Story = {
+  args: {
+    available_mp: 1000,
+    user_plan: 'standard',
+    use_job_system: true
+  }
+}
 
 export const WithInitialPrompt: Story = {
   args: {
-    // Component doesn't accept props, but we can show different states
+    available_mp: 1000,
+    user_plan: 'standard',
+    use_job_system: true
   },
   play: async ({ canvasElement }) => {
     // Simulate entering a prompt

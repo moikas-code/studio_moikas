@@ -14,27 +14,73 @@ interface MpContextType {
 }
 
 export const MpContext = createContext<MpContextType>({
-  mp_tokens: null,
-  renewable_tokens: null,
-  permanent_tokens: null,
+  mp_tokens: 0,
+  renewable_tokens: 0,
+  permanent_tokens: 0,
   is_loading_tokens: false,
   token_error: null,
   refresh_mp: async () => {},
-  plan: null,
+  plan: 'free',
 });
 
 export function MpProvider({ children }: { children: React.ReactNode }) {
   const { user, isLoaded } = useUser();
   const supabase = useSupabaseClient();
-  const [mp_tokens, set_mp_tokens] = useState<number | null>(null);
-  const [renewable_tokens, set_renewable_tokens] = useState<number | null>(null);
-  const [permanent_tokens, set_permanent_tokens] = useState<number | null>(null);
-  const [is_loading_tokens, set_is_loading_tokens] = useState(false);
+  const [mp_tokens, set_mp_tokens] = useState<number | null>(0);
+  const [renewable_tokens, set_renewable_tokens] = useState<number | null>(0);
+  const [permanent_tokens, set_permanent_tokens] = useState<number | null>(0);
+  const [is_loading_tokens, set_is_loading_tokens] = useState(true);
   const [token_error, set_token_error] = useState<string | null>(null);
-  const [plan, set_plan] = useState<string | null>(null);
+  const [plan, set_plan] = useState<string | null>('free');
 
   const fetch_tokens = useCallback(async () => {
-    if (!isLoaded || !user || !supabase) return;
+    if (!isLoaded || !user) return;
+    
+    // If no supabase client yet, try fetching via API
+    if (!supabase) {
+      set_is_loading_tokens(true);
+      set_token_error(null);
+      try {
+        const response = await fetch('/api/test-user', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+        
+        const data = await response.json();
+        if (data.data && data.data.tokens !== undefined) {
+          const renewable = data.data.renewable_tokens || 0;
+          const permanent = data.data.permanent_tokens || 0;
+          set_renewable_tokens(renewable);
+          set_permanent_tokens(permanent);
+          set_mp_tokens(renewable + permanent);
+          set_plan(data.data.plan || 'free');
+        } else {
+          set_token_error("No subscription data");
+          set_mp_tokens(0);
+          set_renewable_tokens(0);
+          set_permanent_tokens(0);
+          set_plan('free');
+        }
+      } catch (error) {
+        console.error('Error fetching tokens via API:', error);
+        set_token_error("Error loading MP");
+        set_mp_tokens(0);
+        set_renewable_tokens(0);
+        set_permanent_tokens(0);
+        set_plan('free');
+      } finally {
+        set_is_loading_tokens(false);
+      }
+      return;
+    }
+    
+    // Original supabase logic
     set_is_loading_tokens(true);
     set_token_error(null);
     try {
@@ -46,10 +92,10 @@ export function MpProvider({ children }: { children: React.ReactNode }) {
         .single();
       if (user_error || !user_row?.id) {
         set_token_error("User not found");
-        set_mp_tokens(null);
-        set_renewable_tokens(null);
-        set_permanent_tokens(null);
-        set_plan(null);
+        set_mp_tokens(0);
+        set_renewable_tokens(0);
+        set_permanent_tokens(0);
+        set_plan('free');
         set_is_loading_tokens(false);
         return;
       }
@@ -59,12 +105,12 @@ export function MpProvider({ children }: { children: React.ReactNode }) {
         .select("renewable_tokens, permanent_tokens, plan")
         .eq("user_id", user_row.id)
         .single();
-      if (sub_error || (!sub_row?.renewable_tokens && !sub_row?.permanent_tokens) || !sub_row?.plan) {
+      if (sub_error || !sub_row?.plan) {
         set_token_error("No subscription");
-        set_mp_tokens(null);
-        set_renewable_tokens(null);
-        set_permanent_tokens(null);
-        set_plan(null);
+        set_mp_tokens(0);
+        set_renewable_tokens(0);
+        set_permanent_tokens(0);
+        set_plan('free');
       } else {
         const renewable = typeof sub_row.renewable_tokens === "number" ? sub_row.renewable_tokens : 0;
         const permanent = typeof sub_row.permanent_tokens === "number" ? sub_row.permanent_tokens : 0;
@@ -75,10 +121,10 @@ export function MpProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       set_token_error("Error loading MP");
-      set_mp_tokens(null);
-      set_renewable_tokens(null);
-      set_permanent_tokens(null);
-      set_plan(null);
+      set_mp_tokens(0);
+      set_renewable_tokens(0);
+      set_permanent_tokens(0);
+      set_plan('free');
     } finally {
       set_is_loading_tokens(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { Palette, Rocket, Code, ArrowRight } from "lucide-react";
+import { Palette, Rocket, Code } from "lucide-react";
 
 export default function UseCasesSection() {
   return (
@@ -39,10 +39,10 @@ export default function UseCasesSection() {
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Generate concept art and illustrations in seconds. Explore new styles effortlessly.
               </p>
-              <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
+              {/* <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
                 <span>Learn more</span>
                 <ArrowRight className="w-3 h-3" />
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -69,10 +69,10 @@ export default function UseCasesSection() {
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Create social media content and ads at scale without expensive resources.
               </p>
-              <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
+              {/* <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
                 <span>Learn more</span>
                 <ArrowRight className="w-3 h-3" />
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -99,10 +99,10 @@ export default function UseCasesSection() {
               <p className="text-sm text-gray-600 dark:text-gray-300">
                 Rapidly prototype game assets and environments to accelerate development.
               </p>
-              <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
+              {/* <div className="mt-3 flex items-center gap-1 text-jade font-medium text-sm group-hover:translate-x-1 transition-transform duration-300">
                 <span>Learn more</span>
                 <ArrowRight className="w-3 h-3" />
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

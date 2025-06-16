@@ -55,6 +55,16 @@ export default async function AdminLayout({
               </Link>
             </li>
             <li>
+              <Link href="/admin/jobs">
+                Jobs
+              </Link>
+            </li>
+            <li>
+              <Link href="/admin/moderation">
+                Moderation
+              </Link>
+            </li>
+            <li>
               <Link href="/" className="text-error">
                 Exit Admin
               </Link>
