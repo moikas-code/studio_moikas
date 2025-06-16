@@ -111,9 +111,9 @@ export async function POST(req: NextRequest) {
               .from('subscriptions')
               .insert({
                 user_id: new_user.id,
-                plan_name: 'free',
+                plan: 'free',
                 renewable_tokens: 125,
-                permanent_tokens: 100,
+                permanent_tokens: 0,
                 created_at: new Date().toISOString()
               })
             

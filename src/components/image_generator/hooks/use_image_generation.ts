@@ -6,6 +6,7 @@ import type { EmbeddingInput, LoraWeight } from '../types'
 export interface GenerationParams {
   prompt: string
   model: string
+  model_name?: string // Custom model name for LoRA models
   width: number
   height: number
   negative_prompt?: string
@@ -30,6 +31,8 @@ export interface GenerationResult {
   total_cost?: number
   image_count?: number
   backend_cost?: number
+  inference_time?: number // Time in seconds for dynamic pricing
+  dynamic_pricing?: boolean // Whether dynamic pricing was used
 }
 
 export function useImageGeneration() {
@@ -108,16 +111,33 @@ export function useImageGeneration() {
         cost_per_image: data.costPerImage,
         total_cost: data.totalCost || data.mpUsed,
         image_count: data.imageCount || 1,
-        backend_cost: data.backendCost
+        backend_cost: data.backendCost,
+        inference_time: data.inferenceTime,
+        dynamic_pricing: data.dynamicPricing
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Generation failed'
+      
+      // Check if this is a moderation violation
+      const is_moderation_error = message.includes('Content blocked:') || 
+                                  message.includes('CONTENT_MODERATION_VIOLATION')
+      
       set_error_message(message)
-      toast.error(message)
+      
+      // Show appropriate toast based on error type
+      if (is_moderation_error) {
+        toast.error(message, {
+          duration: 6000, // Show for longer since it's important
+          icon: '🚫',
+        })
+      } else {
+        toast.error(message)
+      }
       
       track('image_generation_error', {
         error: message,
-        model: params.model
+        model: params.model,
+        is_moderation_error
       })
       
       return null

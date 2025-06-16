@@ -320,7 +320,7 @@ export default function BuyTokensPage() {
               <div className="text-center text-sm text-base-content/60">
                 <p className="flex items-center justify-center gap-2">
                   <Shield className="w-4 h-4" />
-                  Secure payments powered by Stripe • 30-day money-back guarantee
+                  Secure payments powered by Stripe
                 </p>
               </div>
             </>

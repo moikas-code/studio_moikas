@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Supabase
+supabase/
+.supabase/
+
+# Storybook
+storybook-static/
+.storybook/
+
+# Lock files
+bun.lock
+package-lock.json
+yarn.lock
+
+# Generated files
+*.min.js
+*.min.css
+.env*
+coverage/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Migrations
+migrations/
+
+# Public assets
+public/
+
+# Tauri
+src-tauri/

@@ -14,8 +14,11 @@ import type {
 import {
   MODEL_TYPE_OPTIONS,
   SIZE_MODE_OPTIONS,
+  BILLING_TYPE_OPTIONS,
   DEFAULT_ASPECT_RATIOS,
-  DEFAULT_DURATION_OPTIONS
+  DEFAULT_DURATION_OPTIONS,
+  SCHEDULER_OPTIONS,
+  PREDICTION_TYPE_OPTIONS
 } from '@/types/models';
 import MetadataEditor from './metadata_editor';
 
@@ -46,9 +49,27 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     max_images: 1,
     duration_options: DEFAULT_DURATION_OPTIONS,
     supports_audio_generation: false,
+    // LoRA/SD specific
+    supports_loras: false,
+    supports_embeddings: false,
+    supports_controlnet: false,
+    supports_ip_adapter: false,
+    supported_schedulers: [],
+    supported_prediction_types: ['epsilon'],
+    supports_clip_skip: false,
+    supports_eta: false,
+    supports_prompt_weighting: false,
+    supported_variants: [],
+    has_safety_checker: true,
+    supports_custom_sigmas: false,
+    supports_custom_timesteps: false,
+    supports_tile_size: false,
     metadata: {},
     tags: [],
-    display_order: 0
+    display_order: 0,
+    billing_type: 'flat_rate',
+    min_time_charge_seconds: 1,
+    max_time_charge_seconds: undefined
   });
   
   // Custom pixel size input
@@ -82,6 +103,7 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         supports_both_size_modes: model.supports_both_size_modes,
         supports_cfg: model.supports_cfg,
         default_cfg: model.default_cfg || undefined,
+        min_cfg: model.min_cfg || undefined,
         max_cfg: model.max_cfg || undefined,
         supports_steps: model.supports_steps,
         default_steps: model.default_steps || undefined,
@@ -89,12 +111,41 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         max_images: model.max_images,
         duration_options: model.duration_options,
         supports_audio_generation: model.supports_audio_generation,
+        // LoRA/SD specific
+        supports_loras: model.supports_loras,
+        supports_embeddings: model.supports_embeddings,
+        supports_controlnet: model.supports_controlnet,
+        supports_ip_adapter: model.supports_ip_adapter,
+        supported_schedulers: model.supported_schedulers,
+        default_scheduler: model.default_scheduler || undefined,
+        supported_prediction_types: model.supported_prediction_types,
+        default_prediction_type: model.default_prediction_type || undefined,
+        supports_clip_skip: model.supports_clip_skip,
+        default_clip_skip: model.default_clip_skip || undefined,
+        max_clip_skip: model.max_clip_skip || undefined,
+        supports_eta: model.supports_eta,
+        default_eta: model.default_eta || undefined,
+        max_eta: model.max_eta || undefined,
+        supports_prompt_weighting: model.supports_prompt_weighting,
+        supported_variants: model.supported_variants,
+        default_variant: model.default_variant || undefined,
+        has_safety_checker: model.has_safety_checker,
+        supports_custom_sigmas: model.supports_custom_sigmas,
+        supports_custom_timesteps: model.supports_custom_timesteps,
+        supports_tile_size: model.supports_tile_size,
+        default_tile_width: model.default_tile_width || undefined,
+        default_tile_height: model.default_tile_height || undefined,
+        max_tile_width: model.max_tile_width || undefined,
+        max_tile_height: model.max_tile_height || undefined,
         metadata: model.metadata,
         api_endpoint: model.api_endpoint || undefined,
         api_version: model.api_version || undefined,
         tags: model.tags,
         display_order: model.display_order,
-        is_default: model.is_default
+        is_default: model.is_default,
+        billing_type: model.billing_type || 'flat_rate',
+        min_time_charge_seconds: model.min_time_charge_seconds || 1,
+        max_time_charge_seconds: model.max_time_charge_seconds || undefined
       });
     }
   }, [model]);
@@ -107,11 +158,15 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     // Only set to undefined if the field is not being used
     if (!cleaned.supports_cfg) {
       cleaned.default_cfg = undefined;
+      cleaned.min_cfg = undefined;
       cleaned.max_cfg = undefined;
     } else {
       // Keep non-zero values, convert zero/null to undefined
       if (!cleaned.default_cfg || cleaned.default_cfg === 0) {
         cleaned.default_cfg = undefined;
+      }
+      if (!cleaned.min_cfg || cleaned.min_cfg === 0) {
+        cleaned.min_cfg = undefined;
       }
       if (!cleaned.max_cfg || cleaned.max_cfg === 0) {
         cleaned.max_cfg = undefined;
@@ -137,6 +192,67 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
     }
     if (!cleaned.api_version || cleaned.api_version.trim() === '') {
       cleaned.api_version = undefined;
+    }
+    
+    // Clean LoRA-specific fields
+    if (!cleaned.default_scheduler || cleaned.default_scheduler.trim() === '') {
+      cleaned.default_scheduler = undefined;
+    }
+    if (!cleaned.default_prediction_type || cleaned.default_prediction_type.trim() === '') {
+      cleaned.default_prediction_type = undefined;
+    }
+    if (!cleaned.default_variant || cleaned.default_variant.trim() === '') {
+      cleaned.default_variant = undefined;
+    }
+    
+    if (!cleaned.supports_clip_skip) {
+      cleaned.default_clip_skip = undefined;
+      cleaned.max_clip_skip = undefined;
+    } else {
+      if (!cleaned.default_clip_skip || cleaned.default_clip_skip === 0) {
+        cleaned.default_clip_skip = undefined;
+      }
+      if (!cleaned.max_clip_skip || cleaned.max_clip_skip === 0) {
+        cleaned.max_clip_skip = undefined;
+      }
+    }
+    
+    if (!cleaned.supports_eta) {
+      cleaned.default_eta = undefined;
+      cleaned.max_eta = undefined;
+    } else {
+      if (!cleaned.default_eta || cleaned.default_eta === 0) {
+        cleaned.default_eta = undefined;
+      }
+      if (!cleaned.max_eta || cleaned.max_eta === 0) {
+        cleaned.max_eta = undefined;
+      }
+    }
+    
+    if (!cleaned.supports_tile_size) {
+      cleaned.default_tile_width = undefined;
+      cleaned.default_tile_height = undefined;
+      cleaned.max_tile_width = undefined;
+      cleaned.max_tile_height = undefined;
+    } else {
+      if (!cleaned.default_tile_width || cleaned.default_tile_width === 0) {
+        cleaned.default_tile_width = undefined;
+      }
+      if (!cleaned.default_tile_height || cleaned.default_tile_height === 0) {
+        cleaned.default_tile_height = undefined;
+      }
+      if (!cleaned.max_tile_width || cleaned.max_tile_width === 0) {
+        cleaned.max_tile_width = undefined;
+      }
+      if (!cleaned.max_tile_height || cleaned.max_tile_height === 0) {
+        cleaned.max_tile_height = undefined;
+      }
+    }
+    
+    // Clean time-based billing fields if not using time-based billing
+    if (!cleaned.billing_type || cleaned.billing_type !== 'time_based') {
+      cleaned.min_time_charge_seconds = undefined;
+      cleaned.max_time_charge_seconds = undefined;
     }
     
     return cleaned;
@@ -383,6 +499,100 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         </div>
       </div>
       
+      {/* Billing Configuration */}
+      <div className="card bg-base-100 shadow-xl">
+        <div className="card-body">
+          <h2 className="card-title">Billing Configuration</h2>
+          
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Billing Type*</span>
+            </label>
+            <select
+              className="select select-bordered"
+              value={form_data.billing_type || 'flat_rate'}
+              onChange={(e) => set_form_data({ ...form_data, billing_type: e.target.value as 'flat_rate' | 'time_based' })}
+              required
+            >
+              {BILLING_TYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <label className="label">
+              <span className="label-text-alt">
+                {BILLING_TYPE_OPTIONS.find(opt => opt.value === (form_data.billing_type || 'flat_rate'))?.description}
+              </span>
+            </label>
+          </div>
+          
+          {/* Show time-based fields when time_based is selected */}
+          {form_data.billing_type === 'time_based' && (
+            <>
+              <div className="alert alert-info mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <h3 className="font-bold">Time-Based Billing</h3>
+                  <p className="text-sm">The base MP cost will be multiplied by the actual processing seconds</p>
+                  <p className="text-sm mt-1">Example: If base cost is 1 MP and processing takes 3 seconds = 3 MP charged</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Min Charge (seconds)</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-bordered"
+                    value={form_data.min_time_charge_seconds || 1}
+                    onChange={(e) => set_form_data({ ...form_data, min_time_charge_seconds: parseFloat(e.target.value) || 1 })}
+                    step="0.1"
+                    min="0.1"
+                    placeholder="1.0"
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Minimum seconds to charge (default: 1)</span>
+                  </label>
+                </div>
+                
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Max Charge (seconds)</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-bordered"
+                    value={form_data.max_time_charge_seconds || ''}
+                    onChange={(e) => set_form_data({ ...form_data, max_time_charge_seconds: parseFloat(e.target.value) || undefined })}
+                    step="1"
+                    placeholder="60"
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Maximum seconds to charge (optional cap)</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="alert mt-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-info shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <p className="text-sm"><strong>How it works:</strong></p>
+                  <ul className="text-sm mt-1 ml-4 list-disc">
+                    <li>Base MP cost (from above) × Actual seconds = Total MP charged</li>
+                    <li>If processing takes less than min charge, min charge applies</li>
+                    <li>If processing exceeds max charge, max charge applies</li>
+                    <li>Actual cost is calculated when the job completes via webhook</li>
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      
       {/* Size Configuration */}
       {(form_data.type === 'image' || form_data.type === 'video') && (
         <div className="card bg-base-100 shadow-xl">
@@ -549,7 +759,22 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
               </label>
               
               {form_data.supports_cfg && (
-                <div className="grid grid-cols-2 gap-4 ml-8">
+                <div className="grid grid-cols-3 gap-4 ml-8">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text text-sm">Min CFG</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="input input-bordered input-sm"
+                      value={form_data.min_cfg || ''}
+                      onChange={(e) => set_form_data({ 
+                        ...form_data, 
+                        min_cfg: parseFloat(e.target.value) || undefined 
+                      })}
+                      step="0.1"
+                    />
+                  </div>
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text text-sm">Default CFG</span>
@@ -697,6 +922,470 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
         </div>
       </div>
       
+      {/* LoRA/SD Features - Only show for image models */}
+      {form_data.type === 'image' && (
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body">
+            <h2 className="card-title">LoRA/Stable Diffusion Features</h2>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Feature toggles */}
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_loras}
+                  onChange={(e) => set_form_data({ ...form_data, supports_loras: e.target.checked })}
+                />
+                <span className="label-text">Supports LoRAs</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_embeddings}
+                  onChange={(e) => set_form_data({ ...form_data, supports_embeddings: e.target.checked })}
+                />
+                <span className="label-text">Supports Embeddings</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_controlnet}
+                  onChange={(e) => set_form_data({ ...form_data, supports_controlnet: e.target.checked })}
+                />
+                <span className="label-text">Supports ControlNet</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_ip_adapter}
+                  onChange={(e) => set_form_data({ ...form_data, supports_ip_adapter: e.target.checked })}
+                />
+                <span className="label-text">Supports IP Adapter</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_prompt_weighting}
+                  onChange={(e) => set_form_data({ ...form_data, supports_prompt_weighting: e.target.checked })}
+                />
+                <span className="label-text">Prompt Weighting</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.has_safety_checker}
+                  onChange={(e) => set_form_data({ ...form_data, has_safety_checker: e.target.checked })}
+                />
+                <span className="label-text">Has Safety Checker</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_custom_sigmas}
+                  onChange={(e) => set_form_data({ ...form_data, supports_custom_sigmas: e.target.checked })}
+                />
+                <span className="label-text">Custom Sigmas</span>
+              </label>
+              
+              <label className="label cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={form_data.supports_custom_timesteps}
+                  onChange={(e) => set_form_data({ ...form_data, supports_custom_timesteps: e.target.checked })}
+                />
+                <span className="label-text">Custom Timesteps</span>
+              </label>
+            </div>
+            
+            <div className="divider"></div>
+            
+            {/* Model Name Field for LoRA/SD models */}
+            {(form_data.supports_loras || form_data.model_id === 'fal-ai/lora') && (
+              <div className="space-y-4 mb-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Default Model Name</span>
+                    <span className="label-text-alt text-xs">For custom SD/LoRA models (e.g., stabilityai/stable-diffusion-xl-base-1.0)</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    value={(form_data.metadata?.default_model_name as string) || ''}
+                    onChange={(e) => set_form_data({ 
+                      ...form_data, 
+                      metadata: {
+                        ...form_data.metadata,
+                        default_model_name: e.target.value
+                      }
+                    })}
+                    placeholder="e.g., stabilityai/stable-diffusion-xl-base-1.0 or HuggingFace model ID"
+                  />
+                  <label className="label">
+                    <span className="label-text-alt">Base model to use for generation</span>
+                  </label>
+                </div>
+                
+                <div className="form-control">
+                  <label className="label cursor-pointer justify-start gap-2">
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={(form_data.metadata?.allow_custom_model_name as boolean) || false}
+                      onChange={(e) => set_form_data({ 
+                        ...form_data, 
+                        metadata: {
+                          ...form_data.metadata,
+                          allow_custom_model_name: e.target.checked
+                        }
+                      })}
+                    />
+                    <span className="label-text">Allow Custom Model Name</span>
+                    <span className="label-text-alt text-xs ml-2">Users can specify their own model from HuggingFace/CivitAI</span>
+                  </label>
+                </div>
+                
+                {(form_data.metadata?.allow_custom_model_name as boolean) && (
+                  <>
+                    <div className="alert alert-info">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                      <span>When enabled, users can input any Stable Diffusion model from HuggingFace or CivitAI</span>
+                    </div>
+                    
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text">Supported Model Sources</span>
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {['HuggingFace', 'CivitAI', 'Custom URL'].map(source => (
+                          <label key={source} className="label cursor-pointer gap-2">
+                            <input
+                              type="checkbox"
+                              className="checkbox checkbox-sm"
+                              checked={((form_data.metadata?.supported_model_sources as string[]) || ['HuggingFace']).includes(source)}
+                              onChange={(e) => {
+                                const current_sources = (form_data.metadata?.supported_model_sources as string[]) || ['HuggingFace'];
+                                const new_sources = e.target.checked
+                                  ? [...current_sources, source]
+                                  : current_sources.filter(s => s !== source);
+                                set_form_data({ 
+                                  ...form_data, 
+                                  metadata: {
+                                    ...form_data.metadata,
+                                    supported_model_sources: new_sources
+                                  }
+                                });
+                              }}
+                            />
+                            <span className="label-text">{source}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            
+            {/* Schedulers */}
+            <div>
+              <label className="label">
+                <span className="label-text">Supported Schedulers</span>
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {SCHEDULER_OPTIONS.map(scheduler => (
+                  <label key={scheduler} className="label cursor-pointer gap-2">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={form_data.supported_schedulers?.includes(scheduler)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          set_form_data({
+                            ...form_data,
+                            supported_schedulers: [...(form_data.supported_schedulers || []), scheduler]
+                          });
+                        } else {
+                          set_form_data({
+                            ...form_data,
+                            supported_schedulers: form_data.supported_schedulers?.filter(s => s !== scheduler) || []
+                          });
+                        }
+                      }}
+                    />
+                    <span className="label-text text-sm">{scheduler}</span>
+                  </label>
+                ))}
+              </div>
+              
+              {form_data.supported_schedulers && form_data.supported_schedulers.length > 0 && (
+                <div className="form-control mt-2">
+                  <label className="label">
+                    <span className="label-text text-sm">Default Scheduler</span>
+                  </label>
+                  <select
+                    className="select select-bordered select-sm"
+                    value={form_data.default_scheduler || ''}
+                    onChange={(e) => set_form_data({ ...form_data, default_scheduler: e.target.value || undefined })}
+                  >
+                    <option value="">Select default...</option>
+                    {form_data.supported_schedulers.map(scheduler => (
+                      <option key={scheduler} value={scheduler}>{scheduler}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            
+            {/* Prediction Types */}
+            <div className="mt-4">
+              <label className="label">
+                <span className="label-text">Supported Prediction Types</span>
+              </label>
+              <div className="flex gap-4">
+                {PREDICTION_TYPE_OPTIONS.map(type => (
+                  <label key={type} className="label cursor-pointer gap-2">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm"
+                      checked={form_data.supported_prediction_types?.includes(type)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          set_form_data({
+                            ...form_data,
+                            supported_prediction_types: [...(form_data.supported_prediction_types || []), type]
+                          });
+                        } else {
+                          set_form_data({
+                            ...form_data,
+                            supported_prediction_types: form_data.supported_prediction_types?.filter(t => t !== type) || []
+                          });
+                        }
+                      }}
+                    />
+                    <span className="label-text">{type}</span>
+                  </label>
+                ))}
+              </div>
+              
+              {form_data.supported_prediction_types && form_data.supported_prediction_types.length > 0 && (
+                <div className="form-control mt-2">
+                  <label className="label">
+                    <span className="label-text text-sm">Default Prediction Type</span>
+                  </label>
+                  <select
+                    className="select select-bordered select-sm"
+                    value={form_data.default_prediction_type || ''}
+                    onChange={(e) => set_form_data({ ...form_data, default_prediction_type: e.target.value || undefined })}
+                  >
+                    <option value="">Select default...</option>
+                    {form_data.supported_prediction_types.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            
+            {/* Advanced Parameters */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Clip Skip */}
+              <div>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={form_data.supports_clip_skip}
+                    onChange={(e) => set_form_data({ ...form_data, supports_clip_skip: e.target.checked })}
+                  />
+                  <span className="label-text">Supports Clip Skip</span>
+                </label>
+                
+                {form_data.supports_clip_skip && (
+                  <div className="grid grid-cols-2 gap-2 ml-8">
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Default</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.default_clip_skip || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          default_clip_skip: parseInt(e.target.value) || undefined 
+                        })}
+                        min="0"
+                        max="2"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Max</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.max_clip_skip || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          max_clip_skip: parseInt(e.target.value) || undefined 
+                        })}
+                        min="0"
+                        max="2"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Eta */}
+              <div>
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={form_data.supports_eta}
+                    onChange={(e) => set_form_data({ ...form_data, supports_eta: e.target.checked })}
+                  />
+                  <span className="label-text">Supports Eta</span>
+                </label>
+                
+                {form_data.supports_eta && (
+                  <div className="grid grid-cols-2 gap-2 ml-8">
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Default</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.default_eta || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          default_eta: parseFloat(e.target.value) || undefined 
+                        })}
+                        min="0"
+                        max="1"
+                        step="0.1"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Max</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.max_eta || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          max_eta: parseFloat(e.target.value) || undefined 
+                        })}
+                        min="0"
+                        max="1"
+                        step="0.1"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Tile Size */}
+              <div className="md:col-span-2">
+                <label className="label cursor-pointer justify-start gap-2">
+                  <input
+                    type="checkbox"
+                    className="checkbox"
+                    checked={form_data.supports_tile_size}
+                    onChange={(e) => set_form_data({ ...form_data, supports_tile_size: e.target.checked })}
+                  />
+                  <span className="label-text">Supports Tile Size</span>
+                </label>
+                
+                {form_data.supports_tile_size && (
+                  <div className="grid grid-cols-4 gap-2 ml-8">
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Default Width</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.default_tile_width || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          default_tile_width: parseInt(e.target.value) || undefined 
+                        })}
+                        step="128"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Default Height</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.default_tile_height || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          default_tile_height: parseInt(e.target.value) || undefined 
+                        })}
+                        step="128"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Max Width</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.max_tile_width || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          max_tile_width: parseInt(e.target.value) || undefined 
+                        })}
+                        step="128"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label">
+                        <span className="label-text text-sm">Max Height</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm"
+                        value={form_data.max_tile_height || ''}
+                        onChange={(e) => set_form_data({ 
+                          ...form_data, 
+                          max_tile_height: parseInt(e.target.value) || undefined 
+                        })}
+                        step="128"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Tags */}
       <div className="card bg-base-100 shadow-xl">
         <div className="card-body">
@@ -744,6 +1433,24 @@ export default function ModelForm({ model, on_submit }: ModelFormProps) {
           <p className="text-sm text-base-content/60 mb-4">
             Configure model-specific settings and capabilities based on the API schema
           </p>
+          
+          {/* Show LoRA-specific help */}
+          {(form_data.supports_loras || form_data.model_id === 'fal-ai/lora') && (
+            <div className="alert alert-warning mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <div>
+                <h3 className="font-bold">LoRA Model Configuration</h3>
+                <p className="text-sm">The following metadata fields are stored and used:</p>
+                <ul className="text-sm mt-2 ml-4 list-disc">
+                  <li><strong>default_model_name</strong>: The base SD model to use (e.g., &quot;stabilityai/stable-diffusion-xl-base-1.0&quot;)</li>
+                  <li><strong>allow_custom_model_name</strong>: Whether users can specify their own models</li>
+                  <li><strong>supported_model_sources</strong>: Which sources are allowed (HuggingFace, CivitAI, etc.)</li>
+                  <li><strong>example_loras</strong>: Array of example LoRA configurations</li>
+                  <li><strong>unet_name</strong>: Custom U-Net model URL (optional)</li>
+                </ul>
+              </div>
+            </div>
+          )}
           
           <MetadataEditor
             metadata={form_data.metadata || {}}

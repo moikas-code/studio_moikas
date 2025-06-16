@@ -1,6 +1,6 @@
 "use client"
 import React, { useState } from "react";
-import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image, Video, Mic, Robot } from "lucide-react";
+import { FileText, Users, Ban, CreditCard, Scale, AlertTriangle, Copyright, Mail, ChevronDown, Sparkles, Image as ImageIcon, Video, Mic, Bot, Shield, Globe, Gavel } from "lucide-react";
 import Link from "next/link";
 
 export default function Terms_of_service_page() {
@@ -44,7 +44,7 @@ export default function Terms_of_service_page() {
         {
           subtitle: "AI Creative Tools",
           items: [
-            "Image Generation: Create AI-generated images from text prompts",
+            "Image Generation: Create AI-generated images from text prompts using FLUX, SANA, Stable Diffusion, and other models",
             "Image Editor: Edit and enhance images with AI-powered tools",
             "Video Effects: Generate and enhance videos with AI effects",
             "Audio Tools: Text-to-speech, voice cloning, and audio processing",
@@ -61,6 +61,17 @@ export default function Terms_of_service_page() {
             "Admin plan: Unlimited MP usage",
             "Additional MP can be purchased as needed",
             "Monthly MP expires at the end of billing cycle, purchased MP never expires"
+          ]
+        },
+        {
+          subtitle: "Content Moderation",
+          items: [
+            "All prompts are automatically screened using AI (powered by xAI's Grok) before generation",
+            "Moderation aims to prevent illegal and harmful content while allowing creative freedom",
+            "Adult/NSFW content between consenting adults is permitted",
+            "Blocked prompts do not consume your Mana Points",
+            "False positive reports can be submitted for admin review",
+            "Moderation decisions are logged for safety and compliance"
           ]
         }
       ]
@@ -130,6 +141,15 @@ export default function Terms_of_service_page() {
             "No generation of private personal data or sensitive information without consent",
             "Adult/NSFW content is permitted only between consenting adults and must not involve minors"
           ]
+        },
+        {
+          subtitle: "Moderation Compliance",
+          items: [
+            "Your prompts will be automatically screened before generation",
+            "Attempting to bypass moderation systems is strictly prohibited",
+            "Repeated violations may result in account suspension or termination",
+            "False positive reports must be made in good faith"
+          ]
         }
       ]
 },
@@ -162,7 +182,9 @@ export default function Terms_of_service_page() {
             "You own the rights to content you generate (subject to input rights)",
             "Free plan content includes watermarks which must not be removed",
             "We don't claim ownership of your generated content",
-            "You're responsible for how you use generated content"
+            "You're responsible for how you use generated content",
+            "We do not train our AI models on your generated content without explicit permission",
+            "Third-party AI models (FLUX, SANA, etc.) may have their own terms"
           ]
         }
       ]
@@ -252,6 +274,65 @@ export default function Terms_of_service_page() {
           ]
         }
       ]
+    },
+    {
+      id: "dmca",
+      icon: Copyright,
+      title: "9. DMCA & Copyright Policy",
+      content: [
+        {
+          subtitle: "Copyright Infringement Claims",
+          items: [
+            "We respect intellectual property rights and respond to valid DMCA takedown notices",
+            "To report copyright infringement, send a DMCA notice to: x.com/moikas_official",
+            "Include: (1) Your signature, (2) Identification of copyrighted work, (3) URL of infringing content, (4) Your contact information, (5) Good faith statement, (6) Statement of accuracy under penalty of perjury"
+          ]
+        },
+        {
+          subtitle: "Counter-Notification",
+          items: [
+            "If you believe content was wrongly removed, you may submit a counter-notice",
+            "Counter-notices must include: (1) Your signature, (2) Identification of removed content, (3) Statement under penalty of perjury, (4) Consent to jurisdiction",
+            "We will forward counter-notices to the original complainant",
+            "Content may be restored after 10-14 business days unless legal action is filed"
+          ]
+        },
+        {
+          subtitle: "Repeat Infringers",
+          items: [
+            "We maintain a policy of terminating repeat copyright infringers",
+            "Users with multiple valid DMCA complaints may be permanently banned",
+            "False DMCA claims may result in legal liability"
+          ]
+        }
+      ]
+    },
+    {
+      id: "indemnification",
+      icon: Shield,
+      title: "10. Indemnification",
+      content: [
+        {
+          subtitle: "Your Indemnification Obligations",
+          items: [
+            "You agree to indemnify, defend, and hold harmless Studio Moikas, its officers, directors, employees, agents, and affiliates",
+            "This covers any claims, damages, losses, liabilities, and expenses (including reasonable attorneys' fees) arising from:",
+            "- Your use or misuse of our services",
+            "- Your violation of these Terms of Service",
+            "- Your violation of any third-party rights, including intellectual property rights",
+            "- Any content you create, upload, or distribute through our platform",
+            "- Your violation of any applicable laws or regulations"
+          ]
+        },
+        {
+          subtitle: "Defense and Settlement",
+          items: [
+            "We reserve the right to assume exclusive defense of any claim subject to indemnification",
+            "You agree to cooperate fully in the defense of such claims",
+            "You may not settle any claim without our prior written consent"
+          ]
+        }
+      ]
     }
   ];
 
@@ -285,7 +366,7 @@ export default function Terms_of_service_page() {
           <div className="grid md:grid-cols-2 gap-4 text-base-content/80">
             <div className="space-y-2">
               <div className="flex items-start gap-2">
-                <Image className="w-4 h-4 text-primary mt-0.5" alt="" />
+                <ImageIcon className="w-4 h-4 text-primary mt-0.5" />
                 <span className="text-sm">You own the content you create</span>
               </div>
               <div className="flex items-start gap-2">
@@ -299,7 +380,7 @@ export default function Terms_of_service_page() {
             </div>
             <div className="space-y-2">
               <div className="flex items-start gap-2">
-                <Robot className="w-4 h-4 text-primary mt-0.5" />
+                <Bot className="w-4 h-4 text-primary mt-0.5" />
                 <span className="text-sm">AI outputs may vary in accuracy</span>
               </div>
               <div className="flex items-start gap-2">
@@ -357,38 +438,247 @@ export default function Terms_of_service_page() {
           })}
         </div>
 
-        {/* Governing Law */}
-        <div className="mt-8 bg-base-200 rounded-2xl p-6">
-          <h2 className="text-xl font-bold mb-3">9. Governing Law</h2>
-          <p className="text-base-content/80">
-            These Terms shall be governed by and construed in accordance with the laws of the United States, 
-            without regard to its conflict of law provisions. Any disputes arising from these terms shall be 
-            resolved through binding arbitration.
-          </p>
+        {/* Additional Legal Sections */}
+        <div className="space-y-4 mt-8">
+          {/* Governing Law */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Gavel className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">11. Governing Law & Disputes</h2>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Governing Law</h3>
+                  <p className="text-base-content/80">
+                    These Terms are governed by the laws of the State of Delaware, United States, without regard to conflict of law principles.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Arbitration Agreement</h3>
+                  <ul className="space-y-2 text-base-content/80">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Any disputes shall be resolved through binding arbitration under the American Arbitration Association (AAA) rules</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Arbitration will be conducted in Delaware, or online if mutually agreed</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>You waive any right to a jury trial or class action lawsuit</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Small claims court remains available for qualifying disputes</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* International Users */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Globe className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">12. International Users</h2>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Age Requirements</h3>
+                  <ul className="space-y-2 text-base-content/80">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>United States: Must be 13 years or older</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>European Union: Must be 16 years or older (or 13 with parental consent where allowed)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Other regions: Must meet your local age of digital consent</span>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">GDPR Rights (EU Users)</h3>
+                  <ul className="space-y-2 text-base-content/80">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Right to access your personal data</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Right to rectification of inaccurate data</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Right to erasure (&quot;right to be forgotten&quot;)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Right to data portability</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Right to object to processing</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Contact us at privacy@studiomoikas.com to exercise these rights</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Terms */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">13. Additional Terms</h2>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">API Terms</h3>
+                  <ul className="space-y-2 text-base-content/80">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>API access is available for Standard and Admin plans only</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Rate limits apply based on your subscription tier</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Commercial use requires explicit written permission</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Bulk generation for resale is prohibited without enterprise agreement</span>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Model Availability</h3>
+                  <ul className="space-y-2 text-base-content/80">
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>AI models may be added, removed, or updated at any time</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>We&apos;ll notify you of major model changes when possible</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>No guarantee of continued availability of specific models</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-primary/60 mt-1">•</span>
+                      <span>Model performance and outputs may vary over time</span>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Age Verification</h3>
+                  <p className="text-base-content/80 mb-2">
+                    By using our service, you affirm that you meet the minimum age requirements. We may request age verification at any time. If we determine you are underage, your account will be terminated immediately without refund.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Force Majeure</h3>
+                  <p className="text-base-content/80">
+                    We are not liable for failures or delays due to circumstances beyond our reasonable control, including but not limited to acts of God, natural disasters, war, terrorism, riots, embargoes, acts of civil or military authorities, fire, floods, accidents, pandemics, strikes, or shortages of transportation facilities, fuel, energy, labor or materials.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Severability</h3>
+                  <p className="text-base-content/80">
+                    If any provision of these Terms is found to be unenforceable or invalid, that provision will be limited or eliminated to the minimum extent necessary so that these Terms will otherwise remain in full force and effect.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2 text-primary">Export Controls</h3>
+                  <p className="text-base-content/80">
+                    You may not use or export our services in violation of U.S. export laws and regulations. Our AI technology may be subject to export controls and you agree to comply with all applicable international and national laws.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Entire Agreement */}
+          <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold">14. Entire Agreement</h2>
+              </div>
+              <div className="text-base-content/80">
+                <p>
+                  These Terms constitute the entire agreement between you and Studio Moikas regarding our services and supersede all prior agreements and understandings, whether written or oral, relating to the subject matter of these Terms.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Contact Section */}
         <div className="mt-8 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-8 text-center">
           <Mail className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-3">Questions About Terms?</h2>
+          <h2 className="text-2xl font-bold mb-3">Legal Contact Information</h2>
           <p className="text-base-content/70 mb-6">
-            If you have any questions about these Terms of Service, we&apos;re here to help.
+            For questions about these Terms of Service or legal matters:
           </p>
           <div className="space-y-3">
-            <p>
-              Contact our founder on X:{" "}
-              <a 
-                href="https://x.com/moikapy_" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-primary hover:underline font-medium"
-              >
-                @moikapy_
-              </a>
-            </p>
-            <p className="text-sm text-base-content/60">
-              For legal inquiries, please include &quot;Legal&quot; in your message
-            </p>
+            <div>
+              <p className="font-semibold">Legal Inquiries:</p>
+              <p>
+                Email: <a href="https://x.com/moikas_official" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Moikas</a>
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold">DMCA Agent:</p>
+              <p>
+                Email: <a href="https://x.com/moikas_official" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Moikas</a>
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold">Privacy Inquiries:</p>
+              <p>
+                Email: <a href="https://x.com/moikas_official" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Moikas</a>
+              </p>
+            </div>
+            <div className="pt-4 border-t border-base-content/20">
+              <p className="text-sm">
+                General support: Contact{" "}
+                <a 
+                  href="https://x.com/moikas_official" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary hover:underline"
+                >
+                Moikas
+                </a>{" "}
+                on X
+              </p>
+            </div>
           </div>
         </div>
 

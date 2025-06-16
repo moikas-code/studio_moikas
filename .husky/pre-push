@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Optional: Uncomment the line below to run build checks before pushing
+# bun run type-check && bun run build-storybook

@@ -23,14 +23,14 @@ export default function PricingSection() {
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
                     <span className="text-gray-700 dark:text-gray-300">125 Mana Points monthly</span>
                   </li>
-                  <li className="flex items-center">
+                  {/* <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
                     <span className="text-gray-700 dark:text-gray-300">Standard resolution images</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
                     <span className="text-gray-700 dark:text-gray-300">Basic AI models</span>
-                  </li>
+                  </li> */}
                 </ul>
                 <Link href="/sign-up">
                   <button className="btn btn-outline w-full">
@@ -52,19 +52,19 @@ export default function PricingSection() {
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
-                    <span className="text-gray-700 dark:text-gray-300">150 Mana Points monthly</span>
+                    <span className="text-gray-700 dark:text-gray-300">20480 Mana Points monthly</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
-                    <span className="text-gray-700 dark:text-gray-300">High resolution images</span>
+                    <span className="text-gray-700 dark:text-gray-300">Early access to new features</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
-                    <span className="text-gray-700 dark:text-gray-300">Premium AI models</span>
+                    <span className="text-gray-700 dark:text-gray-300">Priority support</span>
                   </li>
                   <li className="flex items-center">
                     <CheckCircle2 className="w-5 h-5 text-jade mr-2" />
-                    <span className="text-gray-700 dark:text-gray-300">Priority generation</span>
+                    <span className="text-gray-700 dark:text-gray-300">Reduced Generation Pricing</span>
                   </li>
                 </ul>
                 <Link href="/sign-up">
