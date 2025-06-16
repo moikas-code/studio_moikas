@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     const build_query = (table: string, job_type: string) => {
       let query = supabase
         .from(table)
-        .select('*, users!inner(email)', { count: 'exact' })
+        .select('*, users!inner(email, metadata)', { count: 'exact' })
         .order('created_at', { ascending: false })
       
       if (status && status !== 'all') {
@@ -83,7 +83,8 @@ export async function GET(req: NextRequest) {
         all_jobs.push(...image_jobs.map((job) => ({
           ...job,
           type: 'image' as const,
-          user_email: job.users?.email
+          user_email: job.users?.email,
+          user_banned: job.users?.metadata?.banned || false
         })))
         total_count += image_count || 0
       }
@@ -97,7 +98,8 @@ export async function GET(req: NextRequest) {
         all_jobs.push(...video_jobs.map((job) => ({
           ...job,
           type: 'video',
-          user_email: job.users?.email
+          user_email: job.users?.email,
+          user_banned: job.users?.metadata?.banned || false
         })))
         total_count += video_count || 0
       }
@@ -111,7 +113,8 @@ export async function GET(req: NextRequest) {
         all_jobs.push(...audio_jobs.map((job) => ({
           ...job,
           type: 'audio',
-          user_email: job.users?.email
+          user_email: job.users?.email,
+          user_banned: job.users?.metadata?.banned || false
         })))
         total_count += audio_count || 0
       }

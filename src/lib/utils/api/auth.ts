@@ -106,6 +106,18 @@ export async function require_auth(): Promise<AuthUser> {
     throw api_error('Unauthorized', 401)
   }
   
+  // Check if user is banned
+  const supabase = get_service_role_client()
+  const { data: user_data } = await supabase
+    .from('users')
+    .select('metadata')
+    .eq('id', user.user_id)
+    .single()
+  
+  if (user_data?.metadata?.banned) {
+    throw api_error('Your account has been suspended for violating our Terms of Service', 403)
+  }
+  
   return user
 }
 

@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, RefreshCw, Search, Download, Eye, XCircle, CheckCircle, Clock, ExternalLink, Image } from 'lucide-react'
+import { Loader2, RefreshCw, Search, Download, Eye, XCircle, CheckCircle, Clock, ExternalLink, Image, Ban } from 'lucide-react'
 
 interface Job {
   id: string
   job_id: string
   user_id: string
   user_email?: string
+  user_banned?: boolean
   type: 'image' | 'video' | 'audio'
   status: 'pending' | 'processing' | 'completed' | 'failed'
   model: string
@@ -192,6 +193,38 @@ export default function AdminJobsPage() {
     }
   }
   
+  const handle_ban_user = async (job: Job) => {
+    if (!confirm(`Are you sure you want to ban user ${job.user_email || job.user_id} for ToS violation?\n\nThis will:\n- Block their access to the platform\n- Cancel all their pending jobs\n- Mark their account as banned`)) {
+      return
+    }
+    
+    try {
+      // First update the user's role to banned
+      const response = await fetch(`/api/admin/users/${job.user_id}/ban`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          reason: 'ToS violation - inappropriate content generation',
+          job_id: job.job_id
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to ban user')
+      }
+      
+      toast.success('User banned successfully')
+      
+      // Refresh the jobs list
+      fetch_jobs()
+    } catch (error) {
+      console.error('Error banning user:', error)
+      toast.error('Failed to ban user')
+    }
+  }
+  
   return (
     <div className="min-h-screen bg-base-100">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -313,7 +346,12 @@ export default function AdminJobsPage() {
                       </td>
                       <td>
                         <div className="text-sm">
-                          <div className="font-medium">{job.user_email || 'Unknown'}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{job.user_email || 'Unknown'}</span>
+                            {job.user_banned && (
+                              <span className="badge badge-error badge-xs">Banned</span>
+                            )}
+                          </div>
                           <div className="text-xs text-base-content/60">{job.user_id}</div>
                         </div>
                       </td>
@@ -528,6 +566,18 @@ export default function AdminJobsPage() {
               </div>
               
               <div className="modal-action">
+                {selected_job.type === 'image' && selected_job.status === 'completed' && (
+                  <button
+                    onClick={() => {
+                      handle_ban_user(selected_job)
+                      set_selected_job(null)
+                    }}
+                    className="btn btn-error gap-2"
+                  >
+                    <Ban className="w-4 h-4" />
+                    Ban User for ToS Violation
+                  </button>
+                )}
                 <button
                   onClick={() => set_selected_job(null)}
                   className="btn"

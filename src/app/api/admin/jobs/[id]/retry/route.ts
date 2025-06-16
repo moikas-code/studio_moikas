@@ -1,8 +1,16 @@
 import { NextRequest } from "next/server"
+import { fal } from "@fal-ai/client"
 
 // Next.js route configuration
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+
+// Configure fal client
+if (process.env.FAL_KEY) {
+  fal.config({
+    credentials: process.env.FAL_KEY
+  })
+}
 
 import { 
   get_service_role_client
@@ -15,6 +23,24 @@ import {
   api_error,
   handle_api_error 
 } from "@/lib/utils/api/response"
+
+// Helper to get base URL for webhooks
+function get_base_url(): string | null {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL
+  }
+  if (process.env.NODE_ENV === 'development') {
+    // Try to get from tunnel URL if available
+    if (process.env.TUNNEL_URL) {
+      return process.env.TUNNEL_URL
+    }
+    return 'http://localhost:3000'
+  }
+  return null
+}
 
 export async function POST(
   req: NextRequest,
@@ -129,8 +155,138 @@ export async function POST(
       return api_error('Failed to create retry job', 500)
     }
     
-    // 6. TODO: Submit to fal.ai (would need to implement based on job type)
-    // For now, we just create the job record
+    // 6. Submit to fal.ai based on job type
+    try {
+      const base_url = get_base_url()
+      const webhook_url = base_url ? `${base_url}/api/webhooks/fal-ai` : null
+      
+      let fal_result: { request_id: string } | null = null
+      
+      if (job_type === 'image') {
+        // Build input for image generation
+        const fal_input: Record<string, unknown> = {
+          prompt: job.prompt
+        }
+        
+        // Parse image_size if it's stored as string (e.g., "1024x1024")
+        if (job.image_size) {
+          const [width, height] = job.image_size.split('x').map(Number)
+          if (width && height) {
+            fal_input.image_size = { width, height }
+          }
+        }
+        
+        // Add metadata parameters if they exist
+        if (job.metadata) {
+          if (job.metadata.negative_prompt) {
+            fal_input.negative_prompt = job.metadata.negative_prompt
+          }
+          if (job.metadata.num_inference_steps) {
+            fal_input.num_inference_steps = job.metadata.num_inference_steps
+          }
+          if (job.metadata.guidance_scale !== undefined) {
+            fal_input.guidance_scale = job.metadata.guidance_scale
+          }
+          if (job.metadata.seed !== undefined) {
+            fal_input.seed = job.metadata.seed
+          }
+          if (job.metadata.num_images !== undefined) {
+            fal_input.num_images = job.metadata.num_images
+          }
+          if (job.metadata.style_name) {
+            fal_input.style_name = job.metadata.style_name
+          }
+          if (job.metadata.enable_safety_checker !== undefined) {
+            fal_input.enable_safety_checker = job.metadata.enable_safety_checker
+          }
+          if (job.metadata.expand_prompt !== undefined) {
+            fal_input.expand_prompt = job.metadata.expand_prompt
+          }
+          if (job.metadata.format) {
+            fal_input.format = job.metadata.format
+          }
+          if (job.metadata.embeddings) {
+            fal_input.embeddings = job.metadata.embeddings
+          }
+          if (job.metadata.loras) {
+            fal_input.loras = job.metadata.loras
+          }
+          if (job.metadata.model_name) {
+            fal_input.model_name = job.metadata.model_name
+          }
+        }
+        
+        // Override num_images if it's in the job record
+        if (job.num_images) {
+          fal_input.num_images = job.num_images
+        }
+        
+        // Submit to fal.ai
+        if (webhook_url) {
+          fal_result = await fal.queue.submit(job.model, {
+            input: fal_input,
+            webhookUrl: webhook_url
+          })
+        } else {
+          // Use synchronous processing if no webhook URL
+          const result = await fal.subscribe(job.model, {
+            input: fal_input,
+            logs: true
+          })
+          // For synchronous results, we need to update the job immediately
+          // This is a simplified version - in production you'd want to handle the result properly
+          const { error: update_error } = await supabase
+            .from('image_jobs')
+            .update({
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+              image_url: (result as any)?.images?.[0]?.url || (result as any)?.image?.url || (result as any)?.url || null
+            })
+            .eq('id', new_job.id)
+          
+          if (update_error) {
+            console.error('Failed to update job after sync completion:', update_error)
+          }
+        }
+      } else if (job_type === 'video') {
+        // Video generation logic would go here
+        // For now, we'll skip as it requires different parameters
+        console.log('Video retry not yet implemented')
+      } else if (job_type === 'audio') {
+        // Audio generation logic would go here
+        // For now, we'll skip as it requires different parameters
+        console.log('Audio retry not yet implemented')
+      }
+      
+      // 7. Update job with fal_request_id if we got one
+      if (fal_result && 'request_id' in fal_result) {
+        const { error: update_error } = await supabase
+          .from(`${job_type}_jobs`)
+          .update({
+            fal_request_id: fal_result.request_id,
+            status: 'processing'
+          })
+          .eq('id', new_job.id)
+        
+        if (update_error) {
+          console.error('Failed to update job with request ID:', update_error)
+        }
+      }
+      
+    } catch (fal_error) {
+      console.error('Failed to submit job to fal.ai:', fal_error)
+      // Update job status to failed
+      await supabase
+        .from(`${job_type}_jobs`)
+        .update({
+          status: 'failed',
+          error: `Failed to submit to fal.ai: ${fal_error instanceof Error ? fal_error.message : 'Unknown error'}`,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', new_job.id)
+      
+      return api_error('Failed to submit job to processing service', 500)
+    }
     
     return api_success({
       message: 'Job retry initiated',
