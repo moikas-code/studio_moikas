@@ -701,7 +701,6 @@ export function ImageGenerator({
                       />
                     </div>
 
-                    {/* SANA Settings */}
                     {selected_model?.id.includes("sana") && (
                       <Fragment>
                         {selected_model.model_config?.supports_steps && (
@@ -770,7 +769,6 @@ export function ImageGenerator({
                       </Fragment>
                     )}
 
-                    {/* Fast-SDXL Settings */}
                     {selected_model?.id === "fal-ai/fast-sdxl" && (
                       <>
                         <div>
@@ -825,7 +823,6 @@ export function ImageGenerator({
                       </>
                     )}
 
-                    {/* Any LoRA Settings */}
                     {selected_model?.id === "fal-ai/lora" &&
                       selected_model.model_config?.metadata?.allow_custom_model_name && (
                         <div>
@@ -848,7 +845,6 @@ export function ImageGenerator({
                         </div>
                       )}
 
-                    {/* Embeddings and LoRAs for SDXL models */}
                     {(selected_model?.model_config?.metadata?.supports_embeddings ||
                       selected_model?.id === "fal-ai/fast-sdxl") && (
                       <div>
@@ -862,7 +858,6 @@ export function ImageGenerator({
                       </div>
                     )}
 
-                    {/* Seed Control */}
                     <div>
                       <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
                         Seed (Optional)
