@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { 
   handle_api_error,
   api_success
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 }
 
 // Cancel deletion request
-export async function DELETE(req: NextRequest) {
+export async function DELETE() {
   try {
     // Get authenticated user
     const user = await currentUser()

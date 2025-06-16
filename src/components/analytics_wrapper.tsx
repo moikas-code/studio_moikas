@@ -7,7 +7,7 @@ export default function Analytics_wrapper() {
 
   useEffect(() => {
     // Check Do Not Track browser setting
-    const dnt = navigator.doNotTrack || (window as any).doNotTrack || (navigator as any).msDoNotTrack;
+    const dnt = navigator.doNotTrack || (window as typeof window & { doNotTrack?: string }).doNotTrack || (navigator as typeof navigator & { msDoNotTrack?: string }).msDoNotTrack;
     const has_dnt = dnt === "1" || dnt === "yes";
     
     // Check local storage opt-out

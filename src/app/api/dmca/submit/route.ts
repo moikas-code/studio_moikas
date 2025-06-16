@@ -55,8 +55,9 @@ export async function POST(req: NextRequest) {
     
     // Extract potential user ID from the infringing content URL if possible
     // This is a simplified example - in production you'd parse the URL more carefully
-    let reported_user_id = null
-    const url_parts = validated.infringing_content_url.split('/')
+    const reported_user_id = null
+    // Parse URL to extract user ID if needed
+    // const url_parts = validated.infringing_content_url.split('/')
     // You could extract user ID from URL pattern like /user/[id]/content/[content_id]
     
     // Insert DMCA request

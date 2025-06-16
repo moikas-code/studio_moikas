@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { 
   handle_api_error,
   api_success

@@ -8,7 +8,7 @@ export default function Analytics_opt_out_toggle() {
 
   React.useEffect(() => {
     // Check Do Not Track browser setting
-    const dnt = navigator.doNotTrack || (window as any).doNotTrack || (navigator as any).msDoNotTrack;
+    const dnt = navigator.doNotTrack || (window as typeof window & { doNotTrack?: string }).doNotTrack || (navigator as typeof navigator & { msDoNotTrack?: string }).msDoNotTrack;
     const has_dnt = dnt === "1" || dnt === "yes";
     
     set_dnt_detected(has_dnt);

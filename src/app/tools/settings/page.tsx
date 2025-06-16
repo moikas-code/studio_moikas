@@ -1,11 +1,9 @@
 "use client"
 import React, { useState } from "react"
 import { Shield, Download, Trash2, AlertCircle, User, Lock, CheckCircle, FileText } from "lucide-react"
-import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 export default function UserSettingsPage() {
-  const router = useRouter()
   const [active_tab, set_active_tab] = useState("privacy")
   const [is_loading, set_is_loading] = useState(false)
   const [message, set_message] = useState("")
@@ -220,7 +218,7 @@ export default function UserSettingsPage() {
               <div className="space-y-4">
                 <div>
                   <label className="label">
-                    <span className="label-text">Type "DELETE MY ACCOUNT" to confirm</span>
+                    <span className="label-text">Type &quot;DELETE MY ACCOUNT&quot; to confirm</span>
                   </label>
                   <input
                     type="text"

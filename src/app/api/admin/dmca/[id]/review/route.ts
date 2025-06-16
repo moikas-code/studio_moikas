@@ -13,7 +13,7 @@ import {
   validate_request
 } from "@/lib/utils/api/validation"
 import { z } from 'zod'
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 
 const review_schema = z.object({
   action: z.enum(['accept', 'reject']),
@@ -75,7 +75,7 @@ export async function POST(
     }
     
     // Update the request based on action
-    const update_data: any = {
+    const update_data: Record<string, unknown> = {
       status: validated.action === 'accept' ? 'accepted' : 'rejected',
       admin_notes: validated.admin_notes,
       reviewed_at: new Date().toISOString(),

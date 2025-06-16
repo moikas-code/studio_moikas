@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { 
-  handle_api_error,
-  api_success
+  handle_api_error
 } from "@/lib/utils/api/response"
 import {
   get_service_role_client
 } from "@/lib/utils/database/supabase"
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     // Get authenticated user
     const user = await currentUser()
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Collect all user data
-    const export_data: any = {
+    const export_data: Record<string, unknown> = {
       export_date: new Date().toISOString(),
       user_profile: {
         id: user_data.id,

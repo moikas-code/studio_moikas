@@ -10,7 +10,7 @@ import {
   handle_api_error 
 } from "@/lib/utils/api/response"
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
     // Require admin authentication
     const admin_response = await require_admin_access()
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const supabase = get_service_role_client()
     
     // Execute the prompt deletion function
-    const { data, error } = await supabase
+    const { error } = await supabase
       .rpc('delete_old_prompts')
     
     if (error) {
