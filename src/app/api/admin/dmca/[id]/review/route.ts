@@ -57,7 +57,7 @@ export async function POST(
     const { data: request, error: request_error } = await supabase
       .from('dmca_requests')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
       .single()
     
     if (request_error || !request) {
@@ -92,7 +92,7 @@ export async function POST(
     const { error: update_error } = await supabase
       .from('dmca_requests')
       .update(update_data)
-      .eq('id', params.id)
+      .eq('id', resolvedParams.id)
     
     if (update_error) {
       throw update_error
@@ -100,7 +100,7 @@ export async function POST(
     
     // Log the action
     await supabase.rpc('log_dmca_action', {
-      request_id: params.id,
+      request_id: resolvedParams.id,
       action_type: validated.action === 'accept' ? 'takedown_processed' : 'request_rejected',
       performed_by_user: user.emailAddresses[0]?.emailAddress || user.id,
       action_details: {
@@ -120,7 +120,7 @@ export async function POST(
     
     return api_success({
       message: `DMCA request ${validated.action}ed successfully`,
-      request_id: params.id,
+      request_id: resolvedParams.id,
       action: validated.action
     })
   } catch (error) {
