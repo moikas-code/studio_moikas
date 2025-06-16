@@ -489,13 +489,22 @@ export async function POST(req: NextRequest) {
           // Handle time-based billing if applicable
           if (validated.metrics?.inference_time && job.model) {
             // Fetch the model configuration to check billing type
-            const { data: model_config } = await supabase
+            let model_config_query = supabase
               .from("models")
               .select(
                 "billing_type, cost_per_mp, custom_cost, min_time_charge_seconds, max_time_charge_seconds"
               )
-              .eq("model_id", job.model)
-              .single();
+              .eq("model_id", job.model);
+
+            // For fal-ai/lora models, also match the model_name
+            if (job.model === "fal-ai/lora" && job.metadata?.model_name) {
+              model_config_query = model_config_query.eq(
+                "metadata->>default_model_name",
+                job.metadata.model_name
+              );
+            }
+
+            const { data: model_config } = await model_config_query.single();
 
             if (model_config?.billing_type === "time_based") {
               // Calculate actual cost based on time

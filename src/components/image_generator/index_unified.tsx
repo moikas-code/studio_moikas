@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, Fragment } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Image from "next/image";
@@ -25,6 +25,7 @@ import type { EmbeddingInput, LoraWeight } from "./types";
 import type { ModelConfig } from "@/types/models";
 import EmbeddingsSelector from "./components/settings/embeddings_selector";
 import { JobHistoryPanel } from "./components/display/job_history_panel";
+import { ModelAdvancedOptions } from "./components/settings/model_advanced_options";
 
 interface ImageGeneratorProps {
   available_mp: number;
@@ -753,222 +754,46 @@ export function ImageGenerator({
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                        Negative Prompt
-                      </label>
-                      <textarea
-                        value={negative_prompt}
-                        onChange={(e) => set_negative_prompt(e.target.value)}
-                        placeholder="Things to avoid in the image (optional)..."
-                        className="w-full px-3 py-2 bg-base-200/50 rounded-lg
-                                 placeholder:text-base-content/40
-                                 focus:outline-none focus:ring-2 focus:ring-primary/20
-                                 min-h-[60px] text-sm"
-                      />
-                    </div>
+                    <ModelAdvancedOptions
+                      model_config={selected_model?.model_config}
+                      negative_prompt={negative_prompt}
+                      set_negative_prompt={set_negative_prompt}
+                      custom_seed={custom_seed}
+                      set_custom_seed={set_custom_seed}
+                      sana_settings={sana}
+                      sana_handlers={{
+                        update_inference_steps: sana.update_inference_steps,
+                        update_guidance_scale: sana.update_guidance_scale,
+                        update_style: sana.update_style,
+                      }}
+                      num_images={num_images}
+                      set_num_images={set_num_images}
+                      enable_safety_checker={enable_safety_checker}
+                      set_enable_safety_checker={set_enable_safety_checker}
+                      expand_prompt={expand_prompt}
+                      set_expand_prompt={set_expand_prompt}
+                      image_format={image_format}
+                      set_image_format={set_image_format}
+                      custom_model_name={custom_model_name}
+                      set_custom_model_name={set_custom_model_name}
+                    />
 
-                    {(() => {
-                      if (selected_model && selected_model.id.includes("sana")) {
-                        return (
-                          <Fragment>
-                            {selected_model.model_config?.supports_steps && (
-                              <div>
-                                <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                                  Inference Steps ({sana.num_inference_steps})
-                                </label>
-                                <input
-                                  type="range"
-                                  min={0}
-                                  max={selected_model.model_config?.max_steps || 40}
-                                  value={sana.num_inference_steps}
-                                  onChange={(e) =>
-                                    sana.update_inference_steps(parseInt(e.target.value))
-                                  }
-                                  className="range range-primary range-sm"
-                                />
-                              </div>
-                            )}
-
-                            {selected_model.model_config?.supports_cfg && (
-                              <div>
-                                <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                                  Guidance Scale ({sana.guidance_scale})
-                                </label>
-                                <input
-                                  type="range"
-                                  min={selected_model.model_config.min_cfg || 4}
-                                  max={selected_model.model_config.max_cfg || 10}
-                                  step="0.5"
-                                  value={sana.guidance_scale}
-                                  onChange={(e) =>
-                                    sana.update_guidance_scale(parseFloat(e.target.value))
-                                  }
-                                  className="range range-primary range-sm"
-                                />
-                              </div>
-                            )}
-
-                            {(() => {
-                              const style_presets =
-                                selected_model?.model_config?.metadata?.style_presets;
-                              if (Array.isArray(style_presets)) {
-                                return (
-                                  <div>
-                                    <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                                      Style Preset
-                                    </label>
-                                    <select
-                                      value={sana?.style_name || "none"}
-                                      onChange={(e) => sana.update_style(e.target.value)}
-                                      className="select select-bordered select-sm w-full"
-                                    >
-                                      <option value="none">None</option>
-                                      {(style_presets as string[]).map((style) => (
-                                        <option key={style} value={style}>
-                                          {style.charAt(0).toUpperCase() + style.slice(1)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </Fragment>
-                        );
-                      }
-                      return null;
-                    })()}
-
-                    {(() => {
-                      if (selected_model && selected_model.id === "fal-ai/fast-sdxl") {
-                        return (
-                          <>
-                            <div>
-                              <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                                Number of Images
-                              </label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="4"
-                                value={num_images}
-                                onChange={(e) => set_num_images(parseInt(e.target.value) || 1)}
-                                className="input input-bordered input-sm w-full"
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              <label className="label cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={enable_safety_checker}
-                                  onChange={(e) => set_enable_safety_checker(e.target.checked)}
-                                  className="checkbox checkbox-primary checkbox-sm"
-                                />
-                                <span className="label-text ml-2">Enable Safety Checker</span>
-                              </label>
-
-                              <label className="label cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={expand_prompt}
-                                  onChange={(e) => set_expand_prompt(e.target.checked)}
-                                  className="checkbox checkbox-primary checkbox-sm"
-                                />
-                                <span className="label-text ml-2">Expand Prompt</span>
-                              </label>
-                            </div>
-
-                            <div>
-                              <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                                Output Format
-                              </label>
-                              <select
-                                value={image_format}
-                                onChange={(e) => set_image_format(e.target.value as "jpeg" | "png")}
-                                className="select select-bordered select-sm w-full"
-                              >
-                                <option value="jpeg">JPEG</option>
-                                <option value="png">PNG</option>
-                              </select>
-                            </div>
-                          </>
-                        );
-                      }
-                      return null;
-                    })()}
-
-                    {(() => {
-                      if (
-                        selected_model &&
-                        selected_model.id === "fal-ai/lora" &&
-                        selected_model.model_config?.metadata?.allow_custom_model_name
-                      ) {
-                        return (
-                          <div>
-                            <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                              Custom Model Name
-                            </label>
-                            <input
-                              type="text"
-                              value={custom_model_name}
-                              onChange={(e) => set_custom_model_name(e.target.value)}
-                              placeholder={
-                                (selected_model.model_config.metadata
-                                  .default_model_name as string) ||
-                                "stabilityai/stable-diffusion-xl-base-1.0"
-                              }
-                              className="input input-bordered input-sm w-full"
-                            />
-                            <p className="text-xs text-base-content/40 mt-1">
-                              Enter a Hugging Face model ID or leave blank for default
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-
-                    {(() => {
-                      if (
-                        selected_model &&
-                        (selected_model.model_config?.metadata?.supports_embeddings ||
-                          selected_model.id === "fal-ai/fast-sdxl")
-                      ) {
-                        return (
-                          <div>
-                            <EmbeddingsSelector
-                              modelId={model_id || ""}
-                              selectedEmbeddings={selected_embeddings}
-                              onEmbeddingsChange={set_selected_embeddings}
-                              selectedLoras={selected_loras}
-                              onLorasChange={set_selected_loras}
-                            />
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-
-                    <div>
-                      <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                        Seed (Optional)
-                      </label>
-                      <input
-                        type="number"
-                        value={custom_seed || ""}
-                        onChange={(e) =>
-                          set_custom_seed(e.target.value ? parseInt(e.target.value) : undefined)
-                        }
-                        placeholder="Random seed"
-                        className="input input-bordered input-sm w-full"
-                      />
-                      <p className="text-xs text-base-content/40 mt-1">
-                        Leave empty for random seed
-                      </p>
-                    </div>
+                    {/* Embeddings/LoRA Selector - Keep separate as it has special logic */}
+                    {selected_model &&
+                      (selected_model.model_config?.metadata?.supports_embeddings ||
+                        selected_model.model_config?.supports_embeddings ||
+                        selected_model.model_config?.supports_loras ||
+                        selected_model.model_config?.model_id === "fal-ai/fast-sdxl") && (
+                        <div>
+                          <EmbeddingsSelector
+                            modelId={model_id || ""}
+                            selectedEmbeddings={selected_embeddings}
+                            onEmbeddingsChange={set_selected_embeddings}
+                            selectedLoras={selected_loras}
+                            onLorasChange={set_selected_loras}
+                          />
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
