@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Loader2, RefreshCw, Search, Filter, Download, Eye, XCircle, CheckCircle, Clock } from 'lucide-react'
+import { Loader2, RefreshCw, Search, Download, Eye, XCircle, CheckCircle, Clock } from 'lucide-react'
 
 interface Job {
   id: string

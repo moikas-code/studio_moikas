@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       average_transaction: 0
     };
 
-    transactions.forEach((t: typeof transactions[0]) => {
+    transactions.forEach((t) => {
       if (t.operation === 'token_purchase') {
         stats.total_revenue += t.amount_cents;
         stats.transaction_count++;

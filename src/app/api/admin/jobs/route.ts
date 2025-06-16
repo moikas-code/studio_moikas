@@ -51,7 +51,6 @@ export async function GET(req: NextRequest) {
     
     // 3. Build queries for each job type
     const supabase = get_service_role_client()
-    const queries = []
     
     // Helper function to build query with filters
     const build_query = (table: string, job_type: string) => {
@@ -73,7 +72,7 @@ export async function GET(req: NextRequest) {
     }
     
     // 4. Fetch jobs based on type filter
-    let all_jobs: JobRecord[] = []
+    const all_jobs: JobRecord[] = []
     let total_count = 0
     
     if (!type || type === 'all' || type === 'image') {
@@ -81,9 +80,9 @@ export async function GET(req: NextRequest) {
       const { data: image_jobs, count: image_count } = await image_query
       
       if (image_jobs) {
-        all_jobs.push(...image_jobs.map((job: any) => ({
+        all_jobs.push(...image_jobs.map((job) => ({
           ...job,
-          type: 'image',
+          type: 'image' as const,
           user_email: job.users?.email
         })))
         total_count += image_count || 0
@@ -95,7 +94,7 @@ export async function GET(req: NextRequest) {
       const { data: video_jobs, count: video_count } = await video_query
       
       if (video_jobs) {
-        all_jobs.push(...video_jobs.map((job: any) => ({
+        all_jobs.push(...video_jobs.map((job) => ({
           ...job,
           type: 'video',
           user_email: job.users?.email
@@ -109,7 +108,7 @@ export async function GET(req: NextRequest) {
       const { data: audio_jobs, count: audio_count } = await audio_query
       
       if (audio_jobs) {
-        all_jobs.push(...audio_jobs.map((job: any) => ({
+        all_jobs.push(...audio_jobs.map((job) => ({
           ...job,
           type: 'audio',
           user_email: job.users?.email

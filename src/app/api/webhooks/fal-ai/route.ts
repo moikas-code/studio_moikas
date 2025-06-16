@@ -357,7 +357,9 @@ export async function POST(req: NextRequest) {
             await update_parent_document_status(supabase, job.metadata.parent_job_id, job.user_id)
           }
         }
-      } else if (job_type === 'image') {
+      }
+      
+      if (job_type === 'image') {
         // Handle image job completion
         let image_url: string | undefined
         

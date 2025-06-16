@@ -52,7 +52,24 @@ export async function GET(req: NextRequest) {
     }
     
     // 4. Fetch all jobs based on type filter
-    let all_jobs: any[] = []
+    const all_jobs: Array<{
+      job_id: string
+      type: string
+      status: string
+      user_email?: string
+      user_id: string
+      model: string
+      cost: number
+      created_at: string
+      completed_at?: string
+      progress: number
+      error?: string
+      prompt?: string
+      image_url?: string
+      video_url?: string
+      audio_url?: string
+      users?: { email?: string }
+    }> = []
     
     if (!type || type === 'all' || type === 'image') {
       const { data: image_jobs } = await build_query('image_jobs', 'image')

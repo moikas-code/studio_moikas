@@ -65,6 +65,7 @@ export default function User_sync() {
         });
     }
     // Only run when user changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoaded]);
 
   return (

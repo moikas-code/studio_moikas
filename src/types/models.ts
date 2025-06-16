@@ -1,3 +1,4 @@
+export type BillingType = 'flat_rate' | 'time_based';
 /**
  * Model Management System Types
  * 

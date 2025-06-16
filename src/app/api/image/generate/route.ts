@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       }
       
       // Submit to fal.ai
-      let fal_result: any
+      let fal_result: { request_id: string } | { data: { image?: { url: string }, images?: Array<{ url: string }> } }
       
       if (webhook_url) {
         // Use queue API for async processing

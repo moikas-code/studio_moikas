@@ -96,11 +96,11 @@ export async function GET(req: NextRequest) {
           })
           
           // Handle both wrapped and unwrapped responses
-          const result_response: any = result.data ? result : { data: result }
+          const result_response = result.data ? result : { data: result }
 
           console.log('Fetching missing image for completed job:', JSON.stringify(result_response, null, 2))
 
-          let extracted_images: string[] = []
+          const extracted_images: string[] = []
 
           // Extract image URLs from various possible locations
           // Check if data property exists and has images
@@ -152,15 +152,15 @@ export async function GET(req: NextRequest) {
 
             job.image_url = image_to_store
           }
-        } catch (e: any) {
+        } catch (e) {
           console.error('Failed to fetch image for completed job:', e)
           
           // Log more details for validation errors
-          if (e.status === 422) {
+          if (e instanceof Error && 'status' in e && e.status === 422) {
             console.error('Validation error details:', {
               model: job.model,
               request_id: job.fal_request_id,
-              error_body: e.body,
+              error_body: 'body' in e ? e.body : undefined,
               error_message: e.message
             })
           }
@@ -226,7 +226,7 @@ export async function GET(req: NextRequest) {
       if (job.image_url && job.image_url.startsWith('[')) {
         try {
           images_to_return = JSON.parse(job.image_url)
-        } catch (e) {
+        } catch {
           // Keep as is if parsing fails
         }
       }
@@ -350,14 +350,14 @@ export async function GET(req: NextRequest) {
             })
             
             // Handle different response structures
-            const result_response: any = result.data ? result : { data: result }
+            const result_response = result.data ? result : { data: result }
             console.log('result_response', result_response)
             const data = result_response.data || result_response
 
             console.log('Fal result response:', JSON.stringify(result_response, null, 2))
 
             // Extract all image URLs from various possible locations
-            let extracted_images: string[] = []
+            const extracted_images: string[] = []
 
             if (data.images && Array.isArray(data.images) && data.images.length > 0) {
               for (const img of data.images) {
@@ -534,7 +534,7 @@ export async function GET(req: NextRequest) {
           requestId: job.fal_request_id
         }) as FalImageResultResponse
         // Extract all image URLs using the same comprehensive logic
-        let extracted_images: string[] = []
+        const extracted_images: string[] = []
 
         if (result_response.images && Array.isArray(result_response.images) && result_response.images.length > 0) {
           for (const img of result_response.images) {
@@ -596,7 +596,7 @@ export async function GET(req: NextRequest) {
     if (images_to_return && images_to_return.startsWith('[')) {
       try {
         images_to_return = JSON.parse(images_to_return)
-      } catch (e) {
+      } catch {
         // Keep as is if parsing fails
       }
     }

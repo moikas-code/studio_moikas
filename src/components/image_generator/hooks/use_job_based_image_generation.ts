@@ -15,7 +15,7 @@ export interface ImageJob {
   completed_at?: string
   prompt?: string
   model?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   num_images?: number
 }
 
@@ -35,6 +35,7 @@ export function useJobBasedImageGeneration() {
   // Load job history on mount
   useEffect(() => {
     load_job_history()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   
   // Cleanup polling on unmount

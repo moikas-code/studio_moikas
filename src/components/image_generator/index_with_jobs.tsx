@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@clerk/nextjs'
 import { useJobBasedImageGeneration } from './hooks/use_job_based_image_generation'
@@ -8,12 +8,13 @@ import { usePromptEnhancement } from './hooks/use_prompt_enhancement'
 import { useAspectRatio } from './hooks/use_aspect_ratio'
 import { useSanaSettings } from './hooks/use_sana_settings'
 import { Toaster, toast } from 'react-hot-toast'
-import { Sparkles, Settings2, ChevronDown, Download, Copy, Edit2, Loader2, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { Sparkles, Settings2, ChevronDown, Download, Copy, Loader2, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import type { EmbeddingInput, LoraWeight } from './types'
 import type { ModelConfig } from '@/types/models'
 import type { GenerationParams } from './hooks/use_image_generation'
 import EmbeddingsSelector from './components/settings/embeddings_selector'
 import { JobHistoryPanel } from './components/display/job_history_panel'
+
 
 interface ImageGeneratorProps {
   available_mp: number
@@ -25,8 +26,7 @@ interface ImageGeneratorProps {
 export function ImageGeneratorWithJobs({
   available_mp,
   on_mp_update,
-  user_plan = 'free',
-  use_job_system = true
+  user_plan = 'free'
 }: ImageGeneratorProps) {
   const router = useRouter()
   const textarea_ref = useRef<HTMLTextAreaElement>(null)
@@ -173,10 +173,10 @@ export function ImageGeneratorWithJobs({
         set_generated_images({
           urls: image_urls,
           prompt: job_prompt,
-          model: job_model,
+          model: job_model || '',
           timestamp: Date.now(),
           total_cost: job_generation.current_job.cost,
-          inference_time: job_generation.current_job.metadata?.inference_time || elapsed_time
+          inference_time: (typeof job_generation.current_job.metadata?.inference_time === 'number' ? job_generation.current_job.metadata.inference_time : undefined) || elapsed_time
         })
         set_current_image_index(0) // Reset to first image
 
@@ -188,6 +188,7 @@ export function ImageGeneratorWithJobs({
       // Stop the timer on failure
       set_generation_start_time(null)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job_generation.current_job?.status, job_generation.current_job?.images, job_generation.current_job?.image_url])
 
   // Timer effect for tracking elapsed time
@@ -391,7 +392,7 @@ export function ImageGeneratorWithJobs({
 
   const selected_model = model_id ? available_models.find(m => m.id === model_id) : null
   const can_generate = useMemo(() => {
-    console.log('can_generate', prompt_text.trim(), job_generation.is_loading)
+    console.log('can_generate', prompt_text.trim(), job_generation.is_loading, available_mp)
     return prompt_text.trim() &&
       !job_generation.is_loading && (!job_generation.current_job || job_generation.current_job.status === 'completed' || job_generation.current_job.status === 'failed') &&
       selected_model &&
@@ -463,7 +464,7 @@ export function ImageGeneratorWithJobs({
                             <span className="font-medium">{selected_model.name}</span>
                             <span className="text-xs text-base-content/60">
                               {selected_model.model_config?.billing_type === 'time_based' ? (
-                                `${selected_model.cost} MP/s`
+                                `${selected_model.cost * (user_plan === 'free' ? 4 : 1.5)} MP/s`
                               ) : (
                                 `${selected_model.cost} MP`
                               )}
@@ -480,7 +481,7 @@ export function ImageGeneratorWithJobs({
                     {show_model_dropdown && (
                       <div className="absolute z-10 w-full mt-2 bg-base-200 rounded-xl 
                                     shadow-xl border border-base-300/50 overflow-hidden">
-                        {available_models.map((model) => (
+                        {available_models.sort((a, b) => a.cost - b.cost).map((model) => (
                           <button
                             key={model.id}
                             onClick={() => {
@@ -494,9 +495,9 @@ export function ImageGeneratorWithJobs({
                             <span className="font-medium">{model.name}</span>
                             <span className="text-sm text-base-content/60">
                               {model.model_config?.billing_type === 'time_based' ? (
-                                `${model.cost} MP/s`
+                                `${model.cost * (user_plan === 'free' ? 4 : 1.5)} MP/s`
                               ) : (
-                                `${model.cost} MP`
+                                `${model.cost * (user_plan === 'free' ? 4 : 1.5)} MP`
                               )}
                             </span>
                           </button>
@@ -609,9 +610,8 @@ export function ImageGeneratorWithJobs({
                       />
                     </div>
 
-                    {/* SANA Settings */}
                     {selected_model?.id.includes('sana') && (
-                      <>
+                      <Fragment>
                         {selected_model.model_config?.supports_steps && (
                           <div>
                             <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
@@ -619,8 +619,8 @@ export function ImageGeneratorWithJobs({
                             </label>
                             <input
                               type="range"
-                              min={selected_model.model_config.min_steps || 20}
-                              max={selected_model.model_config.max_steps || 40}
+                              min={0}
+                              max={selected_model.model_config?.max_steps || 40}
                               value={sana.num_inference_steps}
                               onChange={(e) => sana.update_inference_steps(parseInt(e.target.value))}
                               className="range range-primary range-sm"
@@ -645,26 +645,32 @@ export function ImageGeneratorWithJobs({
                           </div>
                         )}
 
-                        {selected_model.model_config?.metadata?.style_presets && (
-                          <div>
-                            <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-                              Style Preset
-                            </label>
-                            <select
-                              value={sana.style_name || 'none'}
-                              onChange={(e) => sana.update_style(e.target.value)}
-                              className="select select-bordered select-sm w-full"
-                            >
-                              <option value="none">None</option>
-                              {(selected_model.model_config.metadata.style_presets as string[]).map((style) => (
-                                <option key={style} value={style}>
-                                  {style.charAt(0).toUpperCase() + style.slice(1)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-                      </>
+                        {(() => {
+                          const style_presets = selected_model?.model_config?.metadata?.style_presets
+                          if (Array.isArray(style_presets)) {
+                            return (
+                              <div>
+                                <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+                                  Style Preset
+                                </label>
+                                <select
+                                  value={sana?.style_name || 'none'}
+                                  onChange={(e) => sana.update_style(e.target.value)}
+                                  className="select select-bordered select-sm w-full"
+                                >
+                                  <option value="none">None</option>
+                                  {(style_presets as string[]).map((style) => (
+                                    <option key={style} value={style}>
+                                      {style.charAt(0).toUpperCase() + style.slice(1)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
+                      </Fragment>
                     )}
 
                     {/* Fast-SDXL Settings */}
@@ -917,18 +923,18 @@ export function ImageGeneratorWithJobs({
                       <div className="mt-1 p-2 bg-base-200/50 rounded-lg text-xs space-y-1">
                         {job_generation.current_job?.metadata?.time_based_billing ? (
                           <>
-                            <p>Generation time: {job_generation.current_job.metadata.billable_seconds?.toFixed(1)}s</p>
+                            <p>Generation time: {typeof job_generation.current_job.metadata.billable_seconds === 'number' ? job_generation.current_job.metadata.billable_seconds.toFixed(1) : '0.0'}s</p>
                             {user_plan === 'free' || user_plan === 'standard' ? (
-                              <p>Cost: {job_generation.current_job.metadata.base_mp_per_second} MP/s × {job_generation.current_job.metadata.billable_seconds?.toFixed(1)}s × {user_plan === 'free' ? '4' : '1.5'} = {job_generation.current_job.metadata.final_cost_mp || generated_images.total_cost} MP</p>
+                              <p>Cost: {typeof job_generation.current_job.metadata.base_mp_per_second === 'number' ? job_generation.current_job.metadata.base_mp_per_second * (user_plan === 'free' ? 4 : 1.5) : 0} MP/s × {typeof job_generation.current_job.metadata.billable_seconds === 'number' ? job_generation.current_job.metadata.billable_seconds.toFixed(1) : '0.0'}s = {typeof job_generation.current_job.metadata.final_cost_mp === 'number' ? job_generation.current_job.metadata.final_cost_mp : generated_images.total_cost} MP</p>
                             ) : (
-                              <p>Cost: {job_generation.current_job.metadata.base_mp_per_second} MP/s × {job_generation.current_job.metadata.billable_seconds?.toFixed(1)}s = {generated_images.total_cost} MP</p>
+                              <p>Cost: {typeof job_generation.current_job.metadata.base_mp_per_second === 'number' ? job_generation.current_job.metadata.base_mp_per_second : 0} MP/s × {typeof job_generation.current_job.metadata.billable_seconds === 'number' ? job_generation.current_job.metadata.billable_seconds.toFixed(1) : '0.0'}s = {generated_images.total_cost} MP</p>
                             )}
                           </>
                         ) : (
                           <>
                             {/* For flat rate, calculate and show base price */}
                             {user_plan === 'free' || user_plan === 'standard' ? (
-                              <p>Base price: {Math.round(generated_images.total_cost / (user_plan === 'free' ? 4 : 1.5))} MP × {user_plan === 'free' ? '4' : '1.5'} (plan multiplier) = {generated_images.total_cost} MP</p>
+                              <p>Base price: {Math.round(generated_images.total_cost / (user_plan === 'free' ? 4 : 1.5))} MP  = {generated_images.total_cost} MP</p>
                             ) : (
                               <p>Price: {generated_images.total_cost} MP</p>
                             )}
