@@ -6,16 +6,29 @@ export default function AgeVerificationClient() {
   const handle_complete = () => {
     // Redirect to originally requested page or tools
     const return_url = new URLSearchParams(window.location.search).get("return_url");
-    // Validate the return_url to ensure it is safe
-    const is_valid_url = (url) => {
+
+    // Validate and sanitize the return_url to ensure it is safe
+    const get_safe_url = (url: string | null): string => {
+      if (!url) return "/tools";
+
       try {
+        // Parse the URL relative to current origin
         const parsed_url = new URL(url, window.location.origin);
-        return parsed_url.origin === window.location.origin; // Ensure same-origin
+
+        // Only allow same-origin URLs to prevent XSS
+        if (parsed_url.origin !== window.location.origin) {
+          return "/tools";
+        }
+
+        // Return only the pathname and search params, ensuring it's relative
+        return parsed_url.pathname + parsed_url.search + parsed_url.hash;
       } catch {
-        return false; // Invalid URL
+        // If URL parsing fails, return default
+        return "/tools";
       }
     };
-    const safe_url = return_url && is_valid_url(return_url) ? return_url : "/tools";
+
+    const safe_url = get_safe_url(return_url);
     // Use window.location for a full page reload to ensure session refresh
     window.location.href = safe_url;
   };
