@@ -79,6 +79,7 @@ export function ImageGenerator({
   const [image_format, set_image_format] = useState<"jpeg" | "png">("jpeg");
   const [custom_seed, set_custom_seed] = useState<number | undefined>(undefined);
   const [custom_model_name, set_custom_model_name] = useState<string>("");
+  const [scheduler, set_scheduler] = useState<string | undefined>(undefined);
 
   // Persist custom model name per model
   useEffect(() => {
@@ -209,6 +210,19 @@ export function ImageGenerator({
             default_cfg: selected_model.model_config.default_cfg,
             default_steps: selected_model.model_config.default_steps,
           });
+        }
+
+        // Set default scheduler if available
+        if (
+          selected_model.model_config.supported_schedulers &&
+          selected_model.model_config.supported_schedulers.length > 0
+        ) {
+          set_scheduler(
+            selected_model.model_config.default_scheduler ||
+              selected_model.model_config.supported_schedulers[0]
+          );
+        } else {
+          set_scheduler(undefined);
         }
       }
     }
@@ -343,6 +357,15 @@ export function ImageGenerator({
 
       if (actual_model_id.includes("sana") && sana.style_name && sana.style_name !== "none") {
         params.style_name = sana.style_name;
+      }
+
+      // Add scheduler if supported and selected
+      if (
+        scheduler &&
+        model_config.supported_schedulers &&
+        model_config.supported_schedulers.length > 0
+      ) {
+        params.scheduler = scheduler;
       }
 
       // For fal-ai/lora, model_name is required and we need to add the LoRA path
@@ -776,6 +799,8 @@ export function ImageGenerator({
                       set_image_format={set_image_format}
                       custom_model_name={custom_model_name}
                       set_custom_model_name={set_custom_model_name}
+                      scheduler={scheduler}
+                      set_scheduler={set_scheduler}
                     />
 
                     {/* Embeddings/LoRA Selector - Keep separate as it has special logic */}
