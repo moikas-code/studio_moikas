@@ -109,8 +109,8 @@ export default function BuyTokensClient() {
         </div>
 
         {/* Token Balance Card */}
-        <div className="max-w-md mx-auto px-6 mb-12">
-          <TokenBalanceCard />
+        <div className="max-w-4xl mx-auto px-6 mb-12">
+          <TokenBalanceCard show_buy_button={false} />
         </div>
 
         {/* Benefits */}
@@ -152,7 +152,7 @@ export default function BuyTokensClient() {
                 {/* Popular Badge */}
                 {product.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-jade to-jade-dark text-white text-xs font-medium rounded-full">
+                    <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-jade to-jade-dark dark:text-white text-xs font-medium rounded-full">
                       <Star className="w-3 h-3" />
                       Best Value
                     </div>
@@ -194,7 +194,7 @@ export default function BuyTokensClient() {
                   disabled={loading}
                   className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-300 ${
                     product.popular
-                      ? "bg-gradient-to-r from-jade to-jade-dark text-white hover:shadow-lg"
+                      ? "bg-gradient-to-r from-jade to-jade-dark dark:text-white hover:shadow-lg"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:shadow-macos hover:bg-gray-200 dark:hover:bg-gray-700"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >

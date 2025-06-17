@@ -13,6 +13,60 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
+// Hardcoded product IDs for token packages
+const TOKEN_PRODUCT_IDS = [
+  "prod_RdRJ4KvBOOJSo4", // 1000 MP
+  "prod_RdRK9t5Qg8YxQi", // 5000 MP
+  "prod_RdRKIlKs79UVQJ", // 10000 MP
+];
+
+export async function GET() {
+  try {
+    const products = [];
+
+    for (const product_id of TOKEN_PRODUCT_IDS) {
+      try {
+        const product = await stripe.products.retrieve(product_id);
+
+        if (product.active) {
+          // Get the default price
+          let price: Stripe.Price | undefined;
+
+          if (typeof product.default_price === "string") {
+            price = await stripe.prices.retrieve(product.default_price);
+          } else if (product.default_price && typeof product.default_price === "object") {
+            price = product.default_price as Stripe.Price;
+          }
+
+          if (price && price.active) {
+            const tokens = parseInt(product.metadata?.tokens || "0");
+
+            products.push({
+              id: product.id,
+              name: product.name,
+              description: product.description || "",
+              price: (price.unit_amount || 0) / 100,
+              price_id: price.id,
+              tokens: tokens,
+              popular: product.metadata?.popular === "true",
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch product ${product_id}:`, error);
+      }
+    }
+
+    // Sort by token amount
+    products.sort((a, b) => a.tokens - b.tokens);
+
+    return NextResponse.json({ products });
+  } catch (error) {
+    console.error("Products fetch error:", error);
+    return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   // IP-based rate limiting
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
@@ -49,7 +103,10 @@ export async function POST(req: NextRequest) {
       if (typeof product.default_price === "string") {
         const price_result = await stripe.prices.retrieve(product.default_price);
         if (!price_result || typeof price_result !== "object") {
-          return NextResponse.json({ error: `Price not found for product: ${product_id}` }, { status: 404 });
+          return NextResponse.json(
+            { error: `Price not found for product: ${product_id}` },
+            { status: 404 }
+          );
         }
         price = price_result as Stripe.Price;
       } else if (product.default_price && typeof product.default_price === "object") {
@@ -60,7 +117,10 @@ export async function POST(req: NextRequest) {
         price = prices.data[0];
       }
       if (typeof price?.deleted !== "undefined" && price?.deleted === true) {
-        return NextResponse.json({ error: `Price not found for product: ${product_id}` }, { status: 404 });
+        return NextResponse.json(
+          { error: `Price not found for product: ${product_id}` },
+          { status: 404 }
+        );
       }
       products.push({
         id: product.id,
@@ -77,4 +137,4 @@ export async function POST(req: NextRequest) {
     console.error("Products fetch error:", error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
-} 
+}
