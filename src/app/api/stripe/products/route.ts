@@ -15,9 +15,9 @@ const redis = new Redis({
 
 // Hardcoded product IDs for token packages
 const TOKEN_PRODUCT_IDS = [
-  "prod_RdRJ4KvBOOJSo4", // 1000 MP
-  "prod_RdRK9t5Qg8YxQi", // 5000 MP
-  "prod_RdRKIlKs79UVQJ", // 10000 MP
+  "prod_SMOj2uZ9YSSDIB", // Minor Mana Potion 2048
+  "prod_SMOkzIx2sykhIT", // Greater Mana Potion 6144
+  "prod_SMOmkz8PBtRM0l", // Superior Mana Potion 16384
 ];
 
 export async function GET() {
