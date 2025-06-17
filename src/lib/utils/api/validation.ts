@@ -64,6 +64,8 @@ export const image_generation_schema = z.object({
   num_images: z.number().int().min(1).max(8).optional().default(1),
   expand_prompt: z.boolean().optional().default(true),
   format: z.enum(["jpeg", "png"]).optional().default("jpeg"),
+  // Scheduler parameter
+  scheduler: z.string().optional(),
 });
 
 // Enhanced prompt schema

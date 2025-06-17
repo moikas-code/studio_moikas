@@ -30,7 +30,8 @@
     "tunnel:start": "docker run --rm -it --network host cloudflare/cloudflared:latest tunnel --url http://localhost:3000",
     "tunnel:start:wsl": "docker run --rm -it cloudflare/cloudflared:latest tunnel --url http://$(hostname -I | awk '{print $1}'):3000",
     "tunnel": "cloudflared tunnel --url http://localhost:3000",
-    "dev:tunnel": "bun run dev & bun run tunnel:start"
+    "dev:tunnel": "bun run dev & bun run tunnel:start",
+    "usage": "bunx ccusage"
   },
   "dependencies": {
     "@ai-sdk/fal": "^0.1.12",

@@ -1,11 +1,12 @@
-import React, { useState, useRef } from 'react';
-import Image from 'next/image';
-import { 
-  Undo, 
-  Redo, 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCcw, 
+import React, { useState, useRef } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Undo,
+  Redo,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
   Download,
   Save,
   FolderOpen,
@@ -13,11 +14,12 @@ import {
   FileUp,
   Plus,
   Clock,
-  MoreVertical
-} from 'lucide-react';
-import { track } from '@vercel/analytics';
-import { Canvas_state } from '@/lib/image_editor_utils';
-import { Editor_session } from '@/lib/image_editor_storage';
+  MoreVertical,
+  Home,
+} from "lucide-react";
+import { track } from "@vercel/analytics";
+import { Canvas_state } from "@/lib/image_editor_utils";
+import { Editor_session } from "@/lib/image_editor_storage";
 
 interface Image_editor_header_props {
   canvas_state: Canvas_state;
@@ -48,7 +50,7 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
   on_zoom_out,
   on_reset_zoom,
   on_export,
-  session_name = 'Untitled Project',
+  session_name = "Untitled Project",
   is_saving = false,
   last_saved,
   sessions_list = [],
@@ -66,7 +68,11 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
 
   const handle_save_as = () => {
     if (on_save_as && new_session_name.trim()) {
-      track("Image Editor Session", { action: "save_as", new_name: new_session_name.trim(), previous_name: session_name });
+      track("Image Editor Session", {
+        action: "save_as",
+        new_name: new_session_name.trim(),
+        previous_name: session_name,
+      });
       on_save_as(new_session_name.trim());
       set_show_save_as_modal(false);
     }
@@ -75,15 +81,19 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
   const handle_import = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && on_import_session) {
-      track("Image Editor Session", { action: "import_session", file_name: file.name, file_size: file.size });
+      track("Image Editor Session", {
+        action: "import_session",
+        file_name: file.name,
+        file_size: file.size,
+      });
       on_import_session(file);
     }
   };
 
   const format_time_ago = (date: Date | null) => {
-    if (!date) return 'Never';
+    if (!date) return "Never";
     const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'Just now';
+    if (seconds < 60) return "Just now";
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     return date.toLocaleDateString();
@@ -94,11 +104,12 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
       <div className="flex items-center justify-between max-w-7xl mx-auto">
         {/* Left side - Session info */}
         <div className="flex items-center gap-4">
+          <Link href="/tools" className="btn btn-sm btn-ghost" title="Back to tools">
+            <Home className="w-4 h-4" />
+          </Link>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{session_name}</h2>
-            {is_saving && (
-              <div className="loading loading-spinner loading-xs"></div>
-            )}
+            {is_saving && <div className="loading loading-spinner loading-xs"></div>}
             {!is_saving && last_saved && (
               <div className="flex items-center gap-1 text-xs text-base-content/60">
                 <Clock className="w-3 h-3" />
@@ -106,28 +117,35 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
               </div>
             )}
           </div>
-          
+
           {/* Session actions dropdown */}
           <div className="dropdown">
             <label tabIndex={0} className="btn btn-sm btn-ghost">
               <MoreVertical className="w-4 h-4" />
             </label>
-            <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+            <ul
+              tabIndex={0}
+              className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52"
+            >
               <li>
-                <a onClick={() => {
-                  track("Image Editor Session", { action: "save", session_name });
-                  on_save?.();
-                }}>
+                <a
+                  onClick={() => {
+                    track("Image Editor Session", { action: "save", session_name });
+                    on_save?.();
+                  }}
+                >
                   <Save className="w-4 h-4" />
                   Save
                   <kbd className="kbd kbd-xs">Ctrl+S</kbd>
                 </a>
               </li>
               <li>
-                <a onClick={() => {
-                  track("Image Editor Session", { action: "save_as_open", session_name });
-                  set_show_save_as_modal(true);
-                }}>
+                <a
+                  onClick={() => {
+                    track("Image Editor Session", { action: "save_as_open", session_name });
+                    set_show_save_as_modal(true);
+                  }}
+                >
                   <Save className="w-4 h-4" />
                   Save As...
                 </a>
@@ -139,10 +157,12 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
                 </a>
               </li>
               <li>
-                <a onClick={() => {
-                  track("Image Editor Session", { action: "new_project", session_name });
-                  on_new_session?.();
-                }}>
+                <a
+                  onClick={() => {
+                    track("Image Editor Session", { action: "new_project", session_name });
+                    on_new_session?.();
+                  }}
+                >
                   <Plus className="w-4 h-4" />
                   New Project
                 </a>
@@ -155,10 +175,12 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
                 </a>
               </li>
               <li>
-                <a onClick={() => {
-                  track("Image Editor Session", { action: "export_session", session_name });
-                  on_export_session?.();
-                }}>
+                <a
+                  onClick={() => {
+                    track("Image Editor Session", { action: "export_session", session_name });
+                    on_export_session?.();
+                  }}
+                >
                   <FileDown className="w-4 h-4" />
                   Export Session
                 </a>
@@ -173,7 +195,10 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
           <button
             className="btn btn-sm btn-ghost"
             onClick={() => {
-              track("Image Editor Action", { action: "undo", history_index: canvas_state.history_index });
+              track("Image Editor Action", {
+                action: "undo",
+                history_index: canvas_state.history_index,
+              });
               on_undo();
             }}
             disabled={canvas_state.history_index <= 0}
@@ -184,7 +209,10 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
           <button
             className="btn btn-sm btn-ghost"
             onClick={() => {
-              track("Image Editor Action", { action: "redo", history_index: canvas_state.history_index });
+              track("Image Editor Action", {
+                action: "redo",
+                history_index: canvas_state.history_index,
+              });
               on_redo();
             }}
             disabled={canvas_state.history_index >= canvas_state.history.length - 1}
@@ -227,7 +255,11 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
           <button
             className="btn btn-sm btn-primary"
             onClick={() => {
-              track("Image Editor Action", { action: "export", has_image: !!canvas_state.image_base64, text_elements_count: canvas_state.text_elements.length });
+              track("Image Editor Action", {
+                action: "export",
+                has_image: !!canvas_state.image_base64,
+                text_elements_count: canvas_state.text_elements.length,
+              });
               on_export();
             }}
             disabled={!canvas_state.image_base64}
@@ -253,7 +285,7 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
                 className="input input-bordered w-full"
                 value={new_session_name}
                 onChange={(e) => set_new_session_name(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handle_save_as()}
+                onKeyDown={(e) => e.key === "Enter" && handle_save_as()}
                 autoFocus
               />
             </div>
@@ -284,7 +316,11 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
                     key={session.id}
                     className="card bg-base-200 cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => {
-                      track("Image Editor Session", { action: "load_session", session_id: session.id, session_name: session.name });
+                      track("Image Editor Session", {
+                        action: "load_session",
+                        session_id: session.id,
+                        session_name: session.name,
+                      });
                       on_load_session?.(session.id);
                       set_show_sessions_dropdown(false);
                     }}
@@ -335,4 +371,4 @@ export const Image_editor_header: React.FC<Image_editor_header_props> = ({
       />
     </div>
   );
-}; 
+};
