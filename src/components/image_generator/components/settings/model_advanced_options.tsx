@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Fragment } from "react";
+import React from "react";
 import type { ModelConfig } from "@/types/models";
 import type { SanaSettings } from "../../types";
 
@@ -73,7 +73,7 @@ export function ModelAdvancedOptions({
   if (!model_config) return null;
 
   return (
-    <Fragment>
+    <>
       {/* Negative Prompt - Always show */}
       <div>
         <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
@@ -179,48 +179,54 @@ export function ModelAdvancedOptions({
       )}
 
       {/* Checkboxes for various options */}
-      <div className="flex flex-wrap gap-4">
-        {/* Safety Checker */}
-        {model_config.metadata?.enable_safety_checker !== undefined && (
-          <label className="label cursor-pointer">
-            <input
-              type="checkbox"
-              checked={enable_safety_checker}
-              onChange={(e) => set_enable_safety_checker(e.target.checked)}
-              className="checkbox checkbox-primary checkbox-sm"
-            />
-            <span className="label-text ml-2">Enable Safety Checker</span>
-          </label>
-        )}
-
-        {/* Expand Prompt */}
-        {model_config.metadata?.expand_prompt !== undefined && (
-          <label className="label cursor-pointer">
-            <input
-              type="checkbox"
-              checked={expand_prompt}
-              onChange={(e) => set_expand_prompt(e.target.checked)}
-              className="checkbox checkbox-primary checkbox-sm"
-            />
-            <span className="label-text ml-2">Expand Prompt</span>
-          </label>
-        )}
-
-        {/* Prompt Upsampling */}
-        {model_config.metadata?.supports_prompt_upsampling &&
+      {(model_config.metadata?.enable_safety_checker !== undefined ||
+        model_config.metadata?.expand_prompt !== undefined ||
+        (model_config.metadata?.supports_prompt_upsampling &&
           enable_prompt_upsampling !== undefined &&
-          set_enable_prompt_upsampling && (
+          set_enable_prompt_upsampling)) && (
+        <div className="flex flex-wrap gap-4">
+          {/* Safety Checker */}
+          {model_config.metadata?.enable_safety_checker !== undefined && (
             <label className="label cursor-pointer">
               <input
                 type="checkbox"
-                checked={enable_prompt_upsampling}
-                onChange={(e) => set_enable_prompt_upsampling(e.target.checked)}
+                checked={enable_safety_checker}
+                onChange={(e) => set_enable_safety_checker(e.target.checked)}
                 className="checkbox checkbox-primary checkbox-sm"
               />
-              <span className="label-text ml-2">Prompt Upsampling</span>
+              <span className="label-text ml-2">Enable Safety Checker</span>
             </label>
           )}
-      </div>
+
+          {/* Expand Prompt */}
+          {model_config.metadata?.expand_prompt !== undefined && (
+            <label className="label cursor-pointer">
+              <input
+                type="checkbox"
+                checked={expand_prompt}
+                onChange={(e) => set_expand_prompt(e.target.checked)}
+                className="checkbox checkbox-primary checkbox-sm"
+              />
+              <span className="label-text ml-2">Expand Prompt</span>
+            </label>
+          )}
+
+          {/* Prompt Upsampling */}
+          {model_config.metadata?.supports_prompt_upsampling &&
+            enable_prompt_upsampling !== undefined &&
+            set_enable_prompt_upsampling && (
+              <label className="label cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enable_prompt_upsampling}
+                  onChange={(e) => set_enable_prompt_upsampling(e.target.checked)}
+                  className="checkbox checkbox-primary checkbox-sm"
+                />
+                <span className="label-text ml-2">Prompt Upsampling</span>
+              </label>
+            )}
+        </div>
+      )}
 
       {/* Output Format */}
       {model_config.metadata?.supported_formats &&
@@ -351,6 +357,6 @@ export function ModelAdvancedOptions({
           <p className="text-xs text-base-content/40 mt-1">Leave empty for random seed</p>
         </div>
       )}
-    </Fragment>
+    </>
   );
 }
