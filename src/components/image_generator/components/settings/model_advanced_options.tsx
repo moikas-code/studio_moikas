@@ -210,18 +210,18 @@ export function ModelAdvancedOptions({
           )}
 
           {model_config.metadata?.supports_prompt_upsampling &&
-            enable_prompt_upsampling !== undefined &&
-            set_enable_prompt_upsampling && (
-              <label className="label cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enable_prompt_upsampling}
-                  onChange={(e) => set_enable_prompt_upsampling(e.target.checked)}
-                  className="checkbox checkbox-primary checkbox-sm"
-                />
-                <span className="label-text ml-2">Prompt Upsampling</span>
-              </label>
-            )}
+          enable_prompt_upsampling !== undefined &&
+          set_enable_prompt_upsampling ? (
+            <label className="label cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enable_prompt_upsampling}
+                onChange={(e) => set_enable_prompt_upsampling(e.target.checked)}
+                className="checkbox checkbox-primary checkbox-sm"
+              />
+              <span className="label-text ml-2">Prompt Upsampling</span>
+            </label>
+          ) : null}
         </div>
       )}
 
@@ -270,31 +270,31 @@ export function ModelAdvancedOptions({
 
       {/* Scheduler */}
       {model_config.supported_schedulers &&
-        model_config.supported_schedulers.length > 0 &&
-        scheduler !== undefined &&
-        set_scheduler && (
-          <div>
-            <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
-              Scheduler
-            </label>
-            <select
-              value={
-                scheduler || model_config.default_scheduler || model_config.supported_schedulers[0]
-              }
-              onChange={(e) => set_scheduler(e.target.value)}
-              className="select select-bordered select-sm w-full"
-            >
-              {model_config.supported_schedulers.map((sched) => (
-                <option key={sched} value={sched}>
-                  {sched}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+      model_config.supported_schedulers.length > 0 &&
+      scheduler !== undefined &&
+      set_scheduler ? (
+        <div>
+          <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
+            Scheduler
+          </label>
+          <select
+            value={
+              scheduler || model_config.default_scheduler || model_config.supported_schedulers[0]
+            }
+            onChange={(e) => set_scheduler(e.target.value)}
+            className="select select-bordered select-sm w-full"
+          >
+            {model_config.supported_schedulers.map((sched) => (
+              <option key={sched} value={sched}>
+                {sched}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {/* Clip Skip */}
-      {model_config.supports_clip_skip && clip_skip !== undefined && set_clip_skip && (
+      {model_config.supports_clip_skip && clip_skip !== undefined && set_clip_skip ? (
         <div>
           <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
             Clip Skip ({clip_skip})
@@ -313,10 +313,10 @@ export function ModelAdvancedOptions({
             <span>{model_config.max_clip_skip || 2}</span>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Eta */}
-      {model_config.supports_eta && eta !== undefined && set_eta && (
+      {model_config.supports_eta && eta !== undefined && set_eta ? (
         <div>
           <label className="text-xs font-medium text-base-content/60 uppercase tracking-wider block mb-2">
             Eta ({eta})
@@ -336,7 +336,7 @@ export function ModelAdvancedOptions({
             <span>{model_config.max_eta || 1}</span>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Seed Input */}
       {model_config.metadata?.supports_seed && (
