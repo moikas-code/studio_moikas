@@ -1,16 +1,29 @@
-import { redirect } from 'next/navigation';
-import { check_admin_access } from '@/lib/utils/api/admin';
-import Link from 'next/link';
+import { redirect } from "next/navigation";
+import { check_admin_access } from "@/lib/utils/api/admin";
+import Link from "next/link";
+import { Metadata } from "next";
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      "max-video-preview": -1,
+      "max-image-preview": "none",
+      "max-snippet": -1,
+    },
+  },
+};
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin_check = await check_admin_access();
-  
+
   if (!admin_check.is_admin) {
-    redirect('/');
+    redirect("/");
   }
 
   return (
@@ -25,49 +38,31 @@ export default async function AdminLayout({
         <div className="flex-none">
           <ul className="menu menu-horizontal px-1">
             <li>
-              <Link href="/admin">
-                Overview
-              </Link>
+              <Link href="/admin">Overview</Link>
             </li>
             <li>
-              <Link href="/admin/users">
-                Users
-              </Link>
+              <Link href="/admin/users">Users</Link>
             </li>
             <li>
-              <Link href="/admin/usage">
-                Usage
-              </Link>
+              <Link href="/admin/usage">Usage</Link>
             </li>
             <li>
-              <Link href="/admin/revenue">
-                Revenue
-              </Link>
+              <Link href="/admin/revenue">Revenue</Link>
             </li>
             <li>
-              <Link href="/admin/models">
-                Models
-              </Link>
+              <Link href="/admin/models">Models</Link>
             </li>
             <li>
-              <Link href="/admin/embeddings">
-                Embeddings
-              </Link>
+              <Link href="/admin/embeddings">Embeddings</Link>
             </li>
             <li>
-              <Link href="/admin/jobs">
-                Jobs
-              </Link>
+              <Link href="/admin/jobs">Jobs</Link>
             </li>
             <li>
-              <Link href="/admin/moderation">
-                Moderation
-              </Link>
+              <Link href="/admin/moderation">Moderation</Link>
             </li>
             <li>
-              <Link href="/admin/dmca">
-                DMCA
-              </Link>
+              <Link href="/admin/dmca">DMCA</Link>
             </li>
             <li>
               <Link href="/" className="text-error">
@@ -77,11 +72,9 @@ export default async function AdminLayout({
           </ul>
         </div>
       </div>
-      
+
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {children}
-      </main>
+      <main className="container mx-auto px-4 py-8">{children}</main>
     </div>
   );
 }

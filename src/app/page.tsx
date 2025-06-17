@@ -1,48 +1,51 @@
-"use client";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import MacHeroSection from "../components/landing/MacHeroSection";
-import MacDemoShowcase from "../components/landing/MacDemoShowcase";
-import MacFeatureGrid from "../components/landing/MacFeatureGrid";
-import MacPricingTable from "../components/landing/MacPricingTable";
+import { Metadata } from "next";
+import HomeClient from "./home-client";
+import { generate_metadata } from "@/lib/seo";
+import Script from "next/script";
+import { generate_organization_schema, generate_web_application_schema } from "@/lib/seo";
+
+export const metadata: Metadata = generate_metadata({
+  title: "AI-Powered Creative Tools - Free Image, Video & Audio Generation",
+  description:
+    "Create stunning AI art with FLUX, SANA & Stable Diffusion. Generate videos, clone voices, and automate workflows. Start free with 125 MP monthly.",
+  keywords: [
+    "AI image generator",
+    "AI art generator",
+    "FLUX AI",
+    "SANA model",
+    "Stable Diffusion",
+    "AI video effects",
+    "text to speech",
+    "voice cloning",
+    "AI creative tools",
+    "free AI generator",
+    "Studio Moikas",
+  ],
+  canonical_path: "/",
+  og_type: "website",
+});
 
 export default function Home() {
-  const { user, isLoaded } = useUser();
-  const router = useRouter();
+  const organization_schema = generate_organization_schema();
+  const web_app_schema = generate_web_application_schema();
 
-  useEffect(() => {
-    // Redirect logged-in users to tools page
-    if (isLoaded && user) {
-      router.push("/tools");
-    }
-  }, [isLoaded, user, router]);
-
-  // Show loading state while checking authentication
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-        <div className="loading loading-spinner loading-lg text-jade"></div>
-      </div>
-    );
-  }
-
-  // If user is logged in, they will be redirected (but show loading in case of delay)
-  if (user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
-        <div className="loading loading-spinner loading-lg text-jade"></div>
-      </div>
-    );
-  }
-
-  // Show landing page for non-logged-in users
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <MacHeroSection />
-      <MacDemoShowcase />
-      <MacFeatureGrid />
-      <MacPricingTable />
-    </div>
+    <>
+      <Script
+        id="organization-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(organization_schema),
+        }}
+      />
+      <Script
+        id="webapp-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(web_app_schema),
+        }}
+      />
+      <HomeClient />
+    </>
   );
 }

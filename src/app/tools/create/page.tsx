@@ -1,23 +1,48 @@
-'use client'
+import { Metadata } from "next";
+import CreateClient from "./create-client";
+import { generate_metadata, TOOL_METADATA } from "@/lib/seo";
+import Script from "next/script";
+import { generate_software_application_schema, generate_breadcrumb_list } from "@/lib/seo";
 
-import React, { useContext } from "react";
-import { ImageGenerator } from "../../../components/image_generator";
-import { MpContext } from "../../../context/mp_context";
+export const metadata: Metadata = generate_metadata({
+  title: TOOL_METADATA.image_generator.title,
+  description: TOOL_METADATA.image_generator.description,
+  keywords: TOOL_METADATA.image_generator.keywords,
+  canonical_path: "/tools/create",
+  og_image: TOOL_METADATA.image_generator.og_image,
+});
 
-/**
- * Page for the Image Generator tool.
- * Uses snake_case for all identifiers.
- * Now uses job-based system for better reliability and history tracking.
- */
 export default function Create_page() {
-  const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
-  
+  const software_schema = generate_software_application_schema({
+    name: "Studio Moikas Image Generator",
+    description: TOOL_METADATA.image_generator.description,
+    category: "DesignApplication",
+    screenshot: TOOL_METADATA.image_generator.og_image,
+  });
+
+  const breadcrumb_schema = generate_breadcrumb_list([
+    { name: "Home", path: "/" },
+    { name: "Tools", path: "/tools" },
+    { name: "Image Generator", path: "/tools/create" },
+  ]);
+
   return (
-    <ImageGenerator 
-      available_mp={mp_tokens || 0}
-      on_mp_update={refresh_mp}
-      user_plan={plan || 'free'}
-      use_job_system={true}
-    />
+    <>
+      <Script
+        id="software-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(software_schema),
+        }}
+      />
+      <Script
+        id="breadcrumb-schema"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumb_schema),
+        }}
+      />
+      <CreateClient />
+    </>
   );
 }
