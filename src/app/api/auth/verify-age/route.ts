@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
 
     const supabase = get_service_role_client();
 
-    // Get user's internal ID
+    // Get user's internal ID and email
     const { data: user_data, error: user_error } = await supabase
       .from("users")
-      .select("id")
+      .select("id, email")
       .eq("clerk_id", user.id)
       .single();
 
@@ -51,43 +51,37 @@ export async function POST(req: NextRequest) {
       age--;
     }
 
-    // Determine minimum age based on region
-    const EU_COUNTRIES = [
-      "AT",
-      "BE",
-      "BG",
-      "HR",
-      "CY",
-      "CZ",
-      "DK",
-      "EE",
-      "FI",
-      "FR",
-      "DE",
-      "GR",
-      "HU",
-      "IE",
-      "IT",
-      "LV",
-      "LT",
-      "LU",
-      "MT",
-      "NL",
-      "PL",
-      "PT",
-      "RO",
-      "SK",
-      "SI",
-      "ES",
-      "SE",
-    ];
-    const min_age = validated.region && EU_COUNTRIES.includes(validated.region) ? 16 : 13;
+    // All users must be 18+
+    const min_age = 18;
 
     if (age < min_age) {
-      // User is underage - delete the account
+      // User is underage - ban them permanently and delete the account
+      try {
+        // Get user's IP address and other identifiers
+        const forwarded_for = req.headers.get("x-forwarded-for");
+        const real_ip = req.headers.get("x-real-ip");
+        const ip_address = forwarded_for?.split(",")[0] || real_ip || null;
+
+        // Ban the user permanently
+        await supabase.rpc("ban_underage_user", {
+          user_email: user_data.email || user.emailAddresses?.[0]?.emailAddress || null,
+          user_clerk_id: user.id,
+          user_ip: ip_address,
+          user_fingerprint: null, // Could be added from client-side in future
+          user_birth_date: validated.birth_date,
+        });
+      } catch (ban_error) {
+        console.error("Failed to ban underage user:", ban_error);
+        // Continue with deletion even if ban fails
+      }
+
+      // Delete the account
       await supabase.from("users").delete().eq("id", user_data.id);
 
-      return api_error(`You must be at least ${min_age} years old to use Studio Moikas`, 403);
+      return api_error(
+        `You must be at least ${min_age} years old to use Studio Moikas. Your account has been permanently banned.`,
+        403
+      );
     }
 
     // Update user record with verified age
