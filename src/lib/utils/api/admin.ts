@@ -88,9 +88,9 @@ export async function get_admin_analytics() {
   // Fetch all analytics data in parallel
   const [user_stats_result, usage_stats_result, revenue_stats_result, daily_trends_result] =
     await Promise.all([
-      supabase.from("admin_user_stats").select("*").single(),
-      supabase.from("admin_usage_stats").select("*").single(),
-      supabase.from("admin_revenue_stats").select("*").single(),
+      supabase.from("admin_user_stats").select("*").maybeSingle(),
+      supabase.from("admin_usage_stats").select("*").maybeSingle(),
+      supabase.from("admin_revenue_stats").select("*").maybeSingle(),
       supabase.from("admin_daily_usage_trends").select("*").limit(30),
     ]);
 
@@ -107,6 +107,14 @@ export async function get_admin_analytics() {
   if (daily_trends_result.error) {
     console.error("Admin daily trends error:", daily_trends_result.error);
   }
+
+  // Debug logging
+  console.log("Admin analytics raw results:", {
+    user_stats: user_stats_result,
+    usage_stats: usage_stats_result,
+    revenue_stats: revenue_stats_result,
+    daily_trends: daily_trends_result,
+  });
 
   return {
     user_stats: user_stats_result.data || null,

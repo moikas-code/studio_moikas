@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { get_service_role_client } from "@/lib/utils/database/supabase";
 import { api_success, api_error, handle_api_error } from "@/lib/utils/api/response";
 import { validate_request } from "@/lib/utils/api/validation";
+import {
+  deduct_tokens_with_admin_check,
+  log_usage_with_admin_tracking,
+} from "@/lib/utils/token_management";
 
 // Next.js route configuration
 export const dynamic = "force-dynamic";
@@ -573,28 +577,49 @@ export async function POST(req: NextRequest) {
 
           await supabase.from("image_jobs").update(update_data).eq("id", job.id);
 
-          // Deduct tokens for successful completion (skip for admin users and if already deducted)
+          // Deduct tokens for successful completion (if not already deducted)
           if (!job.tokens_deducted) {
             const { data: subscription } = await supabase
               .from("subscriptions")
-              .select("plan")
+              .select("renewable_tokens, permanent_tokens, plan")
               .eq("user_id", job.user_id)
               .single();
 
-            if (subscription?.plan !== "admin" && job.user_id) {
+            if (subscription && job.user_id) {
               const metadata = update_data.metadata as Record<string, unknown>;
               const final_cost =
                 metadata?.final_cost_mp || metadata?.time_based_cost_mp || job.cost;
 
-              const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
-                p_user_id: job.user_id,
-                p_amount: final_cost,
-                p_description: `Image generation completed: ${job.model} (${job.num_images} image${job.num_images > 1 ? "s" : ""})`,
-              });
+              // Deduct tokens with admin check
+              const token_result = await deduct_tokens_with_admin_check(
+                supabase,
+                job.user_id,
+                final_cost,
+                subscription
+              );
 
-              if (deduct_error) {
-                console.error("Failed to deduct tokens on completion:", deduct_error);
+              if (!token_result.success) {
+                console.error("Failed to deduct tokens on completion:", token_result.error);
               }
+
+              // Log the usage with admin tracking
+              await log_usage_with_admin_tracking(
+                supabase,
+                job.user_id,
+                final_cost,
+                "image_generation",
+                `Image generation completed: ${job.model} (${job.num_images} image${job.num_images > 1 ? "s" : ""})`,
+                {
+                  model: job.model,
+                  image_size: job.image_size,
+                  num_images: job.num_images,
+                  plan: subscription.plan,
+                  job_id: job.job_id,
+                  webhook_completion: true,
+                  inference_time: validated.metrics?.inference_time,
+                },
+                token_result
+              );
             }
           }
         }

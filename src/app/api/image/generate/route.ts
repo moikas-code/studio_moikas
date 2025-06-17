@@ -21,6 +21,10 @@ import { add_overlay_to_image_node } from "@/lib/generate_helpers_node";
 import { fal } from "@fal-ai/client";
 import { moderate_prompt, format_violations } from "@/lib/utils/api/prompt_moderation";
 import { require_age_verification } from "@/lib/utils/api/age_verification";
+import {
+  deduct_tokens_with_admin_check,
+  log_usage_with_admin_tracking,
+} from "@/lib/utils/token_management";
 
 // Type definitions for fal.ai responses
 type FalImageObject = {
@@ -438,18 +442,35 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", job.id);
 
-        // Deduct tokens for successful completion (skip for admin users)
-        if (subscription.plan !== "admin") {
-          const { error: deduct_error } = await supabase.rpc("deduct_tokens", {
-            p_user_id: user.user_id,
-            p_amount: total_cost,
-            p_description: `Image generation: ${validated.model} (${num_images} image${num_images > 1 ? "s" : ""})`,
-          });
+        // Deduct tokens with admin check
+        const token_result = await deduct_tokens_with_admin_check(
+          supabase,
+          user.user_id,
+          total_cost,
+          subscription
+        );
 
-          if (deduct_error) {
-            console.error("Failed to deduct tokens on sync completion:", deduct_error);
-          }
+        if (!token_result.success) {
+          console.error("Failed to deduct tokens on sync completion:", token_result.error);
         }
+
+        // Log the usage with admin tracking
+        await log_usage_with_admin_tracking(
+          supabase,
+          user.user_id,
+          total_cost,
+          "image_generation",
+          `Image generation: ${validated.model} (${num_images} image${num_images > 1 ? "s" : ""})`,
+          {
+            model: validated.model,
+            image_size: `${validated.width || 1024}x${validated.height || 1024}`,
+            num_images,
+            plan: subscription.plan,
+            job_id: job.job_id,
+            sync_generation: true,
+          },
+          token_result
+        );
 
         // Return success
         return api_success({
