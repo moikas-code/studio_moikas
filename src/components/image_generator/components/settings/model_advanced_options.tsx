@@ -185,7 +185,6 @@ export function ModelAdvancedOptions({
           enable_prompt_upsampling !== undefined &&
           set_enable_prompt_upsampling)) && (
         <div className="flex flex-wrap gap-4">
-          {/* Safety Checker */}
           {model_config.metadata?.enable_safety_checker !== undefined && (
             <label className="label cursor-pointer">
               <input
@@ -198,7 +197,6 @@ export function ModelAdvancedOptions({
             </label>
           )}
 
-          {/* Expand Prompt */}
           {model_config.metadata?.expand_prompt !== undefined && (
             <label className="label cursor-pointer">
               <input
@@ -211,7 +209,6 @@ export function ModelAdvancedOptions({
             </label>
           )}
 
-          {/* Prompt Upsampling */}
           {model_config.metadata?.supports_prompt_upsampling &&
             enable_prompt_upsampling !== undefined &&
             set_enable_prompt_upsampling && (
