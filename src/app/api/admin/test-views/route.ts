@@ -82,8 +82,11 @@ export async function GET() {
     test_results.usage_table_sample = {
       data: usage_sample,
       error: usage_sample_error,
-      has_operation_type:
-        usage_sample && usage_sample.length > 0 && "operation_type" in usage_sample[0],
+      has_operation_type: !!(
+        usage_sample &&
+        usage_sample.length > 0 &&
+        "operation_type" in usage_sample[0]
+      ),
     };
 
     return NextResponse.json({
