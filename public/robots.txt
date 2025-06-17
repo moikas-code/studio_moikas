@@ -1,6 +1,13 @@
 # *
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /sign-in
+Disallow: /sign-up
+Disallow: /tools/age-verification
+Disallow: /_next
+Disallow: /static
 
 # Host
 Host: https://studio.moikas.com

@@ -114,15 +114,7 @@ export default function VideoEffectsClient() {
     }
   };
 
-  const handle_job_complete = (video_url: string) => {
-    set_video_url(video_url);
-    set_job_id(null);
-  };
-
-  const handle_job_error = (error_message: string) => {
-    set_error(error_message);
-    set_job_id(null);
-  };
+  // Removed unused handlers - now handled by VideoJobHistory component
 
   const handle_enhance_prompt = async () => {
     if (!prompt.trim() || enhancing) return;
@@ -160,7 +152,7 @@ export default function VideoEffectsClient() {
     }
   };
 
-  const base_cost = selected_model?.base_cost || 0;
+  const base_cost = selected_model?.cost || 0;
   const duration_cost = base_cost * video_duration;
 
   const render_content = () => {
@@ -193,8 +185,8 @@ export default function VideoEffectsClient() {
     if (!selected_model) return { supports_image: false, supports_text: true };
 
     return {
-      supports_image: selected_model.capabilities?.includes("image_to_video") || false,
-      supports_text: selected_model.capabilities?.includes("text_to_video") !== false,
+      supports_image: selected_model.model_config?.supports_image_input || false,
+      supports_text: !selected_model.model_config?.is_text_only !== false,
     };
   };
 
@@ -206,7 +198,7 @@ export default function VideoEffectsClient() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Video Effects Studio</h1>
         <div className="flex items-center gap-4">
-          <Compact_token_display show_refill={false} />
+          <Compact_token_display />
         </div>
       </div>
 
@@ -323,7 +315,7 @@ export default function VideoEffectsClient() {
               ) : (
                 video_models.map((model) => (
                   <option key={model.id} value={model.id}>
-                    {model.name} {model.is_default && "(Recommended)"}
+                    {model.name}
                   </option>
                 ))
               )}
@@ -395,13 +387,15 @@ export default function VideoEffectsClient() {
           </div>
 
           {/* Cost Display */}
-          <CostDisplay base_cost={duration_cost} is_loading={loading || job_in_progress} />
+          <CostDisplay cost={duration_cost} />
 
           {/* Job History */}
           <VideoJobHistory
-            on_job_complete={handle_job_complete}
-            on_job_error={handle_job_error}
-            current_job_id={job_id}
+            on_job_select={(job) => {
+              if (job.video_url) {
+                set_video_url(job.video_url);
+              }
+            }}
           />
         </div>
       </div>

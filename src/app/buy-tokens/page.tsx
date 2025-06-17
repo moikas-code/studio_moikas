@@ -24,11 +24,8 @@ export default function Buy_tokens_page() {
     name: "Mana Points",
     description:
       "Permanent credits for AI image, video, and audio generation. Never expire, use across all Studio Moikas tools.",
-    offers: {
-      price: "2",
-      currency: "USD",
-      availability: "https://schema.org/InStock",
-    },
+    price: "2",
+    currency: "USD",
   });
 
   return (

@@ -16,8 +16,8 @@ import { TTS_LIMITS, TTS_MIN_CHARGE_CHARACTERS, type TTSParams } from "./types";
 type TabType = "text-to-speech" | "document-to-audio";
 
 export default function AudioToolsClient() {
-  const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
-  const { models, loading: models_loading, error: models_error } = useAudioModels(plan || "free");
+  const { mp_tokens, plan } = useContext(MpContext);
+  const { models, loading: models_loading, default_model_id } = useAudioModels(plan || "free");
   const [active_tab, set_active_tab] = useState<TabType>("text-to-speech");
   const [text, set_text] = useState("");
   const [show_voice_settings, set_show_voice_settings] = useState(false);
@@ -27,42 +27,37 @@ export default function AudioToolsClient() {
   const [show_cloning_panel, set_show_cloning_panel] = useState(false);
   const [character_count, set_character_count] = useState(0);
 
-  // Find default model
-  const default_model = models.find((m) => m.is_default);
-
   // Set default model and voice when models load
   useEffect(() => {
-    if (default_model && !selected_model_id) {
-      set_selected_model_id(default_model.id);
+    if (default_model_id && !selected_model_id) {
+      set_selected_model_id(default_model_id);
       // Set first voice as default
-      if (default_model.voices && default_model.voices.length > 0) {
-        set_selected_voice(default_model.voices[0].id);
+      const default_model = models.find((m) => m.id === default_model_id);
+      if (default_model?.voice_presets && default_model.voice_presets.length > 0) {
+        set_selected_voice(default_model.voice_presets[0]);
       }
     }
-  }, [default_model, selected_model_id]);
+  }, [default_model_id, selected_model_id, models]);
 
   const selected_model = models.find((m) => m.id === selected_model_id);
 
   const {
-    generate,
+    generate_speech,
     is_generating,
-    error: generation_error,
-    audio_url,
-    job_id,
-  } = useTextToSpeech({
-    on_tokens_update: refresh_mp,
-  });
+    error_message: generation_error,
+    generated_audio,
+  } = useTextToSpeech();
 
   const handle_generate = async () => {
     if (!text.trim() || !selected_voice || !selected_model_id) return;
 
     const params: TTSParams = {
       text: text.trim(),
-      model_id: selected_model_id,
-      voice_id: custom_voice_id || selected_voice,
+      model: selected_model_id,
+      voice: custom_voice_id || selected_voice,
     };
 
-    await generate(params);
+    await generate_speech(params);
   };
 
   const handle_voice_clone = (voice_id: string) => {
@@ -78,8 +73,8 @@ export default function AudioToolsClient() {
   const get_estimated_cost = () => {
     if (!selected_model || character_count === 0) return 0;
 
-    const base_cost = selected_model.base_cost || 0;
-    const char_divisor = selected_model.char_divisor || 250;
+    const base_cost = selected_model.cost || 0;
+    const char_divisor = 250; // Default character divisor
 
     // Characters are charged in minimum blocks
     const charged_chars = Math.max(character_count, TTS_MIN_CHARGE_CHARACTERS);
@@ -138,12 +133,7 @@ export default function AudioToolsClient() {
       </div>
 
       {/* Error Display */}
-      {(models_error || generation_error) && (
-        <ErrorDisplay
-          error={models_error || generation_error}
-          on_retry={models_error ? () => window.location.reload() : undefined}
-        />
-      )}
+      {generation_error && <ErrorDisplay error_message={generation_error} />}
 
       {/* Content Area */}
       {active_tab === "text-to-speech" ? (
@@ -157,7 +147,7 @@ export default function AudioToolsClient() {
                   Enter Your Text
                 </h2>
                 <span className="text-sm text-gray-500">
-                  {character_count} / {TTS_LIMITS.MAX_CHARS} characters
+                  {character_count} / {TTS_LIMITS.max_text_length} characters
                 </span>
               </div>
 
@@ -165,7 +155,7 @@ export default function AudioToolsClient() {
                 value={text}
                 onChange={(e) => handle_text_change(e.target.value)}
                 placeholder="Type or paste your text here..."
-                maxLength={TTS_LIMITS.MAX_CHARS}
+                maxLength={TTS_LIMITS.max_text_length}
                 className="w-full h-48 p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl resize-none focus:ring-2 focus:ring-jade focus:border-transparent"
                 disabled={is_generating}
               />
@@ -183,8 +173,11 @@ export default function AudioToolsClient() {
             </div>
 
             {/* Audio Player */}
-            {(audio_url || job_id) && (
-              <AudioPlayer audio_url={audio_url} job_id={job_id} on_tokens_update={refresh_mp} />
+            {generated_audio && (
+              <AudioPlayer
+                audio_url={generated_audio.audio_url}
+                mana_points_used={generated_audio.mana_points_used}
+              />
             )}
 
             {/* Generate Button */}
@@ -218,8 +211,8 @@ export default function AudioToolsClient() {
                   set_selected_model_id(e.target.value);
                   // Reset voice selection when model changes
                   const new_model = models.find((m) => m.id === e.target.value);
-                  if (new_model?.voices && new_model.voices.length > 0) {
-                    set_selected_voice(new_model.voices[0].id);
+                  if (new_model?.voice_presets && new_model.voice_presets.length > 0) {
+                    set_selected_voice(new_model.voice_presets[0]);
                   }
                 }}
                 className="w-full p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-jade"
@@ -228,7 +221,7 @@ export default function AudioToolsClient() {
                 <option value="">Select a model</option>
                 {models.map((model) => (
                   <option key={model.id} value={model.id}>
-                    {model.name} {model.is_default && "(Recommended)"}
+                    {model.name} {model.model_config?.is_default && "(Recommended)"}
                   </option>
                 ))}
               </select>
@@ -250,26 +243,25 @@ export default function AudioToolsClient() {
 
               {selected_model && (
                 <VoiceSelectionPanel
-                  voices={selected_model.voices || []}
                   selected_voice={selected_voice}
-                  custom_voice_id={custom_voice_id}
-                  on_voice_select={set_selected_voice}
-                  on_clone_voice={() => set_show_cloning_panel(true)}
-                  expanded={show_voice_settings}
+                  on_voice_change={set_selected_voice}
+                  disabled={is_generating}
                 />
               )}
             </div>
           </div>
         </div>
       ) : (
-        <DocumentToAudio on_tokens_update={refresh_mp} />
+        <DocumentToAudio />
       )}
 
       {/* Voice Cloning Panel */}
       {show_cloning_panel && (
         <VoiceCloningPanel
-          on_close={() => set_show_cloning_panel(false)}
-          on_voice_cloned={handle_voice_clone}
+          on_voice_ready={(voice_id) => {
+            handle_voice_clone(voice_id);
+            set_show_cloning_panel(false);
+          }}
         />
       )}
     </div>

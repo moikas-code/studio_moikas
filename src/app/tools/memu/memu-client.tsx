@@ -31,17 +31,8 @@ const DEFAULT_WORKFLOWS: workflow[] = [
     id: uuidv4(),
     name: "General Chat",
     description: "A versatile AI assistant for general conversation",
-    max_messages: 50,
-    max_tokens: 4000,
-    temperature: 0.7,
-    system_prompt: "You are a helpful, creative, and friendly AI assistant.",
-    tool_choice: "auto",
-    tools: ["llm"],
-    allow_parallel: true,
-    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    is_template: true,
-    status: "active",
+    status: "stable",
   },
 ];
 
@@ -64,8 +55,18 @@ export default function MeMusClient() {
   const [workflow_templates, set_workflow_templates] = useState<workflow_template[]>([]);
   const [user_defaults, set_user_defaults] = useState<default_chat_settings | null>(null);
   const [workflow_limits, set_workflow_limits] = useState<workflow_limits | null>(null);
+  const [new_workflow_name, set_new_workflow_name] = useState("");
+  const [new_workflow_description, set_new_workflow_description] = useState("");
+  const [new_workflow_status, set_new_workflow_status] = useState<
+    "stable" | "early_access" | "experimental" | "deprecated"
+  >("stable");
+  const [creating_workflow, set_creating_workflow] = useState(false);
+  const [loading_default_settings, set_loading_default_settings] = useState(false);
+  const [loading_sessions, set_loading_sessions] = useState(false);
+  const [deleting_session, set_deleting_session] = useState<string | null>(null);
   const [abortControllerRef] = useState<{ current: AbortController | null }>({ current: null });
-  const message_container_ref = useRef<HTMLDivElement>(null);
+  const message_container_ref = useRef<HTMLDivElement>(null!);
+  const text_area_ref = useRef<HTMLTextAreaElement>(null!);
 
   const selected_workflow = workflows.find((w) => w.id === selected_workflow_id);
 
@@ -73,7 +74,7 @@ export default function MeMusClient() {
   const handlers = useMemo(
     () =>
       create_chat_handlers({
-        mp_tokens,
+        mp_tokens: mp_tokens || 0,
         refresh_mp,
         workflows,
         set_workflows,
@@ -95,6 +96,9 @@ export default function MeMusClient() {
         set_show_new_workflow_modal,
         show_templates_modal,
         set_show_templates_modal,
+        show_defaults_modal,
+        show_session_history,
+        set_show_session_history,
         abortControllerRef,
         workflow_templates,
         set_workflow_templates,
@@ -102,7 +106,20 @@ export default function MeMusClient() {
         set_user_defaults,
         workflow_limits,
         set_workflow_limits,
-        abortControllerRef,
+        new_workflow_name,
+        set_new_workflow_name,
+        new_workflow_description,
+        set_new_workflow_description,
+        new_workflow_status,
+        set_new_workflow_status,
+        creating_workflow,
+        set_creating_workflow,
+        loading_default_settings,
+        set_loading_default_settings,
+        loading_sessions,
+        set_loading_sessions,
+        deleting_session,
+        set_deleting_session,
         message_container_ref,
         plan: plan || "free",
       }),
@@ -150,9 +167,7 @@ export default function MeMusClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected_workflow_id]);
 
-  const message_count = messages.filter((m) => m.role === "user").length;
-  const is_at_message_limit =
-    selected_workflow && message_count >= (selected_workflow.max_messages || 50);
+  // Remove unused variables that were causing ESLint warnings
 
   return (
     <div className="h-[calc(100vh-4rem)] overflow-hidden">
@@ -178,27 +193,20 @@ export default function MeMusClient() {
           {/* Messages Area */}
           <MessageArea
             messages={messages}
-            is_loading={is_loading}
-            message_container_ref={message_container_ref}
-            on_regenerate={handlers.regenerate_message}
-            on_edit={(message_id, new_content) => handlers.edit_message(message_id, new_content)}
+            loading={is_loading}
+            selected_workflow={selected_workflow_id}
+            messages_end_ref={message_container_ref}
           />
 
           {/* Input Area */}
           <InputArea
-            input_message={input_message}
-            set_input_message={set_input_message}
-            is_loading={is_loading}
-            is_at_message_limit={is_at_message_limit}
-            on_send={handlers.send_message}
-            on_stop={() => {
-              if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-                set_is_loading(false);
-              }
-            }}
-            tokens_used={handlers.calculate_tokens_used()}
-            max_tokens={selected_workflow?.max_tokens || 4000}
+            input={input_message}
+            loading={is_loading}
+            plan={plan}
+            text_area_ref={text_area_ref}
+            set_input={set_input_message}
+            handle_submit={handlers.handle_submit}
+            handle_key_down={handlers.handle_key_down}
           />
         </div>
 
@@ -206,35 +214,33 @@ export default function MeMusClient() {
         <div className="lg:w-80 flex flex-col gap-4 overflow-hidden">
           {/* Workflow Panel */}
           <Workflow_panel
+            show_workflow_panel={true}
             workflows={workflows}
-            selected_workflow_id={selected_workflow_id}
-            on_select_workflow={set_selected_workflow_id}
-            on_edit_workflow={(workflow_id) => {
-              const workflow = workflows.find((w) => w.id === workflow_id);
-              if (workflow) {
-                set_show_new_workflow_modal(true);
-              }
-            }}
-            on_delete_workflow={handlers.delete_workflow}
-            on_export_workflow={handlers.export_workflow}
-            on_create_new={() => set_show_new_workflow_modal(true)}
+            selected_workflow={selected_workflow_id}
+            set_selected_workflow={(id) => id && set_selected_workflow_id(id)}
+            set_show_templates={() => set_show_templates_modal(true)}
+            set_show_new_workflow_modal={set_show_new_workflow_modal}
+            workflow_limits={workflow_limits}
           />
 
           {/* Session History Panel */}
           {show_session_history && (
             <SessionHistoryPanel
               sessions={sessions}
-              current_session_id={current_session_id}
-              on_select_session={(session_id) => {
+              show_sessions_panel={show_session_history}
+              loading_sessions={loading_sessions}
+              deleting_session={deleting_session}
+              current_session_id={current_session_id || ""}
+              set_show_sessions_panel={set_show_session_history}
+              load_session={async (session_id) => {
                 set_current_session_id(session_id);
                 const session = sessions.find((s) => s.id === session_id);
-                if (session) {
+                if (session && session.workflow_id) {
                   set_selected_workflow_id(session.workflow_id);
-                  handlers.load_session_messages(session_id);
+                  await handlers.load_session_messages(session_id);
                 }
               }}
-              on_delete_session={handlers.delete_session}
-              on_close={() => set_show_session_history(false)}
+              delete_session={handlers.delete_session}
             />
           )}
         </div>
@@ -243,27 +249,42 @@ export default function MeMusClient() {
       {/* Modals */}
       {show_new_workflow_modal && (
         <New_workflow_modal
-          workflow={workflows.find((w) => w.id === selected_workflow_id)}
-          user_defaults={user_defaults}
-          workflow_limits={workflow_limits}
-          on_save={handlers.save_workflow}
-          on_close={() => set_show_new_workflow_modal(false)}
+          show_new_workflow_modal={show_new_workflow_modal}
+          new_workflow_name={new_workflow_name}
+          new_workflow_description={new_workflow_description}
+          new_workflow_status={new_workflow_status}
+          creating_workflow={creating_workflow}
+          set_new_workflow_name={set_new_workflow_name}
+          set_new_workflow_description={set_new_workflow_description}
+          set_new_workflow_status={set_new_workflow_status}
+          set_show_new_workflow_modal={set_show_new_workflow_modal}
+          create_new_workflow={handlers.create_new_workflow}
         />
       )}
 
       {show_templates_modal && (
         <Templates_modal
-          templates={workflow_templates}
-          on_select={handlers.create_workflow_from_template}
-          on_close={() => set_show_templates_modal(false)}
+          show_templates={show_templates_modal}
+          templates={workflow_templates.reduce(
+            (acc, template) => {
+              acc[template.id] = template;
+              return acc;
+            },
+            {} as Record<string, workflow_template>
+          )}
+          create_from_template={handlers.create_from_template}
+          set_show_templates={set_show_templates_modal}
         />
       )}
 
       {show_defaults_modal && (
         <DefaultSettingsModal
-          defaults={user_defaults}
-          on_save={handlers.save_user_defaults}
+          is_open={show_defaults_modal}
+          current_settings={user_defaults}
+          loading={loading_default_settings}
           on_close={() => set_show_defaults_modal(false)}
+          on_save={handlers.update_default_settings}
+          on_reset={handlers.reset_default_settings}
         />
       )}
     </div>

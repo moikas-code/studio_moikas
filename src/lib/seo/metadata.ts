@@ -7,7 +7,7 @@ interface GenerateMetadataOptions {
   keywords?: string[];
   canonical_path?: string;
   og_image?: string;
-  og_type?: "website" | "article" | "product";
+  og_type?: "website" | "article";
   no_index?: boolean;
   twitter_card?: "summary" | "summary_large_image";
   author?: {

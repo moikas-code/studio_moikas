@@ -18,7 +18,7 @@ const FEATURES = [
 ];
 
 export default function TextAnalyzerClient() {
-  const { mp_tokens, refresh_mp, plan } = useContext(MpContext);
+  const { mp_tokens, refresh_mp } = useContext(MpContext);
   const [feature, set_feature] = useState("summary");
   const [text, set_text] = useState("");
   const [result, set_result] = useState("");
@@ -26,11 +26,10 @@ export default function TextAnalyzerClient() {
   const [error, set_error] = useState("");
   const [show_settings, set_show_settings] = useState(false);
 
-  const { cost: estimated_cost } = use_complete_token_estimation({
-    feature: feature as feature_type,
+  const { total_cost: estimated_cost } = use_complete_token_estimation(
     text,
-    plan: plan || "free",
-  });
+    feature as feature_type
+  );
 
   const handle_analyze = async () => {
     if (!text.trim()) {
@@ -140,7 +139,7 @@ export default function TextAnalyzerClient() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Text Analyzer</h1>
         <div className="flex items-center gap-4">
-          <Compact_token_display show_refill={false} />
+          <Compact_token_display />
         </div>
       </div>
 

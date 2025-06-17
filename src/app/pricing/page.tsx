@@ -48,11 +48,8 @@ export default function Pricing_page() {
     name: "Studio Moikas Standard Plan",
     description:
       "Professional AI creative tools with 20,480 Mana Points monthly, priority processing, and no watermarks.",
-    offers: {
-      price: "20",
-      currency: "USD",
-      availability: "https://schema.org/InStock",
-    },
+    price: "20",
+    currency: "USD",
   });
 
   return (
