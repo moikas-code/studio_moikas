@@ -24,6 +24,7 @@ import {
   deduct_tokens_with_admin_check,
   log_usage_with_admin_tracking,
 } from "@/lib/utils/token_management";
+import { ModelConfig } from "@/types/models";
 
 // Type definitions for fal.ai responses
 type FalImageObject = {
@@ -134,14 +135,65 @@ export async function POST(req: NextRequest) {
         )
       );
     }
+
     // 7. Get model from database and calculate cost
-    const { data: model_config, error: model_error } = await supabase
-      .from("models")
-      .select("*")
-      .eq("model_id", validated.model)
-      .eq("is_active", true)
-      .single();
+    let model_config: ModelConfig | null = null;
+    let model_error: unknown = null;
+
+    // For fal-ai/lora models, we need special handling
+    if (validated.model === "fal-ai/lora") {
+      // First, try to find a specific variant if model_name matches a default
+      if (validated.model_name) {
+        const { data: specific_model } = await supabase
+          .from("models")
+          .select("*")
+          .eq("model_id", "fal-ai/lora")
+          .eq("metadata->>default_model_name", validated.model_name)
+          .eq("is_active", true)
+          .single();
+
+        if (specific_model) {
+          // Found a specific variant with this default model
+          model_config = specific_model as ModelConfig;
+        }
+      }
+
+      // If no specific variant found, get the generic one
+      if (!model_config) {
+        const { data, error } = await supabase
+          .from("models")
+          .select("*")
+          .eq("model_id", "fal-ai/lora")
+          .eq("metadata->>allow_custom_model_name", "true")
+          .eq("is_active", true)
+          .single();
+
+        model_config = data as ModelConfig;
+        model_error = error;
+      }
+    } else {
+      // Standard model lookup
+      const { data, error } = await supabase
+        .from("models")
+        .select("*")
+        .eq("model_id", validated.model)
+        .eq("is_active", true)
+        .single();
+
+      model_config = data as ModelConfig;
+      model_error = error;
+    }
+
     if (model_error || !model_config) {
+      if (validated.model === "fal-ai/lora") {
+        throw new Error(
+          `Invalid or inactive LoRA configuration. ${
+            validated.model_name
+              ? `Model "${validated.model_name}" not found in configured LoRA models.`
+              : "No generic LoRA model available."
+          }`
+        );
+      }
       throw new Error(`Invalid or inactive model: ${validated.model}`);
     }
 
