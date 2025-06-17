@@ -363,7 +363,7 @@ export default function TermsOfServiceClient() {
           </p>
           <Link
             href="mailto:legal@moikas.com"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-xl shadow-macos hover:shadow-macos-hover transition-all"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-jade to-jade-dark dark:text-white font-medium rounded-xl shadow-macos hover:shadow-macos-hover transition-all"
           >
             legal@moikas.com
           </Link>

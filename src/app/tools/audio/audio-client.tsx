@@ -184,7 +184,7 @@ export default function AudioToolsClient() {
             <button
               onClick={handle_generate}
               disabled={!can_generate}
-              className="w-full py-4 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="w-full py-4 bg-gradient-to-r from-jade to-jade-darkdark:text-white font-medium rounded-2xl shadow-macos hover:shadow-macos-hover disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {is_generating ? (
                 <span className="flex items-center justify-center gap-2">

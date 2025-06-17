@@ -88,7 +88,7 @@ export default function MacPricingTable() {
               {/* Popular Badge */}
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-jade to-jade-dark text-white text-xs font-medium rounded-full">
+                  <div className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-jade to-jade-dark dark:text-white text-xs font-medium rounded-full">
                     <Sparkles className="w-3 h-3" />
                     Most Popular
                   </div>

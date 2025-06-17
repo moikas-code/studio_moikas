@@ -153,7 +153,7 @@ export default function PrivacyPolicyClient() {
         {
           subtitle: "How to Exercise Rights",
           items: [
-            "Contact us at privacy@moikas.com",
+            "Contact us at x.com/moikas_official",
             "Use the data export feature in your account settings",
             "Submit deletion requests through our privacy portal",
           ],
@@ -292,10 +292,12 @@ export default function PrivacyPolicyClient() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="mailto:privacy@moikas.com"
-              className="px-6 py-3 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-xl shadow-macos hover:shadow-macos-hover transition-all"
+              href="https://x.com/moikas_official"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-gradient-to-r from-jade to-jade-dark dark:text-white font-medium rounded-xl shadow-macos hover:shadow-macos-hover transition-all"
             >
-              privacy@moikas.com
+              @moikas_official
             </Link>
             <Link
               href="/contact/privacy"

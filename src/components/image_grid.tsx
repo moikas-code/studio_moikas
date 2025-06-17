@@ -33,9 +33,7 @@ export default function Image_grid({
   onEdit,
 }: Image_grid_props) {
   const [toast_message, set_toast_message] = useState<string | null>(null);
-  const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(
-    null
-  );
+  const [dropdown_open_idx, set_dropdown_open_idx] = useState<number | null>(null);
 
   // Helper to show toast
   function show_toast(message: string) {
@@ -62,9 +60,7 @@ export default function Image_grid({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
-      blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, mime_type)
-      );
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
     } else if (format === "jpeg") {
       mime_type = "image/jpeg";
       ext = "jpg";
@@ -74,9 +70,7 @@ export default function Image_grid({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
-      blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, mime_type)
-      );
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
     } else if (format === "webp") {
       mime_type = "image/webp";
       ext = "webp";
@@ -86,9 +80,7 @@ export default function Image_grid({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
-      blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, mime_type)
-      );
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime_type));
     } else if (format === "svg") {
       ext = "svg";
       // Wrap the image in an SVG element
@@ -105,23 +97,14 @@ export default function Image_grid({
         orientation: "landscape",
       });
       // Ensure the image fits the page (swap width/height if needed)
-      pdf.addImage(
-        `data:image/png;base64,${base64}`,
-        "PNG",
-        0,
-        0,
-        img.width,
-        img.height
-      );
+      pdf.addImage(`data:image/png;base64,${base64}`, "PNG", 0, 0, img.width, img.height);
       blob = pdf.output("blob");
     }
     if (!blob) return;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${model_id}_${prompt_text.slice(0, 255)}_generated_image_${
-      idx + 1
-    }.${ext}`;
+    a.download = `${model_id}_${prompt_text.slice(0, 255)}_generated_image_${idx + 1}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -142,21 +125,14 @@ export default function Image_grid({
       const res = await fetch(`data:image/png;base64,${base64}`);
       const blob = await res.blob();
       if (navigator.clipboard && typeof window.ClipboardItem !== "undefined") {
-        await navigator.clipboard.write([
-          new window.ClipboardItem({ "image/png": blob }),
-        ]);
+        await navigator.clipboard.write([new window.ClipboardItem({ "image/png": blob })]);
         show_toast("Image copied to clipboard!");
       } else {
-        await navigator.clipboard.writeText(
-          `Image copy not supported. Download instead.`
-        );
+        await navigator.clipboard.writeText(`Image copy not supported. Download instead.`);
         show_toast("Image clipboard not supported in this browser.");
       }
     } catch (err) {
-      show_toast(
-        "Failed to copy image: " +
-          (err instanceof Error ? err.message : String(err))
-      );
+      show_toast("Failed to copy image: " + (err instanceof Error ? err.message : String(err)));
     }
   }
 
@@ -169,7 +145,7 @@ export default function Image_grid({
     { value: "pdf", label: "PDF" },
   ];
   const all_options =
-    (plan === "standard" || plan === "admin") ? [...base_options, ...standard_options] : base_options;
+    plan === "standard" || plan === "admin" ? [...base_options, ...standard_options] : base_options;
 
   // Get model name from model_id
   const model = MODEL_OPTIONS.find((m) => m.value === model_id);
@@ -178,16 +154,10 @@ export default function Image_grid({
   // Info tags for right panel
   // Only show steps/cfg for SANA or other models with extra options
   const models_with_extra_options = ["sana"]; // Add more substrings as needed
-  const show_extra_options = models_with_extra_options.some((substr) =>
-    model_id.includes(substr)
-  );
+  const show_extra_options = models_with_extra_options.some((substr) => model_id.includes(substr));
   const info_tags = [
-    show_extra_options && num_inference_steps !== undefined
-      ? `steps ${num_inference_steps}`
-      : null,
-    show_extra_options && guidance_scale !== undefined
-      ? `cfg ${guidance_scale}`
-      : null,
+    show_extra_options && num_inference_steps !== undefined ? `steps ${num_inference_steps}` : null,
+    show_extra_options && guidance_scale !== undefined ? `cfg ${guidance_scale}` : null,
     style_name && style_name !== "(No style)" ? `style: ${style_name}` : null,
   ].filter(Boolean);
 
@@ -205,7 +175,7 @@ export default function Image_grid({
   return (
     <div className="w-full max-w-5xl mx-auto mt-8 bg-base-900 rounded-xl border border-base-300 shadow-lg p-0 flex flex-col md:flex-row dark">
       {toast_message && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-2 rounded shadow-lg transition-all animate-bounce">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-green-500dark:text-white px-6 py-2 rounded shadow-lg transition-all animate-bounce">
           {toast_message}
         </div>
       )}
@@ -214,26 +184,18 @@ export default function Image_grid({
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-4 pb-2">
           <span
-            className={`text-sm font-semibold ${
-              is_single ? "text-red-400" : "text-orange-400"
-            }`}
+            className={`text-sm font-semibold ${is_single ? "text-red-400" : "text-orange-400"}`}
           >
             {header}
           </span>
           {/* Info bar (for multi-image, show above grid on mobile) */}
           <div className="flex items-center gap-2 text-xs text-base-400">
-            <span className="inline-block bg-base-800 rounded px-2 py-0.5">
-              {model_name}
-            </span>
+            <span className="inline-block bg-base-800 rounded px-2 py-0.5">{model_name}</span>
             {/* Future: stylize/weird options here if available */}
           </div>
         </div>
         {/* Image grid */}
-        <div
-          className={`w-full flex ${
-            is_single ? "justify-center" : ""
-          } px-4 pb-4`}
-        >
+        <div className={`w-full flex ${is_single ? "justify-center" : ""} px-4 pb-4`}>
           {is_single ? (
             <div className="flex flex-col items-center">
               <div className="rounded-lg overflow-hidden border border-base-700 bg-base-800">
@@ -252,9 +214,7 @@ export default function Image_grid({
                 <div className="relative w-full">
                   <button
                     className="btn btn-sm btn-primary w-full"
-                    onClick={() =>
-                      set_dropdown_open_idx(dropdown_open_idx === 0 ? null : 0)
-                    }
+                    onClick={() => set_dropdown_open_idx(dropdown_open_idx === 0 ? null : 0)}
                   >
                     Download
                   </button>
@@ -266,11 +226,7 @@ export default function Image_grid({
                           className="px-4 py-2 text-left hover:bg-base-700 w-full"
                           onClick={async () => {
                             set_dropdown_open_idx(null);
-                            await handle_download(
-                              image_base64[0],
-                              opt.value,
-                              0
-                            );
+                            await handle_download(image_base64[0], opt.value, 0);
                           }}
                         >
                           {opt.label}
@@ -304,9 +260,7 @@ export default function Image_grid({
           ) : (
             <div
               className={`grid ${
-                is_quad
-                  ? "grid-cols-2 grid-rows-2"
-                  : "grid-cols-2 md:grid-cols-4"
+                is_quad ? "grid-cols-2 grid-rows-2" : "grid-cols-2 md:grid-cols-4"
               } gap-3`}
             >
               {image_base64.map((img, idx) => (
@@ -329,9 +283,7 @@ export default function Image_grid({
                       <button
                         className="btn btn-xs btn-primary w-full"
                         onClick={() =>
-                          set_dropdown_open_idx(
-                            dropdown_open_idx === idx ? null : idx
-                          )
+                          set_dropdown_open_idx(dropdown_open_idx === idx ? null : idx)
                         }
                       >
                         Download
@@ -406,14 +358,9 @@ export default function Image_grid({
         {/* Cost and prompt info */}
         <div className="flex flex-col items-end gap-2 w-full">
           <div className="flex items-center gap-2 w-full justify-end">
-            <span className="text-xs text-base-400">
-              {is_single ? "Single" : "Imagine"}
-            </span>
+            <span className="text-xs text-base-400">{is_single ? "Single" : "Imagine"}</span>
             <div className="w-32 h-2 bg-base-800 rounded-full overflow-hidden">
-              <div
-                className="h-2 bg-orange-400 rounded-full"
-                style={{ width: "100%" }}
-              ></div>
+              <div className="h-2 bg-orange-400 rounded-full" style={{ width: "100%" }}></div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-end w-full">
@@ -421,10 +368,7 @@ export default function Image_grid({
               {model_name}
             </span>
             {info_tags.map((tag, idx) => (
-              <span
-                key={idx}
-                className="inline-block bg-base-800 rounded px-2 py-0.5 text-xs"
-              >
+              <span key={idx} className="inline-block bg-base-800 rounded px-2 py-0.5 text-xs">
                 {tag}
               </span>
             ))}
@@ -433,17 +377,13 @@ export default function Image_grid({
             {prompt_text && <div className="italic mb-1">{prompt_text}</div>}
             {mana_points_used !== null && (
               <div className="font-mono">
-                Mana Points used:{" "}
-                <span className="text-orange-400 font-bold">
-                  {total_mp_used}
-                </span>{" "}
+                Mana Points used: <span className="text-orange-400 font-bold">{total_mp_used}</span>{" "}
                 {enhancement_count && enhancement_count > 0 ? (
                   <span className="text-xs text-base-400 ml-2">
-                    ({mana_points_used} + {enhancement_count} for prompt
-                    enhancement)
+                    ({mana_points_used} + {enhancement_count} for prompt enhancement)
                   </span>
                 ) : (
-                  <div/>
+                  <div />
                 )}
               </div>
             )}

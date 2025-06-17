@@ -38,7 +38,7 @@ export default function Cookie_consent_banner() {
       </span>
       <button
         onClick={handle_accept}
-        className="ml-0 md:ml-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark transition"
+        className="ml-0 md:ml-4 px-4 py-2 bg-primarydark:text-white rounded hover:bg-primary-dark transition"
       >
         Accept
       </button>

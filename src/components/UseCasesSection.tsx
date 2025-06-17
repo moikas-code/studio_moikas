@@ -28,10 +28,8 @@ export default function UseCasesSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Palette className="w-5 h-5 text-white" />
-                  <h3 className="text-lg font-bold text-white">
-                    Digital Artists
-                  </h3>
+                  <Palette className="w-5 h-5dark:text-white" />
+                  <h3 className="text-lg font-bolddark:text-white">Digital Artists</h3>
                 </div>
               </div>
             </div>
@@ -58,10 +56,8 @@ export default function UseCasesSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Rocket className="w-5 h-5 text-white" />
-                  <h3 className="text-lg font-bold text-white">
-                    Marketing Teams
-                  </h3>
+                  <Rocket className="w-5 h-5dark:text-white" />
+                  <h3 className="text-lg font-bolddark:text-white">Marketing Teams</h3>
                 </div>
               </div>
             </div>
@@ -88,10 +84,8 @@ export default function UseCasesSection() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Code className="w-5 h-5 text-white" />
-                  <h3 className="text-lg font-bold text-white">
-                    Game Developers
-                  </h3>
+                  <Code className="w-5 h-5dark:text-white" />
+                  <h3 className="text-lg font-bolddark:text-white">Game Developers</h3>
                 </div>
               </div>
             </div>

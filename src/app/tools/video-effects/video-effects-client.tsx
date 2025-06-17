@@ -237,7 +237,7 @@ export default function VideoEffectsClient() {
                   job_in_progress ||
                   !capabilities.supports_text
                 }
-                className="absolute right-2 top-2 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="absolute right-2 top-2 px-3 py-1.5 text-sm bg-gradient-to-r from-purple-500 to-purple-600dark:text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {enhancing ? "Enhancing..." : "Enhance"}
               </button>
@@ -271,7 +271,7 @@ export default function VideoEffectsClient() {
             <button
               onClick={handle_generate}
               disabled={!can_generate || loading || job_in_progress || models_loading}
-              className="mt-4 w-full py-3 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-xl hover:from-jade-dark hover:to-jade transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="mt-4 w-full py-3 bg-gradient-to-r from-jade to-jade-darkdark:text-white font-medium rounded-xl hover:from-jade-dark hover:to-jade transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

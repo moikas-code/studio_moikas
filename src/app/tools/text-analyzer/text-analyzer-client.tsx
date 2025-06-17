@@ -191,7 +191,7 @@ export default function TextAnalyzerClient() {
           <button
             onClick={handle_analyze}
             disabled={!text.trim() || is_loading || estimated_cost > (mp_tokens || 0)}
-            className="w-full py-3 bg-gradient-to-r from-jade to-jade-dark text-white font-medium rounded-xl hover:from-jade-dark hover:to-jade transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-3 bg-gradient-to-r from-jade to-jade-darkdark:text-white font-medium rounded-xl hover:from-jade-dark hover:to-jade transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {is_loading ? (
               <>
