@@ -1,4 +1,15 @@
 import { SignIn } from "@clerk/nextjs";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sign In | Studio Moikas",
+  description: "Sign in to your Studio Moikas account",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
 export default function SignInPage() {
   return (
@@ -6,4 +17,4 @@ export default function SignInPage() {
       <SignIn path="/sign-in" routing="path" signUpUrl="/sign-up" />
     </div>
   );
-} 
+}

@@ -2,13 +2,29 @@
 import React, { useContext } from "react";
 import { useUser } from "@clerk/nextjs";
 import { MpContext } from "../../context/mp_context";
-import { FaImage, FaVideo, FaFileAlt, FaStar, FaCoins, FaRocket, FaEdit, FaRobot, FaMicrophone, FaLock } from "react-icons/fa";
+import {
+  FaImage,
+  FaVideo,
+  FaFileAlt,
+  FaStar,
+  FaCoins,
+  FaRocket,
+  FaEdit,
+  FaRobot,
+  FaMicrophone,
+  FaLock,
+} from "react-icons/fa";
 import Link from "next/link";
 
 export default function Tools_home_page() {
   const { user, isLoaded } = useUser();
   const { mp_tokens, is_loading_tokens, token_error, plan } = useContext(MpContext);
-  const username = user?.username || user?.firstName || user?.lastName || user?.emailAddresses?.[0]?.emailAddress || "User";
+  const username =
+    user?.username ||
+    user?.firstName ||
+    user?.lastName ||
+    user?.emailAddresses?.[0]?.emailAddress ||
+    "User";
 
   const tools = [
     {
@@ -18,7 +34,7 @@ export default function Tools_home_page() {
       href: "/tools/audio",
       color: "from-pink-500 to-rose-500",
       available: true,
-      requiresPro: false
+      requiresPro: false,
     },
     {
       title: "MEMU",
@@ -27,7 +43,7 @@ export default function Tools_home_page() {
       href: "/tools/memu",
       color: "from-indigo-500 to-purple-500",
       available: true,
-      requiresPro: true
+      requiresPro: true,
     },
     {
       title: "Image Generator",
@@ -36,7 +52,7 @@ export default function Tools_home_page() {
       href: "/tools/create",
       color: "from-purple-500 to-pink-500",
       available: true,
-      requiresPro: false
+      requiresPro: false,
     },
     {
       title: "Image Editor",
@@ -45,7 +61,7 @@ export default function Tools_home_page() {
       href: "/tools/image-editor",
       color: "from-orange-500 to-red-500",
       available: true,
-      requiresPro: false
+      requiresPro: false,
     },
     {
       title: "Video Effects",
@@ -54,7 +70,7 @@ export default function Tools_home_page() {
       href: "/tools/video-effects",
       color: "from-blue-500 to-cyan-500",
       available: true,
-      requiresPro: false
+      requiresPro: false,
     },
     {
       title: "Text Analyzer",
@@ -63,10 +79,8 @@ export default function Tools_home_page() {
       href: "/tools/text-analyzer",
       color: "from-green-500 to-teal-500",
       available: true,
-      requiresPro: false
+      requiresPro: false,
     },
-
-
   ];
 
   return (
@@ -77,7 +91,8 @@ export default function Tools_home_page() {
           Welcome to Your Studio{isLoaded && `, ${username}`}!
         </h1>
         <p className="text-lg text-base-content/70 max-w-2xl mx-auto">
-          Your creative AI workspace. Generate images, create videos, and analyze text with the power of AI.
+          Your creative AI workspace. Generate images, create videos, and analyze text with the
+          power of AI.
         </p>
       </div>
 
@@ -112,9 +127,7 @@ export default function Tools_home_page() {
               <h3 className="text-sm font-medium text-base-content/70">Current Plan</h3>
               <FaRocket className="text-purple-500" />
             </div>
-            <div className="text-3xl font-bold text-purple-500 mb-1">
-              {plan || "Free"}
-            </div>
+            <div className="text-3xl font-bold text-purple-500 mb-1">{plan || "Free"}</div>
             <p className="text-xs text-base-content/60">Active subscription</p>
           </div>
         </div>
@@ -127,9 +140,9 @@ export default function Tools_home_page() {
               <h3 className="text-sm font-medium text-base-content/70">Get More MP</h3>
               <FaCoins className="text-orange-500" />
             </div>
-            <Link 
+            <Link
               href="/buy-tokens"
-              className="btn btn-sm btn-primary w-full bg-gradient-to-r from-orange-500 to-yellow-500 border-0 text-white hover:opacity-90"
+              className="btn btn-sm btn-primary w-full bg-gradient-to-r from-orange-500 to-yellow-500 border-0dark:text-white hover:opacity-90"
             >
               Buy Tokens
             </Link>
@@ -143,28 +156,34 @@ export default function Tools_home_page() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tools.map((tool) => {
             const Icon = tool.icon;
-            const isLocked = tool.requiresPro && plan === 'free';
-            
+            const isLocked = tool.requiresPro && plan === "free";
+
             return (
               <Link
                 key={tool.href}
                 href={tool.href}
-                className={`group relative bg-base-100 rounded-2xl p-6 border border-base-300 hover:border-jade/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${(!tool.available || isLocked) && 'opacity-50 cursor-not-allowed'}`}
+                className={`group relative bg-base-100 rounded-2xl p-6 border border-base-300 hover:border-jade/30 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${(!tool.available || isLocked) && "opacity-50 cursor-not-allowed"}`}
                 onClick={(e) => {
                   if (isLocked) {
                     e.preventDefault();
-                    window.location.href = '/pricing';
+                    window.location.href = "/pricing";
                   }
                 }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300"
-                     style={{backgroundImage: `linear-gradient(to bottom right, ${tool.color.split(' ')[1].replace('to-', '')}, ${tool.color.split(' ')[3]})`}} />
-                
+                <div
+                  className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300"
+                  style={{
+                    backgroundImage: `linear-gradient(to bottom right, ${tool.color.split(" ")[1].replace("to-", "")}, ${tool.color.split(" ")[3]})`,
+                  }}
+                />
+
                 <div className="relative z-10">
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${tool.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                  <div
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-r ${tool.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}
+                  >
                     <Icon className="text-white text-xl" />
                   </div>
-                  
+
                   {isLocked && (
                     <div className="absolute top-0 right-0">
                       <div className="bg-warning text-warning-content rounded-full p-2">
@@ -172,22 +191,20 @@ export default function Tools_home_page() {
                       </div>
                     </div>
                   )}
-                  
+
                   <h3 className="text-lg font-semibold mb-2 group-hover:text-jade transition-colors flex items-center gap-2">
                     {tool.title}
                     {isLocked && <span className="badge badge-warning badge-sm">Pro</span>}
                   </h3>
-                  
-                  <p className="text-sm text-base-content/70">
-                    {tool.description}
-                  </p>
+
+                  <p className="text-sm text-base-content/70">{tool.description}</p>
 
                   {!tool.available && (
                     <div className="absolute inset-0 bg-base-100/80 rounded-2xl flex items-center justify-center">
                       <span className="text-sm font-medium">Coming Soon</span>
                     </div>
                   )}
-                  
+
                   {isLocked && (
                     <p className="text-xs text-warning mt-2">Upgrade to Standard to unlock</p>
                   )}
@@ -205,20 +222,12 @@ export default function Tools_home_page() {
           Pro Tips
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-base-content/70">
-          <div>
-            • Use descriptive prompts for better AI-generated content
-          </div>
-          <div>
-            • Each tool uses Mana Points (MP) based on complexity
-          </div>
-          <div>
-            • Save your favorite creations to build your portfolio
-          </div>
-          <div>
-            • Upgrade your plan for more MP and premium features
-          </div>
+          <div>• Use descriptive prompts for better AI-generated content</div>
+          <div>• Each tool uses Mana Points (MP) based on complexity</div>
+          <div>• Save your favorite creations to build your portfolio</div>
+          <div>• Upgrade your plan for more MP and premium features</div>
         </div>
       </div>
     </div>
   );
-} 
+}

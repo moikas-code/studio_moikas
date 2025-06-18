@@ -4,36 +4,6 @@ import { Calendar, AlertCircle, Globe } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 
-const EU_COUNTRIES = [
-  "AT",
-  "BE",
-  "BG",
-  "HR",
-  "CY",
-  "CZ",
-  "DK",
-  "EE",
-  "FI",
-  "FR",
-  "DE",
-  "GR",
-  "HU",
-  "IE",
-  "IT",
-  "LV",
-  "LT",
-  "LU",
-  "MT",
-  "NL",
-  "PL",
-  "PT",
-  "RO",
-  "SK",
-  "SI",
-  "ES",
-  "SE",
-];
-
 interface AgeVerificationFormProps {
   onComplete?: () => void;
 }
@@ -47,7 +17,7 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
   const [error, set_error] = useState("");
 
   const get_min_age = () => {
-    return EU_COUNTRIES.includes(region) ? 16 : 13;
+    return 18; // All users must be 18+
   };
 
   const calculate_age = (birth_date: string) => {
@@ -248,7 +218,7 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
             <option value="OTHER">Other</option>
           </select>
           <p className="text-sm text-base-content/60 mt-1">
-            EU residents must be at least 16 years old
+            All users must be at least 18 years old
           </p>
         </div>
 
@@ -262,10 +232,7 @@ export default function AgeVerificationForm({ onComplete }: AgeVerificationFormP
         <div className="bg-base-200 rounded-lg p-4">
           <p className="text-sm text-base-content/70 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>
-              Minimum age: {get_min_age()} years old
-              {region && EU_COUNTRIES.includes(region) && " (EU requirement)"}
-            </span>
+            <span>Minimum age: {get_min_age()} years old</span>
           </p>
         </div>
 

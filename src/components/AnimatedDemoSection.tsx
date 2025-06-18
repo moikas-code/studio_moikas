@@ -17,9 +17,11 @@ export default function AnimatedDemoSection() {
                 &quot;A cat astronaut on Mars&quot;
               </p>
             </div>
-            <span className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-400">Your prompt</span>
+            <span className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+              Your prompt
+            </span>
           </div>
-          
+
           {/* Animated Arrow */}
           <div className="hidden lg:flex items-center justify-center">
             <div className="relative w-20">
@@ -32,7 +34,7 @@ export default function AnimatedDemoSection() {
           <div className="lg:hidden">
             <ArrowRight className="w-6 h-6 text-jade rotate-90 animate-bounce" />
           </div>
-          
+
           {/* Generated Image */}
           <div className="flex flex-col items-center relative group">
             <div className="relative rounded-xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:scale-105 w-50 h-50">
@@ -46,10 +48,12 @@ export default function AnimatedDemoSection() {
                 priority
               />
               <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-sm rounded px-2 py-0.5 z-20">
-                <span className="text-xs font-medium text-white">AI Generated</span>
+                <span className="text-xs font-medium :text-white">AI Generated</span>
               </div>
             </div>
-            <span className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-400">Your result</span>
+            <span className="mt-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+              Your result
+            </span>
           </div>
         </div>
       </div>
